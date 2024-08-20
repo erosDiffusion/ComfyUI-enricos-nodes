@@ -7,6 +7,8 @@
 ### Setup
 ```git clone https://github.com/erosDiffusion/ComfyUI-enricos-nodes.git``` into your custom nodes directory like all other custom nodes (that are not integrated with manager)
 
+if you try with manager , install via git url and get "not possible with this level of security" just ping me the solution...or do it manually.
+
 
 ### Demo
 demo workflow: after installing, drag and drop in your comfy and Pray (if nothing happens, like the red box does not scale and you can't see images after running once) refresh and run again.

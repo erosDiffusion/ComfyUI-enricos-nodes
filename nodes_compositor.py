@@ -28,6 +28,8 @@ def toBase64ImgUrl(img):
 # other stuff supports the gui
 # ideally we would support any number of inputs to be composited
 # it should not be necessary to pass b64 but just the names of the uploaded images
+# author: erosdiffusionai@gmail.com
+
 class Compositor(nodes.LoadImage):
     @classmethod
     def INPUT_TYPES(s):

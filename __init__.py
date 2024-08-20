@@ -1,4 +1,4 @@
-# from .enricosCompositor import EnricosCompositor
+# author: erosdiffusionai@gmail.com
 from .nodes_compositor import Compositor
 
 

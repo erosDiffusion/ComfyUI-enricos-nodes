@@ -7,11 +7,14 @@
 ### Setup
 **Method 1: git clone**
 open the custom nodes directory in your editor and
+
 ```git clone https://github.com/erosDiffusion/ComfyUI-enricos-nodes.git```
+
 like all other custom nodes (that are not integrated with manager)
 
 **Method 1: via manager's button**
 open ComfyUI manager click on **install via Git URL** and paste this url
+
 ```https://github.com/erosDiffusion/ComfyUI-enricos-nodes.git```
 
 

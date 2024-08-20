@@ -28,30 +28,34 @@ demo workflow: after installing, drag and drop in your comfy and Pray (if nothin
 - use krita or photoshop integrations with comfy (inversion of control)
 
 ### How to use
-- method1: start from demo workflow, you find the images in the assets folder in the cloned repo
-- method2:
--- search compositor in the dropdown (old comfy gui)
--- scale the node to a big size if it does not to it alone by dragging the right bottom corner
--- configure width, height and padding around node (it's used to be able to move beyond the generated image)
--- leave capture on queue on
--- connect the inputs (suggested setup is to always have a fixed size via resize and rembg where needed)
--- run once to get the inputs in the compositor
--- create your composition
-  --- put your images in the dark gray area
-  --- you can put stuff until the red area 
-  --- anything in the dark gray area is rendered
-  --- use up till 8 images
--- run again (if seeds are fixed or images static only compositor will run)
--- use output
+**method1**:
+- start from demo workflow, you find the images in the assets folder in the cloned repo
+- 
+**Method2**:
+  - search compositor in the dropdown (old comfy gui)
+  - scale the node to a big size if it does not to it alone by dragging the right bottom corner
+  - configure width, height and padding around node (it's used to be able to move beyond the generated image)
+  - leave capture on queue on
+  - connect the inputs (suggested setup is to always have a fixed size via resize and rembg where needed)
+  - run once to get the inputs in the compositor
+  - create your composition *
+  - run again (if seeds are fixed or images static only compositor will run)
+  - use output
+   
+    **Create your composition details:**
+    
+  - put your images in the dark gray area
+  - you can put stuff until the red area 
+  - anything in the dark gray area is rendered
+  - use up till 8 images
 
 ### Advanced
 - click to select
 - use controls to rotate and scale
 - drag selected to move
 - shift click to select multiple
-- order of layers ** should top down ** background is zero and so on, but it's not guaranteed it's preserved if you regenerate one
-- click capture to see what is the real order in memory before running
-- for some reason the first load does nont make the red box change size when you type or slide or does not load images, after generation reload it it should be ok...until I understand why
+- **order of layers** images on connected on top should be below with background being the first connected... but it's not guaranteed it's preserved if you regenerate one only, need to double check.
+- click capture to see what is the real order in memory before running (after the first run where images are generated/associated to the editor)  
 - ethere were some conflict with other nodes, maybe because of how I'm importing the fabric library which is used to do the magic...have to check
 
 ### Final words and limitations
@@ -60,6 +64,8 @@ demo workflow: after installing, drag and drop in your comfy and Pray (if nothin
 - you need to run it once to see images in the compositor as first run is somewhat bugged
 - you can only have 1 in the tree...
 - only tested in a portable comfy with no additional nodes (version is from around june 2024 before gui revamp)
+- known issue: for some reason the first load does won't make the red box change size when you type or slide (it should)
+- known issue: first run might not show images in the editor, if so, reload with browser reload and re-run it should be ok.
 
 far from perfect, but hey.. it did not exist before and maybe you can still enjoy it for simple use cases.
 

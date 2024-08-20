@@ -37,7 +37,7 @@ demo workflows: after installing, drag and drop in your comfy and Pray (if nothi
 ### How to use
 **method1**:
 - start from demo workflow, you find the images in the assets folder in the cloned repo
-- 
+
 **Method2**:
   - search compositor in the dropdown (old comfy gui)
   - scale the node to a big size if it does not to it alone by dragging the right bottom corner

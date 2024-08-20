@@ -123,7 +123,7 @@ app.registerExtension({
             ns.v.setHeight(ns.safeArea.getHeight() + (ns.p.value * 2));
             ns.v.setWidth(ns.safeArea.getWidth() + (ns.p.value * 2));
             ns.v.renderAll();
-            ns.node.setSize([ns.v.getWidth() + 100, ns.v.getHeight() + 470]);
+            ns.node.setSize([ns.v.getWidth() + 100, ns.v.getHeight() + 556]);
             ns.capture();
 
     },
@@ -172,7 +172,7 @@ app.registerExtension({
             v.setWidth(value + (p.value * 2));
             safeArea.setWidth(value);
             v.renderAll();
-            node.setSize([v.getWidth() + 100, v.getHeight() + 470])
+            node.setSize([v.getWidth() + 100, v.getHeight() + 556])
             //node.setSize({value+20,node.size[1]});
         }
 
@@ -182,7 +182,7 @@ app.registerExtension({
             v.setHeight(value + (p.value * 2));
             safeArea.setHeight(value);
             v.renderAll();
-            node.setSize([v.getWidth() + 100, v.getHeight() + 470])
+            node.setSize([v.getWidth() + 100, v.getHeight() + 556])
         }
 
         // padding change
@@ -198,7 +198,7 @@ app.registerExtension({
             v.setHeight(safeArea.getHeight() + (value * 2));
             v.setWidth(safeArea.getWidth() + (value * 2));
             v.renderAll();
-            node.setSize([v.getWidth() + 100, v.getHeight() + 470])
+            node.setSize([v.getWidth() + 100, v.getHeight() + 556])
         }
 
         stuff.canvas = v;

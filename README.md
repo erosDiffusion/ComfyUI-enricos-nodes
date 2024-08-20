@@ -15,9 +15,10 @@ and set the security to weak (at your risk)
 
 
 ### Demo
-demo workflow: after installing, drag and drop in your comfy and Pray (if nothing happens, like the red box does not scale and you can't see images after running once) refresh and run again.
+demo workflows: after installing, drag and drop in your comfy and Pray (if nothing happens, like the red box does not scale and you can't see images after running once) refresh and run again.
 
-![the compositor node](/assets/demo.png)
+![demo workflow 1](/assets/demo.png)
+![demo workflow 2](/assets/demo2.png)
 
 
 ### Why this node ?

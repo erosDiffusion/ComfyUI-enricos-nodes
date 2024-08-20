@@ -12,7 +12,7 @@ open the custom nodes directory in your editor and
 
 like all other custom nodes (that are not integrated with manager)
 
-**Method 1: via manager's button**
+**Method 2: via manager's button**
 open ComfyUI manager click on **install via Git URL** and paste this url
 
 ```https://github.com/erosDiffusion/ComfyUI-enricos-nodes.git```

@@ -45,7 +45,7 @@ demo workflows: after installing, drag and drop in your comfy and Pray (if nothi
 - leave capture on queue on
 - connect the inputs (suggested setup is to always have a fixed size via resize and rembg where needed)
 - run once to get the inputs in the compositor
-- create your composition *
+- __create your composition__ (see below)
 - run again (if seeds are fixed or images static only compositor will run)
 - use output
  

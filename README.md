@@ -25,6 +25,7 @@ demo workflow: after installing, drag and drop in your comfy and Pray (if nothin
 - the painter node is great and works better and does a million things more, but it misses some of these features.
 - continue compositing your image like caveman using pixel coordinates
 - well...photoshop and import via million clicks
+- use krita or photoshop integrations with comfy (inversion of control)
 
 ### How to use
 - search compositor in the dropdown (old comfy gui)

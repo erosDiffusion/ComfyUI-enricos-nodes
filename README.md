@@ -29,7 +29,11 @@ demo workflow, drag and drop after isntalling the node, and pray or run reload a
 - leave capture on queue on
 - connect the inputs (suggested setup is to always have a fixed size via resize and rembg where needed)
 - run once to get the inputs in the compositor
-- do composition
+- create your composition
+  -- put your images in the dark gray area
+  -- you can put stuff until the red area 
+  -- anything in the dark gray area is rendered
+  -- use up till 8 images
 - run again (if seeds are fixed or images static only compositor will run)
 - use output
 
@@ -43,8 +47,13 @@ demo workflow, drag and drop after isntalling the node, and pray or run reload a
 - for some reason the first load does nont make the red box change size when you type or slide or does not load images, after generation reload it it should be ok...until I understand why
 - ethere were some conflict with other nodes, maybe because of how I'm importing the fabric library which is used to do the magic...have to check
 
-### Final words
-"maybe" enjoy...
+### Final words and limitations
+
 - could conflict with other nodes
-- you need to run it once to see images in the compositor
-- far from perfect, but hey.. it did not exist before.
+- you need to run it once to see images in the compositor as first run is somewhat bugged
+- you can only have 1 in the tree...
+- only tested in a portable comfy with no additional nodes (version is from around june 2024 before gui revamp)
+
+far from perfect, but hey.. it did not exist before and maybe you can still enjoy it for simple use cases.
+
+**Now go stack your bananas!**

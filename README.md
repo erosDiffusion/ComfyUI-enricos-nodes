@@ -7,7 +7,11 @@
 ### Setup
 ```git clone https://github.com/erosDiffusion/ComfyUI-enricos-nodes.git``` into your custom nodes directory like all other custom nodes (that are not integrated with manager)
 
-if you try with manager , install via git url and get "not possible with this level of security" just ping me the solution...or do it manually.
+if you try to install via Git URL in manager get "This action is not allowed with this security level configuration" then check your manager config.ini
+as discussed [here](https://github.com/ltdrdata/ComfyUI-Manager?tab=readme-ov-file#security-policy):
+and set the security to weak (at your risk)
+
+![the compositor node](/assets/weak.png)
 
 
 ### Demo

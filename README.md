@@ -71,8 +71,10 @@ demo workflows: after installing, drag and drop in your comfy and Pray (if nothi
 - you need to run it once to see images in the compositor as first run is somewhat bugged
 - you can only have 1 in the tree...
 - only tested in a portable comfy with no additional nodes (version is from around june 2024 before gui revamp)
-- known issue: for some reason the first load does won't make the red box change size when you type or slide (it should)
-- known issue: first run might not show images in the editor, if so, reload with browser reload and re-run it should be ok.
+- **known issue**: for some reason the first load does won't make the red box change size when you type or slide (it should)
+- **known issue**: first run might not show images in the editor, if so, reload with browser reload and re-run it should be ok.
+- **known issue**: if you zoom out too much the rendering inside the node might fail (just zoom in)
+- **known issue**: the compositing is not scaled, so if you want a 5k image well... I hope you have a big enough monitor, but it's not (yet) the goal of this node...
 
 far from perfect, but hey.. it did not exist before and maybe you can still enjoy it for simple use cases.
 

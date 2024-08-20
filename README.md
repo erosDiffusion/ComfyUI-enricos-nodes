@@ -79,3 +79,5 @@ demo workflows: after installing, drag and drop in your comfy and Pray (if nothi
 far from perfect, but hey.. it did not exist before and maybe you can still enjoy it for simple use cases.
 
 **Now go stack your bananas!**
+
+yours, ErosDiffusion

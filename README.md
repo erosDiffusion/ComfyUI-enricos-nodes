@@ -1,4 +1,6 @@
-## Compositor Node Alpha
+## Compositor Node
+
+0.0.0-Alpha version :)
 
 ![the compositor node](/assets/sample.png)
 

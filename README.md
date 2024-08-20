@@ -5,9 +5,17 @@
 ![the compositor node](/assets/sample.png)
 
 ### Setup
-```git clone https://github.com/erosDiffusion/ComfyUI-enricos-nodes.git``` into your custom nodes directory like all other custom nodes (that are not integrated with manager)
+**Method 1: git clone**
+open the custom nodes directory in your editor and
+```git clone https://github.com/erosDiffusion/ComfyUI-enricos-nodes.git```
+like all other custom nodes (that are not integrated with manager)
 
-if you try to install via Git URL in manager get "This action is not allowed with this security level configuration" then check your manager config.ini
+**Method 1: via manager's button**
+open ComfyUI manager click on **install via Git URL** and paste this url
+```https://github.com/erosDiffusion/ComfyUI-enricos-nodes.git```
+
+
+if you get: "This action is not allowed with this security level configuration" then check your manager config.ini
 as discussed [here](https://github.com/ltdrdata/ComfyUI-Manager?tab=readme-ov-file#security-policy):
 and set the security to weak (at your risk)
 

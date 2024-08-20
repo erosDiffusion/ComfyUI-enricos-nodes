@@ -9,21 +9,22 @@
 
 
 ### Demo
-demo workflow, drag and drop after isntalling the node, and pray or run reload after connecting/configuring
+demo workflow: after installing, drag and drop in your comfy and Pray (if nothing happens, like the red box does not scale and you can't see images after running once) refresh and run again.
 
 ![the compositor node](/assets/demo.png)
 
 
 ### Why this node ?
-- I wanted to learn how to create custom nodes in ComfyUI
+- I wanted to learn how to create custom nodes with a GUI in ComfyUI
 - be able to composite visually images in ComfyUI
 - be able to have image inputs that are generated on the fly in the composition
 - be able to remember sizing and position across usages/generations
 - have more room to manipulate objects around/outside the generated image
 
 ### Alternatives ?
-- the painter node is great and works better but it misses some of these features
-- composite your image like caveman using pixel coordinates
+- the painter node is great and works better and does a million things more, but it misses some of these features.
+- continue compositing your image like caveman using pixel coordinates
+- well...photoshop and import via million clicks
 
 ### How to use
 - search compositor in the dropdown (old comfy gui)

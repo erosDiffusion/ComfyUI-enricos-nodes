@@ -89,7 +89,7 @@ Sample Workflow (with batch rembg for background removal)
 - could conflict with other nodes
 - you need to run it once to see images in the compositor as first run is somewhat bugged
 - you can only have 1 in the tree...
-- only tested in a portable comfy with no additional nodes (version is from around june 2024 before gui revamp)
+- only tested in a portable comfy with no additional nodes (version is from around june 2024 before inversion of control in the new gui)
 - **known issue**: for some reason the first load does won't make the red box change size when you type or slide (it should)
 - **known issue**: first run might not show images in the editor, if so, reload with browser reload and re-run it should be ok.
 - **known issue**: if you zoom out too much the rendering inside the node might fail (just zoom in)

@@ -17,8 +17,12 @@ and set the security to weak (at your risk)
 ### Demo
 demo workflows: after installing, drag and drop in your comfy and Pray (if nothing happens, like the red box does not scale and you can't see images after running once) refresh and run again.
 
-![demo workflow 1](/assets/demo.png)
+Sample Workflow (with MTB nodes rembg for background removal)
 ![demo workflow 2](/assets/demo2.png)
+
+Sample Workflow (with batch rembg for background removal)
+![demo workflow 1](/assets/demo.png)
+
 
 
 ### Why this node ?
@@ -52,9 +56,13 @@ demo workflows: after installing, drag and drop in your comfy and Pray (if nothi
 **Create your composition details:**
   
 - put your images in the dark gray area
-- you can put stuff until the red area 
+- you can connect any flow (generation with fixed, static rgba, full rgb)
+- you can move stuf until the red area and partly outside the rendering area
 - anything in the dark gray area is rendered
+- anything within the red area can be manipulated
 - use up till 8 images
+- background will be at zero
+- if you loose the focus and something goes on top, just move it away group pick what's below and put it in front of the moved image, shift click, move all back into place (this is until we put some focus management in place...send to back send to front, make unselectable and so on)
 
 ### Advanced
 - click to select

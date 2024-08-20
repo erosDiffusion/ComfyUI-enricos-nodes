@@ -3,7 +3,7 @@
 ![the compositor node](/assets/sample.png)
 
 ### Setup
-```git clone into``` custom nodes like all other custom nodes
+```git clone https://github.com/erosDiffusion/ComfyUI-enricos-nodes.git``` into your custom nodes directory like all other custom nodes (that are not integrated with manager)
 
 
 ### Demo

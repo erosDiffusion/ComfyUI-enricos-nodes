@@ -28,18 +28,21 @@ demo workflow: after installing, drag and drop in your comfy and Pray (if nothin
 - use krita or photoshop integrations with comfy (inversion of control)
 
 ### How to use
-- search compositor in the dropdown (old comfy gui)
-- configure width, height and padding around node (it's used to be able to move beyond the generated image)
-- leave capture on queue on
-- connect the inputs (suggested setup is to always have a fixed size via resize and rembg where needed)
-- run once to get the inputs in the compositor
-- create your composition
-  -- put your images in the dark gray area
-  -- you can put stuff until the red area 
-  -- anything in the dark gray area is rendered
-  -- use up till 8 images
-- run again (if seeds are fixed or images static only compositor will run)
-- use output
+- method1: start from demo workflow, you find the images in the assets folder in the cloned repo
+- method2:
+-- search compositor in the dropdown (old comfy gui)
+-- scale the node to a big size if it does not to it alone by dragging the right bottom corner
+-- configure width, height and padding around node (it's used to be able to move beyond the generated image)
+-- leave capture on queue on
+-- connect the inputs (suggested setup is to always have a fixed size via resize and rembg where needed)
+-- run once to get the inputs in the compositor
+-- create your composition
+  --- put your images in the dark gray area
+  --- you can put stuff until the red area 
+  --- anything in the dark gray area is rendered
+  --- use up till 8 images
+-- run again (if seeds are fixed or images static only compositor will run)
+-- use output
 
 ### Advanced
 - click to select

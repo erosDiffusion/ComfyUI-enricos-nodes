@@ -26,7 +26,7 @@ and set the security to weak (at your risk)
 
 
 ### Demo
-demo workflows: after installing, drag and drop in your comfy and Pray (if nothing happens, like the red box does not scale and you can't see images after running once) refresh and run again.
+Demo workflows: after installing, drag and drop in your comfy and Pray (if nothing happens, like the red box does not scale and you can't see images after running once) refresh and run again.
 
 Sample Workflow (with MTB nodes rembg for background removal)
 ![demo workflow 2](/assets/demo2.png)
@@ -50,19 +50,19 @@ Sample Workflow (with batch rembg for background removal)
 - use krita or photoshop integrations with comfy (inversion of control)
 
 ### How to use
-**method1**:
-- start from demo workflow, you find the images in the assets folder in the cloned repo
+**Method1**:
+- start from demo workflow, for the simple ones you find the images in the assets folder in the cloned repo
 
 **Method2**:
-- search compositor in the dropdown (old comfy gui)
-- scale the node to a big size if it does not to it alone by dragging the right bottom corner
-- configure width, height and padding around node (it's used to be able to move beyond the generated image)
-- leave capture on queue on
+- search "compositor" in the dropdown
+- scale the node to a big size  by dragging the right bottom corner of the node (if it does not to it alone using the size controls inside the node or you can't reach them)
+- configure width, height and padding around node (it's used to be able to move beyond the generated image) the node should resie with the image area and the red box should also grow with the padding or image size.
+- leave capture on queue on (when you queue the node it should "fetch" your latest and greatest composition... to be sure I always click capture manually before enqueuing the prompt after the first run if I've changed the composition)
 - connect the inputs (suggested setup is to always have a fixed size via resize and rembg where needed)
 - run once to get the inputs in the compositor
 - __create your composition__ (see below)
 - run again (if seeds are fixed or images static only compositor will run)
-- use output
+- use the output ! (suggestion is to feed it to a depth anything v2 node and use it in a depth controlnet to guide your image)
  
 **Create your composition details:**
   
@@ -72,7 +72,7 @@ Sample Workflow (with batch rembg for background removal)
 - anything in the dark gray area is rendered
 - anything within the red area can be manipulated
 - use up till 8 images
-- background will be at zero
+- background will be at first slot on top
 - if you loose the focus and something goes on top, just move it away group pick what's below and put it in front of the moved image, shift click, move all back into place (this is until we put some focus management in place...send to back send to front, make unselectable and so on)
 
 ### Advanced
@@ -83,6 +83,7 @@ Sample Workflow (with batch rembg for background removal)
 - **order of layers** images on connected on top should be below with background being the first connected... but it's not guaranteed it's preserved if you regenerate one only, need to double check.
 - click capture to see what is the real order in memory before running (after the first run where images are generated/associated to the editor)  
 - ethere were some conflict with other nodes, maybe because of how I'm importing the fabric library which is used to do the magic...have to check
+- if you accidentally click a big background it will be on top of the other ones...move it aside, shift click and select all others, move them to the background, shift click to include background, move all back into place)
 
 ### More examples (with advanced worfkflow you can find in the repo assets/output examples folder)
 Just throw the worst possible images you find on the internet or that you can generate...

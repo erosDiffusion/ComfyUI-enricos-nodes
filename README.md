@@ -86,14 +86,14 @@ Sample Workflow (with batch rembg for background removal)
 
 ### Final words and limitations
 
-- could conflict with other nodes
-- you need to run it once to see images in the compositor as first run is somewhat bugged
-- you can only have 1 in the tree...
-- only tested in a portable comfy with no additional nodes (version is from around june 2024 before inversion of control in the new gui)
-- **known issue**: for some reason the first load does won't make the red box change size when you type or slide (it should)
+
+- **limitation** you need to run the flow once for the compositor to to show images. so just run on fixed or import static and stop the flow, next time you will start from the compositon
+- **limitation** you can only have 1 in the tree...
+- **known issue**: for some reason the first load might not make the red box change size of the node...
 - **known issue**: first run might not show images in the editor, if so, reload with browser reload and re-run it should be ok.
 - **known issue**: if you zoom out too much the rendering inside the node might fail (just zoom in)
 - **known issue**: the compositing is not scaled, so if you want a 5k image well... I hope you have a big enough monitor, but it's not (yet) the goal of this node...
+- **limitation** reloading a flow with compositor will not reload the compostion (x/y position of images and their sizes) you will have to re-do the compositing by hand.
 
 far from perfect, but hey.. it did not exist before and maybe you can still enjoy it for simple use cases.
 

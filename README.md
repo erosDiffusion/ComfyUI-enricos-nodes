@@ -84,11 +84,14 @@ Sample Workflow (with batch rembg for background removal)
 - click capture to see what is the real order in memory before running (after the first run where images are generated/associated to the editor)  
 - ethere were some conflict with other nodes, maybe because of how I'm importing the fabric library which is used to do the magic...have to check
 
-### some quick examples (with advanced worfkflow you can find in the repo assets/output examples folder)
-jsut throw the worst possible images you find, scale and align quick, give a depth controlnet, describe the full scene and style, render...
-you get full control over the scene and just need to be creative:
+### More examples (with advanced worfkflow you can find in the repo assets/output examples folder)
+Just throw the worst possible images you find on the internet or that you can generate...
+...scale and align quick, give a depth controlnet, describe the full scene and style, render...
+and you will get:
 
 ![demo workflow 2](/assets/gallerySamples.jpg)
+
+now you are in pixel perfect positioning control of your scene and content.
 
 ### Final words and limitations
 

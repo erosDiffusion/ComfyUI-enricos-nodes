@@ -1,5 +1,9 @@
 ## Compositor Node
 
+- pass up to 8 images and visually place, rotate and scale them to build the perfect composition.
+- group move and group rescale.
+- remember their position and scaling value across generations to easy swap images.
+
 0.0.0-Alpha version :)
 
 ![the compositor node](/assets/sample.png)

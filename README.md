@@ -82,13 +82,20 @@ Sample Workflow (with batch rembg for background removal)
 
 ### Advanced
 - click to select
+- drag (from a clear area) to select multiple 
 - use controls to rotate and scale
-- drag selected to move
+- drag selected to move (can also rescale the group)
 - shift click to select multiple
+- shift click to unselect selected in a group select
 - **order of layers** images on connected on top should be below with background being the first connected... but it's not guaranteed it's preserved if you regenerate one only, need to double check.
-- click capture to see what is the real order in memory before running (after the first run where images are generated/associated to the editor)  
+- click "capture" to see what is the real order in memory before running (after the first run where images are generated/associated to the editor)  
 - ethere were some conflict with other nodes, maybe because of how I'm importing the fabric library which is used to do the magic...have to check
 - if you accidentally click a big background it will be on top of the other ones...move it aside, shift click and select all others, move them to the background, shift click to include background, move all back into place)
+
+ ### supporting nodes I use with this one 
+- use rembg(batch) https://github.com/Mamaaaamooooo/batchImg-rembg-ComfyUI-nodes.git
+- AlphaChanelAddByMask node to create an rgba image from drawing a mask to have transparent images in the composition https://github.com/ZHO-ZHO-ZHO/ComfyUI-Text_Image-Composite
+- any controlnet depth for your model
 
 ### More examples (with advanced worfkflow you can find in the repo assets/output examples folder)
 Just throw the worst possible images you find on the internet or that you can generate...

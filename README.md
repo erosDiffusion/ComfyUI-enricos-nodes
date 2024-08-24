@@ -10,6 +10,7 @@
 ![the compositor node](/assets/sample.png)
 
 ### Setup
+
 **Method 1: git clone**
 open the custom nodes directory in your editor and
 
@@ -17,7 +18,10 @@ open the custom nodes directory in your editor and
 
 like all other custom nodes (that are not integrated with manager)
 
-**Method 2: via manager's button**
+**Method 2: ComfyUi Manager **
+In Comfy UI Manager search "Compositor" and select the node from erosDiffusion and press install.
+
+**Method 3: via manager's button**
 open ComfyUI manager click on **install via Git URL** and paste this url
 
 ```https://github.com/erosDiffusion/ComfyUI-enricos-nodes.git```

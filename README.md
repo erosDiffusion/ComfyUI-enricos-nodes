@@ -5,7 +5,7 @@
 - remember their position and scaling value across generations to easy swap images.
 - use the buffer zone to to park an asset you don't want to use or easily reach transformations controls
 
-0.0.0-Alpha version :)
+1.0.1 (Alpha version)
 
 ![the compositor node](/assets/sample.png)
 

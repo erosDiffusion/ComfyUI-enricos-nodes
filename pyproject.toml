@@ -9,6 +9,6 @@ Repository = "https://github.com/erosDiffusion/ComfyUI-enricos-nodes"
 #  Used by Comfy Registry https://comfyregistry.org
 
 [tool.comfy]
-PublisherId = ""
+PublisherId = "erosdiffusion"
 DisplayName = "ComfyUI-enricos-nodes"
 Icon = ""

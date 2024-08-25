@@ -123,6 +123,6 @@ now you are in pixel perfect positioning control of your scene and content.
 
 far from perfect, but hey.. it did not exist before and maybe you can still enjoy it for simple use cases.
 
-**Now go stack your bananas!**
+**Now go stack your apples!**
 
 yours, ErosDiffusion

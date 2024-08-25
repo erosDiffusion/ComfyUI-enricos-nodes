@@ -8,33 +8,6 @@ import {fabric} from "./fabric.js";
 const COMPOSITOR = Symbol();
 const TEST_IMAGE_2 = "./extensions/ComfyUI-enricos-nodes/empty.png"
 
-/**     NOTES
- *     afterQueued(x){console.log(x)},
- *     addStylesheet(import.meta.url);
- *     widget interface in litegraph.d.ts
- *     node interfaces in comfy.d.ts
- *     get_output_data -> ['ui']['images'] -> r[']
- *     result['ui']['a_images'] = self.save_images(image_a, filename_prefix, prompt, extra_pnginfo)['ui']['images']
- *     uis.append(r['ui'])
- *     results.append(r['result'])
- *     app.nodeOutputs[node.id + ""].images = node.images;
- *
- *         xy_plot_image = pil2tensor(background)
- *
- *              # Generate the preview_images
- *             preview_images = PreviewImage().save_images(xy_plot_image)["ui"]["images"]
- *
- *     oppure
- *
- *     data["result"] = [result]
- *                 data["ui"]["images"] = images
- *     return data
-
- /** enrico's custom nodes, attempt at making a composition gui
- * you will be able to pass one or more images
- * find them in an interactive canvas that allows transforms (moving, rotating, scaling) provided by fabric.js
- * then send the composite as output */
-
 var stuff = {
     canvas: null,
     image1: null,

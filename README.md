@@ -3,7 +3,7 @@
 - pass up to 8 images and visually place, rotate and scale them to build the perfect composition.
 - group move and group rescale.
 - remember their position and scaling value across generations to easy swap images.
-- use the buffer zone to to park an asset you don't want to use or easily reach transformations controls
+- use the buffer zone to park an asset you don't want to use or easily reach transformations controls
 
 1.0.1 (Alpha version)
 
@@ -113,7 +113,7 @@ now you are in pixel perfect positioning control of your scene and content.
 ### Final words and limitations
 
 
-- **limitation** you need to run the flow once for the compositor to to show images. so just run on fixed or import static and stop the flow, next time you will start from the compositon
+- **limitation** you need to run the flow once for the compositor to show images. so just run on fixed or import static and stop the flow, next time you will start from the compositon
 - **limitation** you can only have 1 in the tree...
 - **known issue**: for some reason the first load might not make the red box change size of the node...
 - **known issue**: first run might not show images in the editor, if so, reload with browser reload and re-run it should be ok.
@@ -121,7 +121,7 @@ now you are in pixel perfect positioning control of your scene and content.
 - **known issue**: the compositing is not scaled, so if you want a 5k image well... I hope you have a big enough monitor, but it's not (yet) the goal of this node...
 - **limitation** reloading a flow with compositor will not reload the compostion (x/y position of images and their sizes) you will have to re-do the compositing by hand.
 
-far from perfect, but hey.. it did not exist before and maybe you can still enjoy it for simple use cases.
+far from perfect, but hey... it did not exist before, and maybe you can still enjoy it for simple use cases.
 
 **Now go stack your apples!**
 

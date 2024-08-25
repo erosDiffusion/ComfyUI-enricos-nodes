@@ -7,3 +7,14 @@ eg.: pippo.txt
 modifi file
 git sa che c'è una modifica
 git status
+git add (add untracked filed)
+git commit
+
+
+git pull
+git push
+
+
+// git branch
+
+

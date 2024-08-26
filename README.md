@@ -1,3 +1,11 @@
+## Create complex compisitions the FAST and EASY way
+
+How many times you need to create something like this?
+![the compositor node](/assets/showreel1.jpg)
+
+Well, This node was created to make the composition process quick and easy: here you can see the workflow examples used to generate the two cover photos.
+![the compositor node](/assets/showreel1.jpg)
+
 ## Compositor Node
 
 - pass up to 8 images and visually place, rotate and scale them to build the perfect composition.

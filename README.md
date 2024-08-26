@@ -68,6 +68,7 @@ Sample Workflow (with batch rembg for background removal)
 - configure width, height and padding around node (it's used to be able to move beyond the generated image) the node should resie with the image area and the red box should also grow with the padding or image size.
 - leave capture on queue on (when you queue the node it should "fetch" your latest and greatest composition... to be sure I always click capture manually before enqueuing the prompt after the first run if I've changed the composition)
 - connect the inputs (suggested setup is to always have a fixed size via resize and rembg where needed)
+- important: connect the output (save image, preview image,...)
 - run once to get the inputs in the compositor
 - __create your composition__ (see below)
 - run again (if seeds are fixed or images static only compositor will run)

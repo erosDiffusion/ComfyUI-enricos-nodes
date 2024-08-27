@@ -14,7 +14,9 @@ With the Compositor Node you can:
 - Remember their position and scaling value across generations and easily easy swap images.
 - Use the buffer zone to park an asset you don't want to use or easily reach transformations controls
 
-1.0.3 (Alpha version)
+
+1.0.4 (Alpha version)
+- 27.08.2024 new feature: now it's possible to pause the flow with a switch or let the compositor do the output
 
 ![the compositor node](/assets/sample.png)
 

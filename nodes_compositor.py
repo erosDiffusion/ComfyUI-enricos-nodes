@@ -74,6 +74,13 @@ class Compositor(nodes.LoadImage):
         if (not id[0] in s.last_ic): s.last_ic[id[0]] = random.random()
         return s.last_ic[id[0]]
 
+    def check_lazy_status(self, image, **kwargs):
+        pause = kwargs.pop('pause', False)
+        needed = []
+        if pause:
+            needed.append("pause")
+        return needed
+
     # def composite(s, image, **kwargs):
     def composite(self, image, **kwargs):
         # extract the images
@@ -112,7 +119,7 @@ class Compositor(nodes.LoadImage):
 
         if pause:
             #raise InterruptProcessingException()
-            return ExecutionBlocker(None)
+            return ExecutionBlocker(f"Create your composition then toggle the pause button")
 
         else:
             res = super().load_image(folder_paths.get_annotated_filepath(image))

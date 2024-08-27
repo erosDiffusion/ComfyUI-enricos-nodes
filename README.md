@@ -22,7 +22,7 @@ like all other custom nodes (that are not integrated with manager)
 In Comfy UI Manager search "Compositor" and select the node from erosDiffusion and press install.
 
 **Method 3: via manager's button**
-open ComfyUI manager click on **install via Git URL** and paste this url
+open ComfyUI manager click on **Install via Git URL** and paste this url
 
 ```https://github.com/erosDiffusion/ComfyUI-enricos-nodes.git```
 

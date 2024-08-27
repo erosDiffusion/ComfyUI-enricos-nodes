@@ -1,19 +1,22 @@
 ## Create complex compositions the FAST and EASY way
 
-How many times you need to create something like this?
-![the compositor node](/assets/showreel1.jpg)
-
-Well, This node was created to make the composition process quick and easy: here you can see the workflow examples used to generate the two cover photos.
 ![the compositor node](/assets/showreel1.png)
 
-## Compositor Node
+How many times do you need to create something like this?
+![the compositor node](/assets/showreel1.jpg)
 
+Well, This node was created to make the composition process quick and easy!
+
+## The Compositor Node
+With the Compositor Node you can:
 - Pass up to 8 images and visually place, rotate and scale them to build the perfect composition.
-- Group move and group rescale.
-- Remember their position and scaling value across generations to easy swap images.
+- Group move and group rescale the images.
+- Remember their position and scaling value across generations and easily easy swap images.
 - Use the buffer zone to park an asset you don't want to use or easily reach transformations controls
 
-  1.0.3 (Alpha version)
+
+1.0.4 (Alpha version)
+- 27.08.2024 new feature: now it's possible to pause the flow with a switch or let the compositor do the output
 
 ![the compositor node](/assets/sample.png)
 

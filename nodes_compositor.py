@@ -74,6 +74,7 @@ class Compositor(nodes.LoadImage):
         if (not id[0] in s.last_ic): s.last_ic[id[0]] = random.random()
         return s.last_ic[id[0]]
 
+
     def check_lazy_status(self, image, **kwargs):
         pause = kwargs.pop('pause', False)
         needed = []
@@ -81,7 +82,7 @@ class Compositor(nodes.LoadImage):
             needed.append("pause")
         return needed
 
-    # def composite(s, image, **kwargs):
+
     def composite(self, image, **kwargs):
         # extract the images
         # convert them from tensor to pil and then to base 64

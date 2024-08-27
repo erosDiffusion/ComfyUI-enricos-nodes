@@ -8,12 +8,12 @@ Well, This node was created to make the composition process quick and easy: here
 
 ## Compositor Node
 
-- pass up to 8 images and visually place, rotate and scale them to build the perfect composition.
-- group move and group rescale.
-- remember their position and scaling value across generations to easy swap images.
-- use the buffer zone to park an asset you don't want to use or easily reach transformations controls
+- Pass up to 8 images and visually place, rotate and scale them to build the perfect composition.
+- Group move and group rescale.
+- Remember their position and scaling value across generations to easy swap images.
+- Use the buffer zone to park an asset you don't want to use or easily reach transformations controls
 
-  1.0.1 (Alpha version)
+  1.0.3 (Alpha version)
 
 ![the compositor node](/assets/sample.png)
 

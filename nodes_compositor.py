@@ -6,6 +6,8 @@ import numpy as np
 import base64
 from io import BytesIO
 from PIL import Image, ImageOps
+from comfy_execution.graph import ExecutionBlocker
+import random
 
 MAX_RESOLUTION = nodes.MAX_RESOLUTION
 
@@ -31,6 +33,9 @@ def toBase64ImgUrl(img):
 # author: erosdiffusionai@gmail.com
 
 class Compositor(nodes.LoadImage):
+    #INPUT_IS_LIST=True
+    #OUTPUT_NODE = False
+    last_ic = {}
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -40,6 +45,9 @@ class Compositor(nodes.LoadImage):
                 "height": ("INT", {"default": 0, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
                 "padding": ("INT", {"default": 0, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
                 "capture_on_queue": ("BOOLEAN", {"default": True}),
+                # "onexecute": (["Pause", "Pass through"], {}),
+                "pause":  ("BOOLEAN", {"default": True}),
+
             },
             "optional": {
                 "image1": ("IMAGE",),
@@ -51,6 +59,7 @@ class Compositor(nodes.LoadImage):
                 "image7": ("IMAGE",),
                 "image8": ("IMAGE",),
             },
+            "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO", "id": "UNIQUE_ID"},
         }
 
     RETURN_TYPES = ("IMAGE",)
@@ -59,14 +68,25 @@ class Compositor(nodes.LoadImage):
 
     CATEGORY = "image"
 
+    @classmethod
+    def IS_CHANGED(s, id, **kwargs):
+        # mode = kwargs.get("onexecute","")
+        if (not id[0] in s.last_ic): s.last_ic[id[0]] = random.random()
+        return s.last_ic[id[0]]
+
     # def composite(s, image, **kwargs):
-    def composite(s, image, **kwargs):
+    def composite(self, image, **kwargs):
         # extract the images
         # convert them from tensor to pil and then to base 64
         # send as custom to be able to be used by ui
         # finally return the resulting image (the composite "image" is seen as input but it's actually the output)
 
-        #image = kwargs.pop('image', None)
+        # onexecute = kwargs.pop('onexecute', ["Pause", ])
+        pause = kwargs.pop('pause', False)
+        # print(onexecute)
+        # print(self.last_ic)
+
+        # image = kwargs.pop('image', None)
         image1 = kwargs.pop('image1', None)
         image2 = kwargs.pop('image2', None)
         image3 = kwargs.pop('image3', None)
@@ -90,9 +110,31 @@ class Compositor(nodes.LoadImage):
             "compositor.images", {"names": input_images}
         )
 
-        res = super().load_image(folder_paths.get_annotated_filepath(image))
+        if pause:
+            #raise InterruptProcessingException()
+            return ExecutionBlocker(None)
 
-        return res
+        else:
+            res = super().load_image(folder_paths.get_annotated_filepath(image))
+
+            # call PreviewImage base
+            #ret = self.save_images(images=images_in, **kwargs)
+
+            # send the images to view
+            #PromptServer.instance.send_sync("early-image-handler", {"id": id, "urls":ret['ui']['images']})
+
+            #try:
+            #    is_block_condition = (mode == "Always pause" or mode == "Progress first pick" or self.batch > 1)
+            #    is_blocking_mode = (mode not in ["Pass through", "Take First n", "Take Last n"])
+            #    selections = MessageHolder.waitForMessage(id, asList=True) if (is_blocking_mode and is_block_condition) else [0]
+            #except Cancelled:
+            #    raise InterruptProcessingException()
+            #    return (None, None,)
+
+            return res
+
+
+
 
 
 NODE_CLASS_MAPPINGS = {

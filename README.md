@@ -112,10 +112,10 @@ Sample Workflow (with batch rembg for background removal)
 - if you accidentally click a big background it will be on top of the other ones...move it aside, shift click and select all others, move them to the background, shift click to include background, move all back into place)
 
 ### supporting nodes I use with this one
-
+- comy Join Image with Alpha -> to get an rgba to pass the node
 - use rembg(batch) https://github.com/Mamaaaamooooo/batchImg-rembg-ComfyUI-nodes.git
 - AlphaChanelAddByMask node to create an rgba image from drawing a mask to have transparent images in the composition https://github.com/ZHO-ZHO-ZHO/ComfyUI-Text_Image-Composite
-- any controlnet depth for your model
+- any controlnet depth for your model - works well with depth anything v2 preprocessor for both 1.5 (regular controlnet) and xl (via union controlnet) or lineart (like anylineart)
 
 ### More examples (with advanced worfkflow you can find in the repo assets/output examples folder)
 

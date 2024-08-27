@@ -1,10 +1,10 @@
-## Create complex compisitions the FAST and EASY way
+## Create complex compositions the FAST and EASY way
 
 How many times you need to create something like this?
 ![the compositor node](/assets/showreel1.jpg)
 
 Well, This node was created to make the composition process quick and easy: here you can see the workflow examples used to generate the two cover photos.
-![the compositor node](/assets/showreel1.jpg)
+![the compositor node](/assets/showreel1.png)
 
 ## Compositor Node
 
@@ -13,7 +13,7 @@ Well, This node was created to make the composition process quick and easy: here
 - remember their position and scaling value across generations to easy swap images.
 - use the buffer zone to park an asset you don't want to use or easily reach transformations controls
 
-1.0.1 (Alpha version)
+  1.0.1 (Alpha version)
 
 ![the compositor node](/assets/sample.png)
 
@@ -22,7 +22,7 @@ Well, This node was created to make the composition process quick and easy: here
 **Method 1: git clone**
 open the custom nodes directory in your editor and
 
-```git clone https://github.com/erosDiffusion/ComfyUI-enricos-nodes.git```
+`git clone https://github.com/erosDiffusion/ComfyUI-enricos-nodes.git`
 
 like all other custom nodes (that are not integrated with manager)
 
@@ -32,8 +32,7 @@ In Comfy UI Manager search "Compositor" and select the node from erosDiffusion a
 **Method 3: via manager's button**
 open ComfyUI manager click on **install via Git URL** and paste this url
 
-```https://github.com/erosDiffusion/ComfyUI-enricos-nodes.git```
-
+`https://github.com/erosDiffusion/ComfyUI-enricos-nodes.git`
 
 if you get: "This action is not allowed with this security level configuration" then check your manager config.ini
 as discussed [here](https://github.com/ltdrdata/ComfyUI-Manager?tab=readme-ov-file#security-policy):
@@ -41,8 +40,8 @@ and set the security to weak (at your risk)
 
 ![the compositor node](/assets/weak.png)
 
-
 ### Demo
+
 Demo workflows: after installing, drag and drop in your comfy and Pray (if nothing happens, like the red box does not scale and you can't see images after running once) refresh and run again.
 
 Sample Workflow (with MTB nodes rembg for background removal)
@@ -51,9 +50,8 @@ Sample Workflow (with MTB nodes rembg for background removal)
 Sample Workflow (with batch rembg for background removal)
 ![demo workflow 1](/assets/demo.png)
 
-
-
 ### Why this node ?
+
 - I wanted to learn how to create custom nodes with a GUI in ComfyUI
 - be able to composite visually images in ComfyUI
 - be able to have image inputs that are generated on the fly in the composition
@@ -61,29 +59,33 @@ Sample Workflow (with batch rembg for background removal)
 - have more room to manipulate objects around/outside the generated image
 
 ### Alternatives ?
+
 - the painter node is great and works better and does a million things more, but it misses some of these features.
 - continue compositing your image like caveman using pixel coordinates
 - well...photoshop and import via million clicks
 - use krita or photoshop integrations with comfy (inversion of control)
 
 ### How to use
+
 **Method1**:
+
 - start from demo workflow, for the simple ones you find the images in the assets folder in the cloned repo
 
 **Method2**:
+
 - search "compositor" in the dropdown
-- scale the node to a big size  by dragging the right bottom corner of the node (if it does not to it alone using the size controls inside the node or you can't reach them)
+- scale the node to a big size by dragging the right bottom corner of the node (if it does not to it alone using the size controls inside the node or you can't reach them)
 - configure width, height and padding around node (it's used to be able to move beyond the generated image) the node should resie with the image area and the red box should also grow with the padding or image size.
 - leave capture on queue on (when you queue the node it should "fetch" your latest and greatest composition... to be sure I always click capture manually before enqueuing the prompt after the first run if I've changed the composition)
 - connect the inputs (suggested setup is to always have a fixed size via resize and rembg where needed)
 - important: connect the output (save image, preview image,...)
 - run once to get the inputs in the compositor
-- __create your composition__ (see below)
+- **create your composition** (see below)
 - run again (if seeds are fixed or images static only compositor will run)
 - use the output ! (suggestion is to feed it to a depth anything v2 node and use it in a depth controlnet to guide your image)
- 
+
 **Create your composition details:**
-  
+
 - put your images in the dark gray area
 - you can connect any flow (generation with fixed, static rgba, full rgb)
 - you can move stuf until the red area and partly outside the rendering area
@@ -94,23 +96,26 @@ Sample Workflow (with batch rembg for background removal)
 - if you loose the focus and something goes on top, just move it away group pick what's below and put it in front of the moved image, shift click, move all back into place (this is until we put some focus management in place...send to back send to front, make unselectable and so on)
 
 ### Advanced
+
 - click to select
-- drag (from a clear area) to select multiple 
+- drag (from a clear area) to select multiple
 - use controls to rotate and scale
 - drag selected to move (can also rescale the group)
 - shift click to select multiple
 - shift click to unselect selected in a group select
 - **order of layers** images on connected on top should be below with background being the first connected... but it's not guaranteed it's preserved if you regenerate one only, need to double check.
-- click "capture" to see what is the real order in memory before running (after the first run where images are generated/associated to the editor)  
+- click "capture" to see what is the real order in memory before running (after the first run where images are generated/associated to the editor)
 - ethere were some conflict with other nodes, maybe because of how I'm importing the fabric library which is used to do the magic...have to check
 - if you accidentally click a big background it will be on top of the other ones...move it aside, shift click and select all others, move them to the background, shift click to include background, move all back into place)
 
- ### supporting nodes I use with this one 
+### supporting nodes I use with this one
+
 - use rembg(batch) https://github.com/Mamaaaamooooo/batchImg-rembg-ComfyUI-nodes.git
 - AlphaChanelAddByMask node to create an rgba image from drawing a mask to have transparent images in the composition https://github.com/ZHO-ZHO-ZHO/ComfyUI-Text_Image-Composite
 - any controlnet depth for your model
 
 ### More examples (with advanced worfkflow you can find in the repo assets/output examples folder)
+
 Just throw the worst possible images you find on the internet or that you can generate...
 ...scale and align quick, give a depth controlnet, describe the full scene and style, render...
 and you will get:
@@ -120,7 +125,6 @@ and you will get:
 now you are in pixel perfect positioning control of your scene and content.
 
 ### Final words and limitations
-
 
 - **limitation** you need to run the flow once for the compositor to show images. so just run on fixed or import static and stop the flow, next time you will start from the compositon
 - **limitation** you can only have 1 in the tree...

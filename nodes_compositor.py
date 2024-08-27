@@ -34,7 +34,7 @@ def toBase64ImgUrl(img):
 
 class Compositor(nodes.LoadImage):
     #INPUT_IS_LIST=True
-    #OUTPUT_NODE = False
+    OUTPUT_NODE = False
     last_ic = {}
     @classmethod
     def INPUT_TYPES(s):
@@ -120,7 +120,7 @@ class Compositor(nodes.LoadImage):
 
         if pause:
             #raise InterruptProcessingException()
-            return ExecutionBlocker(f"Create your composition then toggle the pause button")
+            return (ExecutionBlocker(None),)
 
         else:
             res = super().load_image(folder_paths.get_annotated_filepath(image))

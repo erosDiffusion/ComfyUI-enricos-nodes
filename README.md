@@ -13,6 +13,7 @@ With the Compositor Node you can:
 - Group move and group rescale the images.
 - Remember their position and scaling value across generations and easily easy swap images.
 - Use the buffer zone to park an asset you don't want to use or easily reach transformations controls
+- easily re-frame your shot
 
 
 1.0.4 (Alpha version)

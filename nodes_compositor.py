@@ -25,6 +25,7 @@ def toBase64ImgUrl(img):
     img_base64 = base64.b64encode(img_types)
     return f"data:image/png;base64,{img_base64.decode('utf-8')}"
 
+
 # compositor type is a customized LoadImage. the image is the output!
 # basically we pretend we have loaded a composite image and return it.
 # other stuff supports the gui
@@ -33,9 +34,10 @@ def toBase64ImgUrl(img):
 # author: erosdiffusionai@gmail.com
 
 class Compositor(nodes.LoadImage):
-    #INPUT_IS_LIST=True
+    # INPUT_IS_LIST=True
     OUTPUT_NODE = False
     last_ic = {}
+
     @classmethod
     def INPUT_TYPES(s):
         return {
@@ -46,7 +48,7 @@ class Compositor(nodes.LoadImage):
                 "padding": ("INT", {"default": 0, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
                 "capture_on_queue": ("BOOLEAN", {"default": True}),
                 # "onexecute": (["Pause", "Pass through"], {}),
-                "pause":  ("BOOLEAN", {"default": True}),
+                "pause": ("BOOLEAN", {"default": True}),
 
             },
             "optional": {
@@ -67,6 +69,16 @@ class Compositor(nodes.LoadImage):
     FUNCTION = "composite"
 
     CATEGORY = "image"
+    DESCRIPTION = """
+The compositor node
+- drag click to select multiple
+- shift click to add/remove from selected
+- once you have a multiselection you can move/scale/rotate all the items in the selection together
+- use the buffer zone to manipulate big items or park them
+- z-index is no intuitive make sure your graph has the items in the same exact vertical sequence on how they are connected
+- regenerating shows you the sequence, if something does not stack correctly regenerate to see where it goes
+- using the pause button should stop the flow but somenodes don't interpret correctly the break and throw an error. it's irreleveant, just close it
+"""
 
     @classmethod
     def IS_CHANGED(s, id, **kwargs):
@@ -74,14 +86,12 @@ class Compositor(nodes.LoadImage):
         if (not id[0] in s.last_ic): s.last_ic[id[0]] = random.random()
         return s.last_ic[id[0]]
 
-
     def check_lazy_status(self, image, **kwargs):
         pause = kwargs.pop('pause', False)
         needed = []
         if pause:
             needed.append("pause")
         return needed
-
 
     def composite(self, image, **kwargs):
         # extract the images
@@ -119,30 +129,27 @@ class Compositor(nodes.LoadImage):
         )
 
         if pause:
-            #raise InterruptProcessingException()
+            # raise InterruptProcessingException()
             return (ExecutionBlocker(None),)
 
         else:
             res = super().load_image(folder_paths.get_annotated_filepath(image))
 
             # call PreviewImage base
-            #ret = self.save_images(images=images_in, **kwargs)
+            # ret = self.save_images(images=images_in, **kwargs)
 
             # send the images to view
-            #PromptServer.instance.send_sync("early-image-handler", {"id": id, "urls":ret['ui']['images']})
+            # PromptServer.instance.send_sync("early-image-handler", {"id": id, "urls":ret['ui']['images']})
 
-            #try:
+            # try:
             #    is_block_condition = (mode == "Always pause" or mode == "Progress first pick" or self.batch > 1)
             #    is_blocking_mode = (mode not in ["Pass through", "Take First n", "Take Last n"])
             #    selections = MessageHolder.waitForMessage(id, asList=True) if (is_blocking_mode and is_block_condition) else [0]
-            #except Cancelled:
+            # except Cancelled:
             #    raise InterruptProcessingException()
             #    return (None, None,)
 
             return res
-
-
-
 
 
 NODE_CLASS_MAPPINGS = {

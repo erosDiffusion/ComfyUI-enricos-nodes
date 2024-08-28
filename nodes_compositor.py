@@ -42,14 +42,12 @@ class Compositor(nodes.LoadImage):
     def INPUT_TYPES(s):
         return {
             "required": {
-                "image": ("COMPOSITOR", {}),
+                "image": ("COMPOSITOR", {"lazy": True}),
                 "width": ("INT", {"default": 0, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
                 "height": ("INT", {"default": 0, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
                 "padding": ("INT", {"default": 0, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
                 "capture_on_queue": ("BOOLEAN", {"default": True}),
-                # "onexecute": (["Pause", "Pass through"], {}),
                 "pause": ("BOOLEAN", {"default": True}),
-
             },
             "optional": {
                 "image1": ("IMAGE",),
@@ -89,12 +87,12 @@ The compositor node
         if (not id[0] in s.last_ic): s.last_ic[id[0]] = random.random()
         return s.last_ic[id[0]]
 
-    def check_lazy_status(self, image, **kwargs):
-        pause = kwargs.pop('pause', False)
-        needed = []
-        if pause:
-            needed.append("pause")
-        return needed
+    # def check_lazy_status(self, image, **kwargs):
+    #     pause = kwargs.pop('pause', False)
+    #     needed = []
+    #     if pause:
+    #         needed.append("pause")
+    #     return needed
 
     def composite(self, image, **kwargs):
         # extract the images

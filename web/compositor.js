@@ -125,6 +125,8 @@ app.registerExtension({
             backgroundColor: 'transparent',
             selectionColor: 'transparent',
             selectionLineWidth: 1,
+            // F-10 preserve object stacking
+            preserveObjectStacking:true,
         });
 
 

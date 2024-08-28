@@ -78,11 +78,14 @@ The compositor node
 - z-index is no intuitive make sure your graph has the items in the same exact vertical sequence on how they are connected
 - regenerating shows you the sequence, if something does not stack correctly regenerate to see where it goes
 - using the pause button should stop the flow but somenodes don't interpret correctly the break and throw an error. it's irreleveant, just close it
+- use "join image with alpha" to apply a mask  (hand drawn or extracted via sam or other way) and get and rgba to pass to the node
+- use Image remove background (rembg) from comfyui-rembg-node to extract an rgba image with no background
 """
 
     @classmethod
     def IS_CHANGED(s, id, **kwargs):
         # mode = kwargs.get("onexecute","")
+        print(s.last_ic)
         if (not id[0] in s.last_ic): s.last_ic[id[0]] = random.random()
         return s.last_ic[id[0]]
 

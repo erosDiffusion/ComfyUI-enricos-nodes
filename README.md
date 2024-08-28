@@ -118,10 +118,11 @@ Sample Workflow (with batch rembg for background removal)
 - if you accidentally click a big background it will be on top of the other ones...move it aside, shift click and select all others, move them to the background, shift click to include background, move all back into place)
 
 ### supporting nodes I use with this one
-- comy Join Image with Alpha -> to get an rgba to pass the node
-- use rembg(batch) https://github.com/Mamaaaamooooo/batchImg-rembg-ComfyUI-nodes.git
-- AlphaChanelAddByMask node to create an rgba image from drawing a mask to have transparent images in the composition https://github.com/ZHO-ZHO-ZHO/ComfyUI-Text_Image-Composite
-- any controlnet depth for your model - works well with depth anything v2 preprocessor for both 1.5 (regular controlnet) and xl (via union controlnet) or lineart (like anylineart)
+- ComfyUI core ->  **Join Image with Alpha** it applies the mask to the image and returns an rgba image
+- **Rembg(batch)** -> from https://github.com/Mamaaaamooooo/batchImg-rembg-ComfyUI-nodes.git -> extracts the subject and returns a rgba image
+- **AlphaChanelAddByMask** -> from https://github.com/ZHO-ZHO-ZHO/ComfyUI-Text_Image-Composite -> again, applies a mask to the image and returns an rgba image
+- any controlnet depth for your model - works well with depth anything v2 preprocessor for both 1.5 (regular controlnet) and xl (via union controlnet) or lineart (like anylineart), for flux you can try x-labs controlnet (but it does not work well for me)
+  
 
 ### More examples (with advanced worfkflow you can find in the repo assets/output examples folder)
 
@@ -131,17 +132,18 @@ and you will get:
 
 ![demo workflow 2](/assets/gallerySamples.jpg)
 
-now you are in pixel perfect positioning control of your scene and content.
+now you are in pixel perfect positioning control of your scene and content !
 
 ### Final words and limitations
 
 - **limitation** you need to run the flow once for the compositor to show images. so just run on fixed or import static and stop the flow, next time you will start from the compositon
 - **limitation** you can only have 1 in the tree...
+- **limitation**: reloading a flow with compositor will not reload the compostion (x/y position of images and their sizes) you will have to re-do the compositing by hand.
 - **known issue**: for some reason the first load might not make the red box change size of the node...
 - **known issue**: first run might not show images in the editor, if so, reload with browser reload and re-run it should be ok.
 - **known issue**: if you zoom out too much the rendering inside the node might fail (just zoom in)
 - **known issue**: the compositing is not scaled, so if you want a 5k image well... I hope you have a big enough monitor, but it's not (yet) the goal of this node...
-- **limitation** reloading a flow with compositor will not reload the compostion (x/y position of images and their sizes) you will have to re-do the compositing by hand.
+
 
 far from perfect, but hey... it did not exist before, and maybe you can still enjoy it for simple use cases.
 

@@ -15,12 +15,11 @@ With the Compositor Node you can:
 - Use the buffer zone to park an asset you don't want to use or easily reach transformations controls
 - easily re-frame your shot
 
-- Changelog
-
-- V 1.0.4 27.08.2024 new feature: now it's possible to pause the flow with a switch or let the compositor do the output
-- V 1.0.7 28.08.2024 new feature: preserve stacking order. when selecting nodes the z-order is preserved.
-  - the first connected node will be the most distant from camera (background)
-  - the last will be the closest to camera (subject/foreground)
+## Changelog
+  - V **1.0.4** 27.08.2024 new feature: now it's possible to pause the flow with a switch or let the compositor do the output
+  - V **1.0.7** 28.08.2024 new feature: preserve stacking order. when selecting nodes the z-order is preserved.
+    - the first connected node will be the most distant from camera (background)
+    - the last will be the closest to camera (subject/foreground)
 
 ![the compositor node](/assets/sample.png)
 

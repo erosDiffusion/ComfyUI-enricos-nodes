@@ -16,7 +16,7 @@ With the Compositor Node you can:
 - easily re-frame your shot
 
 ## Changelog
-  - V **1.0.4** 27.08.2024 new feature: now it's possible to pause the flow with a switch to avoid processing an unfinished composition
+  - V **1.0.4** 27.08.2024 new feature: now it's possible to **pause the flow** with a switch to avoid processing an unfinished composition
   - V **1.0.7** 28.08.2024 new feature: **preserve stacking order**. when selecting a node, it's z-order is preserved.
     - the first connected node will be the most distant from camera (background)
     - the last will be the closest to camera (subject/foreground)

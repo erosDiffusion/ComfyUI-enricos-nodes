@@ -11,9 +11,11 @@ Well, This node was created to make the composition process quick and easy!
 With the Compositor Node you can:
 - Pass up to 8 images and visually place, rotate and scale them to build the perfect composition.
 - Group move and group rescale the images.
-- Remember their position and scaling value across generations and easily easy swap images.
+- Remember the position, scaling values and z-index across generations and easily easy swap images.
 - Use the buffer zone to park an asset you don't want to use or easily reach transformations controls
-- easily re-frame your shot
+- Clearly see the exported area through a green overlay
+- Easily re-frame your shot via multiple selection scaling, resizing and re-positioning
+- flip an image via negative scaling (drag a corner towards and past the inside of the image)
 
 ## Changelog
   - V **1.0.4** 27.08.2024 new feature: now it's possible to **pause the flow** with a switch to avoid processing an unfinished composition

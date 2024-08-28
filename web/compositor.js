@@ -10,10 +10,11 @@ const TEST_IMAGE_2 = "./extensions/ComfyUI-enricos-nodes/empty.png"
 
 var stuff = {
     canvas: null,
-    image1: null,
-    image2: null,
-    image3: null,
-    image4: null,
+    // image1: null,
+    // image2: null,
+    // image3: null,
+    // image4: null,
+    safeAreaBorder: null,
 }
 app.registerExtension({
     name: "Comfy.Compositor",
@@ -68,6 +69,7 @@ app.registerExtension({
                 stuff.canvas.add(theImage);
                 stuff['image' + (index + 1)] = theImage;
             }
+            stuff.canvas.bringToFront(stuff.safeAreaBorder)
         }
 
         function imageMessageHandler(event) {
@@ -93,6 +95,17 @@ app.registerExtension({
             ns.safeArea.setWidth(ns.w.value);
             ns.safeArea.setLeft(ns.p.value);
             ns.safeArea.setTop(ns.p.value);
+
+            ns.safeAreaBorder.setHeight(ns.h.value +2);
+            ns.safeAreaBorder.setWidth(ns.w.value +2);
+            ns.safeAreaBorder.setLeft(ns.p.value -1);
+            ns.safeAreaBorder.setTop(ns.p.value -1 );
+            ns.safeAreaBorder.set("strokeWidth",1);
+            ns.safeAreaBorder.set("stroke", "#00b300b0");
+            ns.safeAreaBorder.bringToFront()
+
+            ns.canvas.bringToFront(ns.safeAreaBorder);
+
             //console.log(v.getWidth(), v.getHeight(), value);
             ns.v.setHeight(ns.safeArea.getHeight() + (ns.p.value * 2));
             ns.v.setWidth(ns.safeArea.getWidth() + (ns.p.value * 2));
@@ -140,13 +153,27 @@ app.registerExtension({
             selectable: false,
         });
 
+        var safeAreaBorder = new fabric.Rect({
+            left: p.value -1,
+            top: p.value -1,
+            fill: 'rgba(0,0,0,0.0)',
+            width: w.value +1,
+            height: h.value +1,
+            selectable: false,
+        });
+
+        stuff.safeAreaBorder = safeAreaBorder;
+
         v.add(safeArea);
+        v.add(safeAreaBorder);
+        v.bringToFront(safeAreaBorder);
 
         w.origCalback = w.callback;
         w.callback = (value, graphCanvas, node, pos, event) => {
             //w.origCalback(value, graphCanvas, node, pos, event);
             v.setWidth(value + (p.value * 2));
             safeArea.setWidth(value);
+            safeAreaBorder.setWidth(value);
             v.renderAll();
             node.setSize([v.getWidth() + 100, v.getHeight() + 556])
             //node.setSize({value+20,node.size[1]});
@@ -157,6 +184,7 @@ app.registerExtension({
             //h.origCalback(value, graphCanvas, node, pos, event);
             v.setHeight(value + (p.value * 2));
             safeArea.setHeight(value);
+            safeAreaBorder.setHeight(value +2);
             v.renderAll();
             node.setSize([v.getWidth() + 100, v.getHeight() + 556])
         }
@@ -170,6 +198,13 @@ app.registerExtension({
             safeArea.setWidth(w.value);
             safeArea.setLeft(value);
             safeArea.setTop(value);
+
+            safeAreaBorder.setHeight(h.value + 2);
+            safeAreaBorder.setWidth(w.value + 2);
+            safeAreaBorder.setLeft(value -1);
+            safeAreaBorder.setTop(value -1);
+
+
             //console.log(v.getWidth(), v.getHeight(), value);
             v.setHeight(safeArea.getHeight() + (value * 2));
             v.setWidth(safeArea.getWidth() + (value * 2));
@@ -177,6 +212,7 @@ app.registerExtension({
             node.setSize([v.getWidth() + 100, v.getHeight() + 556])
         }
 
+        /** the fabric canvas:v */
         stuff.canvas = v;
 
         // final image to be associated to the node preview
@@ -216,10 +252,12 @@ app.registerExtension({
             p:p,
             w:w,
             h:h,
+            /** the fabric canvas:v */
             v:v,
             camera:camera,
             i:img,
             safeArea:safeArea,
+            safeAreaBorder:safeAreaBorder,
             capture:capture,
         }
 

@@ -39,6 +39,16 @@ class Compositor(nodes.LoadImage):
     last_ic = {}
 
     @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        file = kwargs.get("image")
+        hash = kwargs.get("hash")
+        print("is changed")
+        print(file)
+        print(hash)
+
+        return hash
+
+    @classmethod
     def INPUT_TYPES(s):
         return {
             "required": {
@@ -48,6 +58,7 @@ class Compositor(nodes.LoadImage):
                 "padding": ("INT", {"default": 100, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
                 "capture_on_queue": ("BOOLEAN", {"default": True}),
                 "pause": ("BOOLEAN", {"default": True}),
+                "hash": ("STRING", {"default": ""}),
             },
             "optional": {
                 "image1": ("IMAGE",),
@@ -59,7 +70,12 @@ class Compositor(nodes.LoadImage):
                 "image7": ("IMAGE",),
                 "image8": ("IMAGE",),
             },
-            "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO", "node_id": "UNIQUE_ID"},
+            "hidden": {
+                "prompt": "PROMPT",
+                "extra_pnginfo": "EXTRA_PNGINFO",
+                "node_id": "UNIQUE_ID",
+                "hash": "STRING"
+            },
         }
 
     RETURN_TYPES = ("IMAGE",)
@@ -79,6 +95,20 @@ The compositor node
 - use "join image with alpha" to apply a mask  (hand drawn or extracted via sam or other way) and get and rgba to pass to the node
 - use Image remove background (rembg) from comfyui-rembg-node to extract an rgba image with no background
 """
+
+    # @classmethod
+    # def IS_CHANGED(s, image):
+    #     image_path = folder_paths.get_annotated_filepath(image)
+    #     m = hashlib.sha256()
+    #     with open(image_path, 'rb') as f:
+    #         m.update(f.read())
+    #     return m.digest().hex()
+
+    # @classmethod
+    # def IS_CHANGED(cls, id, **kwargs):
+    #     image = kwargs.get("hash","")
+    #     if (not id[0] in cls.last_ic): cls.last_ic[id[0]] = random.random()
+    #     return cls.last_ic[id[0]]
 
     # @classmethod
     # def IS_CHANGED(s, id, **kwargs):
@@ -127,7 +157,7 @@ The compositor node
                 input_images.append(img)
 
         PromptServer.instance.send_sync(
-            "compositor.images", {"names": input_images, "node": node_id }
+            "compositor.images", {"names": input_images, "node": node_id}
         )
 
         if pause:

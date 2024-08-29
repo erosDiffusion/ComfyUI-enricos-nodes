@@ -8,11 +8,6 @@ import {fabric} from "./fabric.js";
 const COMPOSITOR = Symbol();
 const TEST_IMAGE_2 = "./extensions/ComfyUI-enricos-nodes/empty.png"
 
-// var stuff = {
-//     canvas: null,
-//     safeAreaBorder: null,
-// }
-
 /**
  * Web page load
  * invokeExtensionsAsync init
@@ -49,14 +44,18 @@ app.registerExtension({
             COMPOSITOR(node, inputName, inputData, app) {
 
                 const array = new Uint32Array(10);
-                const compositorId = 'c_'+self.crypto.getRandomValues(array)[0]+'_'+self.crypto.getRandomValues(array)[1];
+                const compositorId = 'c_' + self.crypto.getRandomValues(array)[0] + '_' + self.crypto.getRandomValues(array)[1];
                 node.stuff = {
                     canvasId: compositorId,
                     canvas: null,
                     safeAreaBorder: null,
+                    c1: "",
+                    c2: "",
+                    cblob: undefined,
+                    lastUpload: undefined,
                 }
 
-                console.log("getCustomWidgets", node, node.id, inputName, inputData, app, node.stuff);
+                // console.log("getCustomWidgets", node, node.id, inputName, inputData, app, node.stuff);
                 let res;
                 node[COMPOSITOR] = new Promise((resolve) => (res = resolve));
 
@@ -67,16 +66,16 @@ app.registerExtension({
                 const canvas = document.createElement("canvas");
                 canvas.id = node.stuff.canvasId;
                 canvas.style = 'outline:1px solid red';
-                //canvas.width = 'auto';
-                //canvas.height = 'auto';
-                //node.resizable = false;
+                // canvas.width = 'auto';
+                // canvas.height = 'auto';
+                // node.resizable = false;
 
                 container.appendChild(canvas);
                 // https://docs.comfy.org/essentials/javascript_objects_and_hijacking
 
 
                 // NOTE: hideOnZoom:false FIXES not being able to take screenshot and disappearing on zomout
-                return {widget: node.addDOMWidget(inputName, "COMPOSITOR", container, {hideOnZoom:false})}; // hideOnZoom:false ,ccanvas: canvas
+                return {widget: node.addDOMWidget(inputName, "COMPOSITOR", container, {hideOnZoom: false})}; // hideOnZoom:false ,ccanvas: canvas
                 // return {widget: node.addDOMWidget(inputName, "COMPOSITOR", container, {})}; // hideOnZoom:false ,ccanvas: canvas
             },
         };
@@ -92,12 +91,13 @@ app.registerExtension({
         // and leverage theImage.cacheKey if it's the same image, do nothing
         function addOrReplace(theImage, index, nodeId) {
             //
-            console.log(app.graph.getNodeById(nodeId));
+            // console.log(app.graph.getNodeById(nodeId));
             const node = app.graph.getNodeById(nodeId);
             // debugger;
             if (node.stuff['image' + (index + 1)] == null) {
                 node.stuff['image' + (index + 1)] = theImage;
                 node.stuff.canvas.add(theImage);
+
                 //
             }
 
@@ -115,7 +115,7 @@ app.registerExtension({
                     originY: node.stuff['image' + (index + 1)].originY,
                 };
 
-                //Remove the old image from the canvas
+                // Remove the old image from the canvas
                 node.stuff.canvas.remove(node.stuff['image' + (index + 1)]);
                 theImage.set(oldTransform);
                 node.stuff.canvas.add(theImage);
@@ -126,7 +126,7 @@ app.registerExtension({
 
         function imageMessageHandler(event) {
             // base 64 content of the image
-            console.log(event, event.detail);
+            // console.log(event, event.detail);
             const nodeId = event.detail.node;
             const images = [...event.detail.names]
 
@@ -149,9 +149,9 @@ app.registerExtension({
      * (a LiteGraph object).
      * This is discussed further in Comfy Objects.
      */
-    async init(args) {
-        console.log("init", args)
-    },
+    // async init(args) {
+    //     console.log("init", args)
+    // },
     /**
      * Called once for each node type (the list of nodes available in the AddNode menu), and is used to modify the behaviour of the node.
      *
@@ -162,466 +162,31 @@ app.registerExtension({
      * such as its category, inputs, and outputs.
      * app is a reference to the main Comfy app object (which you have already imported anyway!)
      */
-    async beforeRegisterNodeDef(nodeType, nodeData, app) {
+    // async beforeRegisterNodeDef(nodeType, nodeData, app) {
+    //
+    //     if (nodeType.comfyClass == 'Compositor') {
+    // //         console.log("beforeRegisterNodeDef", nodeType, nodeData, app);
+    //
+    //         const orig_nodeCreated = nodeType.prototype.onNodeCreated;
+    //         nodeType.prototype.onNodeCreated = async function () {
+    //             // console.log("onNodeCreated", this);
+    //             orig_nodeCreated?.apply(this, arguments)
+    //             this.setSize([this.stuff.v.getWidth() + 100, this.stuff.v.getHeight() + 556])
+    //         }
+    //
+    //         const onExecuted = nodeType.prototype.onExecuted;
+    //         nodeType.prototype.onExecuted = function (message) {
+    //             // console.log("onExecuted", this, message);
+    //             const r = onExecuted?.apply?.(this, arguments)
+    //             return r;
+    //         }
+    //     }
+    //
 
-        if (nodeType.comfyClass == 'Compositor') {
-            console.log("beforeRegisterNodeDef", nodeType, nodeData, app);
-
-            const orig_nodeCreated = nodeType.prototype.onNodeCreated;
-            nodeType.prototype.onNodeCreated = async function () {
-                console.log("onNodeCreated", this);
-                orig_nodeCreated?.apply(this, arguments)
-                this.setSize([this.stuff.v.getWidth() + 100, this.stuff.v.getHeight() + 556])
-            }
-
-            const onExecuted = nodeType.prototype.onExecuted;
-            nodeType.prototype.onExecuted = function (message) {
-                console.log("onExecuted", this, message);
-                const r = onExecuted?.apply?.(this, arguments)
-                return r;
-            }
-        }
-
-
-        //     console.log("nodeType.comfyClass",nodeType.comfyClass)
-        //     const orig_nodeCreated = nodeType.prototype.onNodeCreated
-        //     nodeType.prototype.onNodeCreated = async function () {
-        //         orig_nodeCreated?.apply(this, arguments)
-        //         const uploadWidget = this.widgets.filter(w => w.name == 'upload')[0]
-        //         const widget = {
-        //             type: 'div',
-        //             name: 'upload-preview',
-        //             draw (ctx, node, widget_width, y, widget_height) {
-        //                 Object.assign(
-        //                     this.div.style,
-        //                     get_position_style(ctx, widget_width-88, 88, node.size[1])
-        //                 )
-        //             }
-        //         }
-        //
-        //         widget.div = $el('div', {})
-        //         widget.div.style.width = `120px`
-        //         document.body.appendChild(widget.div)
-        //
-        //         const inputDiv = (key, placeholder, preview) => {
-        //             let div = document.createElement('div')
-        //             const ip = document.createElement('button')
-        //             ip.className = `${'comfy-multiline-input'} ${placeholder}`
-        //             div.style = `display: flex;
-        //     align-items: center;
-        //     margin: 6px 8px;
-        //     margin-top: 0;`
-        //
-        //             ip.style = `outline: none;
-        //     border: none;
-        //     padding: 4px;
-        //     width: 100px;cursor: pointer;
-        //     height: 32px;`
-        //             ip.innerText = placeholder
-        //             div.appendChild(ip)
-        //
-        //             let that = this
-        //
-        //             ip.addEventListener('click', async event => {
-        //                 let fileURL = await inputFileClick(true, true)
-        //
-        //                 // console.log('文件URL: ', fileURL)
-        //                 let html = `<model-viewer  src="${fileURL}"
-        //         oncontextmenu="return false;"
-        //         min-field-of-view="0deg" max-field-of-view="180deg"
-        //          shadow-intensity="1"
-        //          camera-controls
-        //          touch-action="pan-y">
-        //
-        //          <div class="controls">
-        //           <div>Variant: <select class="variant"></select></div>
-        //           <div>Material: <select class="material"></select></div>
-        //           <div>Material: <div class="material_img"> </div></div>
-        //           <div>
-        //             <button class="bg">BG</button>
-        //
-        //           </div>
-        //           <div>
-        //            <input class="ddcap_step" type="number" min="1" max="20" step="1" value="1">
-        //            <input class="total_images" type="number" min="1" max="180" step="1" value="40">
-        //            <input class="ddcap_range" type="range" min="-180" max="180" step="1" value="0">
-        //            <input class="ddcap_range_top" type="range" min="-180" max="180" step="1" value="0">
-        //           <button class="ddcap">Capture Rotational Screenshots</button></div>
-        //
-        //           <div><button class="export">Export GLB</button></div>
-        //
-        //         </div></model-viewer>`
-        //
-        //                 preview.innerHTML = html
-        //                 if (that.size[1] < 400) {
-        //                     that.setSize([that.size[0], that.size[1] + 300])
-        //                     app.canvas.draw(true, true)
-        //                 }
-        //
-        //                 const modelViewerVariants = preview.querySelector('model-viewer')
-        //                 const select = preview.querySelector('.variant')
-        //                 const selectMaterial = preview.querySelector('.material')
-        //                 const material_img = preview.querySelector('.material_img')
-        //                 const bg = preview.querySelector('.bg')
-        //
-        //                 const exportGLB = preview.querySelector('.export')
-        //
-        //                 const ddcap_step = preview.querySelector('.ddcap_step')
-        //                 const total_images = preview.querySelector('.total_images')
-        //                 const ddcap_range = preview.querySelector('.ddcap_range')
-        //                 const ddcap_range_top = preview.querySelector('.ddcap_range_top')
-        //                 const ddCap = preview.querySelector('.ddcap')
-        //                 const sleep = (t = 1000) => {
-        //                     return new Promise((res, rej) => {
-        //                         return setTimeout(() => {
-        //                             res(t)
-        //                         }, t)
-        //                     })
-        //                 }
-        //
-        //                 async function captureImage (isUrl = true) {
-        //                     let base64Data = modelViewerVariants.toDataURL()
-        //
-        //                     const contentType = getContentTypeFromBase64(base64Data)
-        //
-        //                     const blob = await base64ToBlobFromURL(base64Data, contentType)
-        //
-        //                     if (isUrl) return await uploadImage(blob, '.png')
-        //                     return await uploadImage_(blob, '.png')
-        //                 }
-        //
-        //                 async function captureImages (angleIncrement = 1, totalImages = 12) {
-        //                     // 记录初始旋转角度
-        //                     const initialCameraOrbit =
-        //                         modelViewerVariants.cameraOrbit.split(' ')
-        //                     console.log(
-        //                         '#captureImages',
-        //                         initialCameraOrbit,
-        //                         angleIncrement * totalImages
-        //                     )
-        //                     // const totalImages = 12
-        //                     // const angleIncrement = totalRotation / totalImages // Each increment in degrees
-        //                     let currentAngle =
-        //                         Number(initialCameraOrbit[0].replace('deg', '')) -
-        //                         (angleIncrement * totalImages) / 2 // Start from the leftmost angle
-        //                     let frames = []
-        //
-        //                     modelViewerVariants.removeAttribute('camera-controls')
-        //
-        //                     for (let i = 0; i < totalImages; i++) {
-        //                         modelViewerVariants.cameraOrbit = `${currentAngle}deg ${initialCameraOrbit[1]} ${initialCameraOrbit[2]}`
-        //                         await sleep(1000)
-        //                         console.log(`Capturing image at angle: ${currentAngle}deg`)
-        //                         let file = await captureImage(false)
-        //                         frames.push(file)
-        //                         currentAngle += angleIncrement
-        //                     }
-        //                     await sleep(1000)
-        //                     // 恢复到初始旋转角度
-        //                     modelViewerVariants.cameraOrbit = initialCameraOrbit.join(' ')
-        //                     modelViewerVariants.setAttribute('camera-controls', '')
-        //                     return frames
-        //                 }
-        //                 ddCap.addEventListener('click', async e => {
-        //                     const angleIncrement = Number(ddcap_step.value),
-        //                         totalImages = Number(total_images.value)
-        //
-        //                     let images = await captureImages(angleIncrement, totalImages)
-        //                     // console.log(images)
-        //                     let dd = getLocalData(key)
-        //                     dd[that.id].images = images
-        //                     setLocalDataOfWin(key, dd)
-        //                 })
-        //
-        //                 ddcap_range.addEventListener('input', async e => {
-        //                     // console.log(ddcap_range.value)
-        //                     const initialCameraOrbit =
-        //                         modelViewerVariants.cameraOrbit.split(' ')
-        //                     modelViewerVariants.cameraOrbit = `${ddcap_range.value}deg ${initialCameraOrbit[1]} ${initialCameraOrbit[2]}`
-        //                     modelViewerVariants.setAttribute('camera-controls', '')
-        //                 })
-        //
-        //                 ddcap_range_top.addEventListener('input', async e => {
-        //                     // console.log(ddcap_range.value)
-        //                     const initialCameraOrbit =
-        //                         modelViewerVariants.cameraOrbit.split(' ')
-        //                     modelViewerVariants.cameraOrbit = `${initialCameraOrbit[0]} ${ddcap_range_top.value}deg ${initialCameraOrbit[2]}`
-        //                     modelViewerVariants.setAttribute('camera-controls', '')
-        //                 })
-        //
-        //                 if (modelViewerVariants) {
-        //                     modelViewerVariants.style.width = `${that.size[0] - 48}px`
-        //                     modelViewerVariants.style.height = `${that.size[1] - 48}px`
-        //                 }
-        //
-        //                 modelViewerVariants.addEventListener('load', async () => {
-        //                     const names = modelViewerVariants.availableVariants
-        //
-        //                     // 变量
-        //                     for (const name of names) {
-        //                         const option = document.createElement('option')
-        //                         option.value = name
-        //                         option.textContent = name
-        //                         select.appendChild(option)
-        //                     }
-        //                     // Adds a default option.
-        //                     if (names.length === 0) {
-        //                         const option = document.createElement('option')
-        //                         option.value = 'default'
-        //                         option.textContent = 'Default'
-        //                         select.appendChild(option)
-        //                     }
-        //
-        //                     // 材质
-        //                     extractMaterial(modelViewerVariants, selectMaterial, material_img)
-        //                 })
-        //
-        //                 let timer = null
-        //                 const delay = 500 // 延迟时间，单位为毫秒
-        //
-        //                 async function checkCameraChange () {
-        //                     let dd = getLocalData(key)
-        //
-        //                     //  const fileBlob = new Blob([e.target.result], { type: file.type });
-        //                     let url = await captureImage()
-        //
-        //                     let bg_blob = await base64ToBlobFromURL(
-        //                         'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mN88uXrPQAFwwK/6xJ6CQAAAABJRU5ErkJggg=='
-        //                     )
-        //                     let url_bg = await uploadImage(bg_blob, '.png')
-        //                     // console.log('url_bg',url_bg)
-        //
-        //                     if (!dd[that.id]) {
-        //                         dd[that.id] = { url, bg: url_bg }
-        //                     } else {
-        //                         dd[that.id] = { ...dd[that.id], url }
-        //                     }
-        //
-        //                     //  材质贴图
-        //                     let thumbUrl = material_img.getAttribute('src')
-        //                     if (thumbUrl) {
-        //                         let tb = await base64ToBlobFromURL(thumbUrl)
-        //                         let tUrl = await uploadImage(tb, '.png')
-        //                         // console.log('材质贴图', tUrl, thumbUrl)
-        //                         dd[that.id].material = tUrl
-        //                     }
-        //
-        //                     setLocalDataOfWin(key, dd)
-        //                 }
-        //
-        //                 function startTimer () {
-        //                     if (timer) clearTimeout(timer)
-        //                     timer = setTimeout(checkCameraChange, delay)
-        //                 }
-        //
-        //                 modelViewerVariants.addEventListener('camera-change', startTimer)
-        //
-        //                 select.addEventListener('input', async event => {
-        //                     modelViewerVariants.variantName =
-        //                         event.target.value === 'default' ? null : event.target.value
-        //                     // 材质
-        //                     await extractMaterial(
-        //                         modelViewerVariants,
-        //                         selectMaterial,
-        //                         material_img
-        //                     )
-        //                     checkCameraChange()
-        //                 })
-        //
-        //                 selectMaterial.addEventListener('input', event => {
-        //                     // console.log(selectMaterial.value)
-        //                     material_img.setAttribute('src', selectMaterial.value)
-        //
-        //                     if (selectMaterial.getAttribute('data-new-material')) {
-        //                         let index =
-        //                             ~~selectMaterial.selectedOptions[0].getAttribute('data-index')
-        //                         changeMaterial(
-        //                             modelViewerVariants,
-        //                             modelViewerVariants.model.materials[index],
-        //                             selectMaterial.getAttribute('data-new-material')
-        //                         )
-        //                     }
-        //
-        //                     checkCameraChange()
-        //                 })
-        //
-        //                 //更新bg
-        //                 const updateBgData = (id, key, url, w, h) => {
-        //                     let dd = getLocalData(key)
-        //                     // console.log(dd[that.id],url)
-        //                     if (!dd[id]) dd[id] = { url: '', bg: url }
-        //                     dd[id] = {
-        //                         ...dd[id],
-        //                         bg: url,
-        //                         bg_w: w,
-        //                         bg_h: h
-        //                     }
-        //                     setLocalDataOfWin(key, dd)
-        //                 }
-        //
-        //                 bg.addEventListener('click', async () => {
-        //                     //更新bg
-        //                     updateBgData(that.id, key, '', 0, 0)
-        //                     preview.style.backgroundImage = 'none'
-        //
-        //                     let base64 = await inputFileClick(false, false)
-        //                     // 将读取的文件内容设置为div的背景
-        //                     preview.style.backgroundImage = 'url(' + base64 + ')'
-        //
-        //                     const contentType = getContentTypeFromBase64(base64)
-        //
-        //                     const blob = await base64ToBlobFromURL(base64, contentType)
-        //
-        //                     //  const fileBlob = new Blob([e.target.result], { type: file.type });
-        //                     let bg_url = await uploadImage(blob, '.png')
-        //                     let bg_img = await createImage(base64)
-        //
-        //                     //更新bg
-        //                     updateBgData(
-        //                         that.id,
-        //                         key,
-        //                         bg_url,
-        //                         bg_img.naturalWidth,
-        //                         bg_img.naturalHeight
-        //                     )
-        //
-        //                     // 更新尺寸
-        //                     let w = that.size[0] - 48,
-        //                         h = (w * bg_img.naturalHeight) / bg_img.naturalWidth
-        //
-        //                     if (modelViewerVariants) {
-        //                         modelViewerVariants.style.width = `${w}px`
-        //                         modelViewerVariants.style.height = `${h}px`
-        //                     }
-        //                     preview.style.width = `${w}px`
-        //                 })
-        //
-        //                 exportGLB.addEventListener('click', async () => {
-        //                     const glTF = await modelViewerVariants.exportScene()
-        //                     const file = new File([glTF], 'export.glb')
-        //                     const link = document.createElement('a')
-        //                     link.download = file.name
-        //                     link.href = URL.createObjectURL(file)
-        //                     link.click()
-        //                 })
-        //
-        //                 uploadWidget.value = await uploadWidget.serializeValue()
-        //
-        //                 // 更新尺寸
-        //                 let dd = getLocalData(key)
-        //                 // console.log(dd[that.id],bg_url)
-        //                 if (dd[that.id]) {
-        //                     const { bg_w, bg_h } = dd[that.id]
-        //                     if (bg_h && bg_w) {
-        //                         let w = that.size[0] - 48,
-        //                             h = (w * bg_h) / bg_w
-        //
-        //                         if (modelViewerVariants) {
-        //                             modelViewerVariants.style.width = `${w}px`
-        //                             modelViewerVariants.style.height = `${h}px`
-        //                         }
-        //                         preview.style.width = `${w}px`
-        //                     }
-        //                 }
-        //             })
-        //             return div
-        //         }
-        //
-        //         let preview = document.createElement('div')
-        //         preview.className = 'preview'
-        //         preview.style = `margin-top: 12px;
-        //   display: flex;
-        //   justify-content: center;
-        //   align-items: center;background-repeat: no-repeat;
-        //   background-size: contain;`
-        //
-        //         let upload = inputDiv('_mixlab_3d_image', '3D Model', preview)
-        //
-        //         widget.div.appendChild(upload)
-        //         widget.div.appendChild(preview)
-        //         this.addCustomWidget(widget)
-        //
-        //         const onResize = this.onResize
-        //         let that = this
-        //         this.onResize = function () {
-        //             let modelViewerVariants = preview.querySelector('model-viewer')
-        //
-        //             // 更新尺寸
-        //             let dd = getLocalData('_mixlab_3d_image')
-        //             // console.log(dd[that.id],bg_url)
-        //             if (dd[that.id]) {
-        //                 const { bg_w, bg_h } = dd[that.id]
-        //                 if (bg_h && bg_w) {
-        //                     let w = that.size[0] - 48,
-        //                         h = (w * bg_h) / bg_w
-        //
-        //                     if (modelViewerVariants) {
-        //                         modelViewerVariants.style.width = `${w}px`
-        //                         modelViewerVariants.style.height = `${h}px`
-        //                     }
-        //                     preview.style.width = `${w}px`
-        //                 }
-        //             }
-        //
-        //             return onResize?.apply(this, arguments)
-        //         }
-        //
-        //         const onRemoved = this.onRemoved
-        //         this.onRemoved = () => {
-        //             upload.remove()
-        //             preview.remove()
-        //             widget.div.remove()
-        //             return onRemoved?.()
-        //         }
-        //
-        //         if (this.onResize) {
-        //             this.onResize(this.size)
-        //         }
-        //         // this.isVirtualNode = true
-        //         this.serialize_widgets = false //需要保存参数
-        //     }
-        //
-        //     const onExecuted = nodeType.prototype.onExecuted
-        //     nodeType.prototype.onExecuted = function (message) {
-        //         const r = onExecuted?.apply?.(this, arguments)
-        //
-        //         let div = this.widgets.filter(d => d.div)[0]?.div
-        //         // console.log('Test', this.widgets)
-        //
-        //         let material = message.material[0]
-        //         if (material) {
-        //             const { filename, subfolder, type } = material
-        //             let src = api.apiURL(
-        //                 `/view?filename=${encodeURIComponent(
-        //                     filename
-        //                 )}&type=${type}&subfolder=${subfolder}${app.getPreviewFormatParam()}${app.getRandParam()}`
-        //             )
-        //
-        //             const modelViewerVariants = div.querySelector('model-viewer')
-        //
-        //             const selectMaterial = div.querySelector('.material')
-        //
-        //             let index =
-        //                 ~~selectMaterial.selectedOptions[0].getAttribute('data-index')
-        //
-        //             selectMaterial.setAttribute('data-new-material', src)
-        //
-        //             changeMaterial(
-        //                 modelViewerVariants,
-        //                 modelViewerVariants.model.materials[index],
-        //                 src
-        //             )
-        //         }
-        //
-        //         this.onResize?.(this.size)
-        //
-        //         return r
-        //     }
-        // }
-    },
+    // },
     /** loadedGraphNode */
     async loadedGraphNode(node, app) {
-        node.type == "Compositor" && console.log("loadedGraphNode", node, app, node.stuff);
+        // node.type == "Compositor" && console.log("loadedGraphNode", node, app, node.stuff);
 
         // const ns = node.stuff;
         //
@@ -659,7 +224,7 @@ app.registerExtension({
     async nodeCreated(node) {
         if ((node.type, node.constructor.comfyClass !== "Compositor")) return;
 
-        console.log("nodeCreated", node)
+        // console.log("nodeCreated", node)
 
         function dataURLToBlob(dataURL) {
             const parts = dataURL.split(',');
@@ -676,6 +241,7 @@ app.registerExtension({
         const w = node.widgets.find((w) => w.name === "width");
         const h = node.widgets.find((w) => w.name === "height");
         const p = node.widgets.find((w) => w.name === "padding");
+        const hash = node.widgets.find((w) => w.name === "hash");
         const captureOnQueue = node.widgets.find((w) => w.name === "capture_on_queue");
 
         const v = new fabric.Canvas(node.stuff.canvasId, {
@@ -789,8 +355,6 @@ app.registerExtension({
             img.src = data;
         };
 
-
-
         // grab some references in the node.
         // hopefully they are not serialized :D
 
@@ -804,9 +368,15 @@ app.registerExtension({
         node.stuff.safeArea = safeArea;
         //node.stuff.safeAreaBorder = safeAreaBorder;
         node.stuff.capture = capture;
+        node.stuff.hash = hash.value;
 
 
         const btn = node.addWidget("button", "capture", "capture", capture);
+
+        // hash.serializeValue = async (args) => {
+        //     console.log("hash serialize",hash.value,args);
+        //     return args;
+        // }
 
         btn.serializeValue = () => undefined;
         // camera is the input node widget that's mapped to the output, in practice we are pretending we
@@ -822,12 +392,37 @@ app.registerExtension({
                 }
                 // remove selection if any
                 v.discardActiveObject().renderAll();
+                // debugger;
+                // attempt creating an image
 
-                const blob = dataURLToBlob(data)
+                /**
+                 * clunky check if the image is different
+                 */
+                let blob = dataURLToBlob(data)
+
+                if (node.stuff.cblob == undefined) {
+                    // go on with the blob
+                } else {
+                    // check if it's a new image
+                    node.stuff.c1 = await getChecksumSha256(node.stuff.cblob);
+                    node.stuff.c2 = await getChecksumSha256(blob);
+                    console.log(node.stuff.c1, node.stuff.c2, node.stuff.c1 == node.stuff.c2);
+                    node.stuff.sameHash = node.stuff.c1 == node.stuff.c2;
+                    if (node.stuff.sameHash) {
+                        hash.value = node.stuff.c2;
+                        // exit early, dont re-upload
+                        return node.stuff.lastUpload;
+                    } else {
+                        hash.value = node.stuff.c1;
+                    }
+                }
+                node.stuff.cblob = blob;
+
                 // const blob = await new Promise((r) => canv.toBlob(r));
                 // const blob = await new Promise((r) => safeArea.toBlob(r));
 
                 // Upload image to temp storage
+
                 const name = `${+new Date()}.png`;
                 const file = new File([blob], name);
                 const body = new FormData();
@@ -842,7 +437,8 @@ app.registerExtension({
                     const err = `Error uploading composition image: ${resp.status} - ${resp.statusText}`;
                     throw new Error(err);
                 }
-                return `compositor/${name} [temp]`;
+                node.stuff.lastUpload = `compositor/${name} [temp]`;
+                return node.stuff.lastUpload;
             } catch (e) {
                 // we have nothing so...well..just pretend
                 return TEST_IMAGE_2;
@@ -856,3 +452,12 @@ app.registerExtension({
 
     },
 });
+
+async function getChecksumSha256(blob) {
+    const uint8Array = new Uint8Array(await blob.arrayBuffer());
+    const hashBuffer = await crypto.subtle.digest('SHA-256', uint8Array);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+
+    return hashArray.map((h) => h.toString(16).padStart(2, '0')).join('');
+    // if you like, it, yan can buy me a coffee https://paypal.me/bilelz/1000000
+}

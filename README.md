@@ -18,7 +18,7 @@ With the Compositor Node you can:
 - flip an image via negative scaling (drag a corner towards and past the inside of the image)
 
 ## Changelog
-  - V **1.0.8** 28.08.2024 new feature: **image size overlay** - a green border is overlaid on top of the composition to indicate the exported area  
+  - V **1.0.8** 28.08.2024 new feature: **safe area  indication** - a green border is overlaid on top of the composition to indicate the exported area  
   - V **1.0.7** 28.08.2024 new feature: **preserve stacking order**. when selecting a node, it's z-order is preserved.
     - the first connected node will be the most distant from camera (background)
     - the last will be the closest to camera (subject/foreground)

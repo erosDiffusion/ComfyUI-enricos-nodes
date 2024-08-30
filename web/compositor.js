@@ -51,7 +51,9 @@ app.registerExtension({
                     safeAreaBorder: null,
                     c1: "",
                     c2: "",
+                    /** contains the last image, i probably just need the hash anyways */
                     cblob: undefined,
+                    /** constains the last uploaded image file name, will be sent again if hashes match (same content with cblob) */
                     lastUpload: undefined,
                 }
 
@@ -368,7 +370,7 @@ app.registerExtension({
         node.stuff.safeArea = safeArea;
         //node.stuff.safeAreaBorder = safeAreaBorder;
         node.stuff.capture = capture;
-        node.stuff.hash = hash.value;
+        // node.stuff.hash = hash.value;
 
 
         const btn = node.addWidget("button", "capture", "capture", capture);
@@ -409,11 +411,8 @@ app.registerExtension({
                     console.log(node.stuff.c1, node.stuff.c2, node.stuff.c1 == node.stuff.c2);
                     node.stuff.sameHash = node.stuff.c1 == node.stuff.c2;
                     if (node.stuff.sameHash) {
-                        hash.value = node.stuff.c2;
                         // exit early, dont re-upload
                         return node.stuff.lastUpload;
-                    } else {
-                        hash.value = node.stuff.c1;
                     }
                 }
                 node.stuff.cblob = blob;
@@ -421,7 +420,7 @@ app.registerExtension({
                 // const blob = await new Promise((r) => canv.toBlob(r));
                 // const blob = await new Promise((r) => safeArea.toBlob(r));
 
-                // Upload image to temp storage
+                /** Upload image to temp storage, in the compositor subfolder of temp */
 
                 const name = `${+new Date()}.png`;
                 const file = new File([blob], name);

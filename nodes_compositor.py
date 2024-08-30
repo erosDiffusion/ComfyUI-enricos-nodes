@@ -41,12 +41,12 @@ class Compositor(nodes.LoadImage):
     @classmethod
     def IS_CHANGED(cls, **kwargs):
         file = kwargs.get("image")
-        hash = kwargs.get("hash")
-        print("is changed")
-        print(file)
-        print(hash)
+        #hash = kwargs.get("hash")
+        #print("is changed")
+        #print(file)
+        #print(hash)
 
-        return hash
+        return file
 
     @classmethod
     def INPUT_TYPES(s):
@@ -58,7 +58,7 @@ class Compositor(nodes.LoadImage):
                 "padding": ("INT", {"default": 100, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
                 "capture_on_queue": ("BOOLEAN", {"default": True}),
                 "pause": ("BOOLEAN", {"default": True}),
-                "hash": ("STRING", {"default": ""}),
+                 #"hash": ("STRING", {"default": ""}),
             },
             "optional": {
                 "image1": ("IMAGE",),
@@ -95,34 +95,6 @@ The compositor node
 - use "join image with alpha" to apply a mask  (hand drawn or extracted via sam or other way) and get and rgba to pass to the node
 - use Image remove background (rembg) from comfyui-rembg-node to extract an rgba image with no background
 """
-
-    # @classmethod
-    # def IS_CHANGED(s, image):
-    #     image_path = folder_paths.get_annotated_filepath(image)
-    #     m = hashlib.sha256()
-    #     with open(image_path, 'rb') as f:
-    #         m.update(f.read())
-    #     return m.digest().hex()
-
-    # @classmethod
-    # def IS_CHANGED(cls, id, **kwargs):
-    #     image = kwargs.get("hash","")
-    #     if (not id[0] in cls.last_ic): cls.last_ic[id[0]] = random.random()
-    #     return cls.last_ic[id[0]]
-
-    # @classmethod
-    # def IS_CHANGED(s, id, **kwargs):
-    #     # mode = kwargs.get("onexecute","")
-    #     print(s.last_ic)
-    #     if (not id[0] in s.last_ic): s.last_ic[id[0]] = random.random()
-    #     return s.last_ic[id[0]]
-
-    # def check_lazy_status(self, image, **kwargs):
-    #     pause = kwargs.pop('pause', False)
-    #     needed = []
-    #     if pause:
-    #         needed.append("pause")
-    #     return needed
 
     def composite(self, image, **kwargs):
         # extract the images

@@ -5,16 +5,16 @@ import {api} from "../../scripts/api.js";
 import {fabric} from "./fabric.js";
 
 const COMPOSITOR = Symbol();
-const TEST_IMAGE_2 = "./extensions/ComfyUI-enricos-nodes/empty.png"
+//const TEST_IMAGE_2 = "./extensions/ComfyUI-enricos-nodes/empty.png"
 
 /**
- * Initialize a fabric js instance.
+ * Initialize a fabricJs instance.
  * Fabric is the engine that makes it possible to  manipulate the images
  * and extract the final composite image
  * @param canvasId
  * @return {fabric.Canvas}
  */
-const createCanvas = (canvasId) => new fabric.Canvas(canvasId, {
+const createCanvas = (node) => new fabric.Canvas(node.stuff.canvasId, {
     backgroundColor: 'transparent',
     selectionColor: 'transparent',
     selectionLineWidth: 1,
@@ -25,9 +25,10 @@ const createCanvas = (canvasId) => new fabric.Canvas(canvasId, {
 /**
  * setup compositor metadata/references in the node aka stuff!
  */
-function initStuff(node, compositorId, CANVAS_BORDER_COLOR, COMPOSITION_BORDER_COLOR , COMPOSITION_BORDER_SIZE, COMPOSITION_BACKGROUND_COLOR) {
+function initStuff(node, compositorId, CANVAS_BORDER_COLOR, COMPOSITION_BORDER_COLOR, COMPOSITION_BORDER_SIZE, COMPOSITION_BACKGROUND_COLOR) {
     node.stuff = {
         canvasId: compositorId,
+        /** the fabric canvas */
         canvas: null,
         compositionBorder: null,
         c1: "",
@@ -36,10 +37,10 @@ function initStuff(node, compositorId, CANVAS_BORDER_COLOR, COMPOSITION_BORDER_C
         cblob: undefined,
         /** contains the last uploaded image file name, will be sent again if hashes match (same content with cblob) */
         lastUpload: undefined,
-        CANVAS_BORDER_COLOR:CANVAS_BORDER_COLOR,
-        COMPOSITION_BORDER_COLOR:COMPOSITION_BORDER_COLOR,
-        COMPOSITION_BORDER_SIZE:COMPOSITION_BORDER_SIZE,
-        COMPOSITION_BACKGROUND_COLOR:COMPOSITION_BACKGROUND_COLOR,
+        CANVAS_BORDER_COLOR: CANVAS_BORDER_COLOR,
+        COMPOSITION_BORDER_COLOR: COMPOSITION_BORDER_COLOR,
+        COMPOSITION_BORDER_SIZE: COMPOSITION_BORDER_SIZE,
+        COMPOSITION_BACKGROUND_COLOR: COMPOSITION_BACKGROUND_COLOR,
 
 
     }
@@ -111,10 +112,10 @@ async function getChecksumSha256(blob) {
 }
 
 /**
- * checks if there is anything in the medatada,
- * the previous generation is stored in node.stuff.cblob
+ * checks if there is anything in the node.stuff.cblob,
+ * the previous generation would be stored there
  */
-const isImageStored = (node) => {
+const neverRun = (node) => {
     return node.stuff.cblob == undefined
 }
 
@@ -126,41 +127,11 @@ const createCompositionArea = (p, w, h, node) => {
         left: p.value,
         top: p.value,
         fill: node.stuff.COMPOSITION_BACKGROUND_COLOR,
-        //fill: 'rgba(0,0,0,0.2)',
         width: w.value,
         height: h.value,
         selectable: false,
     });
 }
-
-
-/**
- * Web page load
- * invokeExtensionsAsync init
- * invokeExtensionsAsync addCustomNodeDefs
- * invokeExtensionsAsync getCustomWidgets
- * invokeExtensionsAsync beforeRegisterNodeDef    [repeated multiple times]
- * invokeExtensionsAsync registerCustomNodes
- * invokeExtensionsAsync beforeConfigureGraph
- * invokeExtensionsAsync nodeCreated
- * invokeExtensions      loadedGraphNode
- * invokeExtensionsAsync afterConfigureGraph
- * invokeExtensionsAsync setup
- */
-
-/**
- * Loading workflow
- * invokeExtensionsAsync beforeConfigureGraph
- * invokeExtensionsAsync beforeRegisterNodeDef   [zero, one, or multiple times]
- * invokeExtensionsAsync nodeCreated             [repeated multiple times]
- * invokeExtensions      loadedGraphNode         [repeated multiple times]
- * invokeExtensionsAsync afterConfigureGraph
- */
-
-/**
- * Adding new node
- * invokeExtensionsAsync nodeCreated
- */
 
 
 function setupReferences(node, p, w, h, fcanvas, composite, img, compositionArea, compositionBorder, capture) {
@@ -214,21 +185,31 @@ function getOldTransform(node, index) {
 }
 
 /**
- * a border around and outside the composition with
+ * A non-interactive rectangle with trassparent content and
+ * colored border around that frames the composition from the outside
+ * and is overlaid on top of all passed images
+ * the size and position are calculated given the width height and
  * COMPOSITION_BORDER_SIZE
  * COMPOSITION_BORDER_COLOR
- * that is overlaid, brought to front and not overlapping the composition itself
  */
 function createCompositionBorder(p, w, h, node) {
-    return new fabric.Rect({
+    const compositionBorder = new fabric.Rect({
         left: p.value - node.stuff.COMPOSITION_BORDER_SIZE,
         top: p.value - node.stuff.COMPOSITION_BORDER_SIZE,
         fill: 'transparent',
-        width: w.value + node.stuff.COMPOSITION_BORDER_SIZE*2,
-        height: h.value + node.stuff.COMPOSITION_BORDER_SIZE*2,
+        width: w.value + node.stuff.COMPOSITION_BORDER_SIZE * 2,
+        height: h.value + node.stuff.COMPOSITION_BORDER_SIZE * 2,
         selectable: false,
         evented: false,
     });
+
+    compositionBorder.set("strokeWidth", node.stuff.COMPOSITION_BORDER_SIZE);
+    compositionBorder.set("stroke", node.stuff.COMPOSITION_BORDER_COLOR);
+    compositionBorder.set("selectable", false);
+    compositionBorder.set("evented", false);
+
+    node.stuff.compositionBorder = compositionBorder;
+    return compositionBorder;
 }
 
 /**
@@ -243,8 +224,10 @@ function getRandomCompositorUniqueId() {
 /**
  * use the app api to get settings for the Compositor node
  * settings are defined in the async setup(app) hook/lifecycle method
+ * info on preferences https://docs.comfy.org/essentials/javascript_examples
+ *
  * @param app
- * @return {{CANVAS_BORDER_COLOR, COMPOSITION_BACKGROUND_COLOR, COMPOSITION_BORDER_COLOR, COMPOSITION_BORDER_SIZE}}
+ * @return {{CANVAS_BORDER_COLOR, COMPOSITION_BACKGROUND_COLOR, COMPOSITION_BORDER_COLOR, COMPOSITION_BORDER_SIZE}} *
  */
 function getCompositorSettings(app) {
     let CANVAS_BORDER_COLOR = app.ui.settings.getSettingValue("Compositor.Canvas.BORDER_COLOR", "#FF0000B0");
@@ -294,7 +277,6 @@ function addCompositionBorderColorSetting(app) {
         onChange: (newVal, oldVal) => {
             console.log(newVal, this);
         },
-
     });
 }
 
@@ -316,6 +298,7 @@ function addCompositionBorderSizeSetting(app) {
         },
     });
 }
+
 function addCompositionBackgroundColorSetting(app) {
     app.ui.settings.addSetting({
         id: "Compositor.Composition.BACKGROUND_COLOR",
@@ -329,6 +312,7 @@ function addCompositionBackgroundColorSetting(app) {
     });
 }
 
+/** add muiltiple named settings */
 function addCompositorSettings(app) {
     addCanvasBorderColorSetting.call(this, app);
     addCompositionBorderColorSetting.call(this, app);
@@ -337,30 +321,133 @@ function addCompositorSettings(app) {
 }
 
 /** abstraction to get one widget by name in the node */
-function getCompositorWidget(node,widgetName) {
+function getCompositorWidget(node, widgetName) {
     return node.widgets.find((w) => w.name === widgetName);
 }
 
 /** get all widgets we need, these are defined as params in the python file and passed to the node definition */
 function getCompositorWidgets(node) {
     // const widgetName = "image";
-    const composite = getCompositorWidget(node,"image");
+    const composite = getCompositorWidget(node, "image");
     const w = getCompositorWidget(node, "width");
     const h = getCompositorWidget(node, "height");
-    const p = getCompositorWidget(node,"padding");
+    const p = getCompositorWidget(node, "padding");
     const captureOnQueue = getCompositorWidget(node, "capture_on_queue");
     return {composite, w, h, p, captureOnQueue};
 }
 
+function setupPaddingChangeCallback(p, compositionArea, h, w, compositionBorder, v) {
+    p.origCallback = p.callback;
+    p.callback = (padding, graphCanvas, node) => {
+        // value is the padding value
+        compositionArea.setHeight(h.value);
+        compositionArea.setWidth(w.value);
+        compositionArea.setLeft(padding);
+        compositionArea.setTop(padding);
+
+        compositionBorder.setHeight(h.value + node.stuff.COMPOSITION_BORDER_SIZE * 2);
+        compositionBorder.setWidth(w.value + node.stuff.COMPOSITION_BORDER_SIZE * 2);
+        compositionBorder.setLeft(padding - node.stuff.COMPOSITION_BORDER_SIZE);
+        compositionBorder.setTop(padding - node.stuff.COMPOSITION_BORDER_SIZE);
+
+        v.setHeight(compositionArea.getHeight() + (padding * 2));
+        v.setWidth(compositionArea.getWidth() + (padding * 2));
+        v.renderAll();
+        node.setSize(calculateWidgetSize(v))
+    }
+}
+
+function setupHeightChangeCallback(h, v, p, compositionArea, compositionBorder) {
+    h.origCalback = h.callback;
+    // callback signature value, graphCanvas, node, pos, event
+    h.callback = (value, graphCanvas, node) => {
+
+        v.setHeight(value + (p.value * 2));
+        compositionArea.setHeight(value);
+        compositionBorder.setHeight(value + node.stuff.COMPOSITION_BORDER_SIZE * 2);
+
+        node.setSize(calculateWidgetSize(v))
+        v.renderAll();
+    }
+}
+
+function setupWidthChangeCallback(w, v, p, compositionArea, compositionBorder) {
+    w.origCalback = w.callback;
+    w.callback = (value, graphCanvas, node) => {
+
+        v.setWidth(value + (p.value * 2));
+        compositionArea.setWidth(value);
+        compositionBorder.setWidth(value + node.stuff.COMPOSITION_BORDER_SIZE * 2);
+        node.setSize(calculateWidgetSize(v));
+        v.renderAll();
+    }
+}
+
+/** check if this is a compositor node */
+function isCompositor(node) {
+    return node.constructor.comfyClass == "Compositor";
+}
+
+async function hasSameHash(node, blob) {
+    node.stuff.c1 = await getChecksumSha256(node.stuff.cblob);
+    node.stuff.c2 = await getChecksumSha256(blob);
+    // console.log(node.stuff.c1, node.stuff.c2, node.stuff.c1 == node.stuff.c2);
+    node.stuff.sameHash = node.stuff.c1 == node.stuff.c2;
+    console.log("new image ? ", node.stuff.sameHash ? "no, same has" : "yes, different hash");
+    return node.stuff.sameHash;
+
+}
+
+function addImageToStuff(node, index, theImage) {
+    node.stuff[imageNameAt(index)] = theImage;
+    node.stuff.canvas.add(theImage);
+}
+
+function replaceImageInStuff(node, index, theImage) {
+    const oldTransform = getOldTransform(node, index);
+    // Remove the old image from the canvas
+    node.stuff.canvas.remove(node.stuff[imageNameAt(index)]);
+    theImage.set(oldTransform);
+    node.stuff.canvas.add(theImage);
+    node.stuff[imageNameAt(index)] = theImage;
+}
+
+/**
+ * registering an extension gives the possibility to tap into lifecycle methods
+ * here is the sequence from the docs:
+
+ * -- Web page load --
+ * invokeExtensionsAsync init
+ * invokeExtensionsAsync addCustomNodeDefs
+ * invokeExtensionsAsync getCustomWidgets
+ * invokeExtensionsAsync beforeRegisterNodeDef    [repeated multiple times]
+ * invokeExtensionsAsync registerCustomNodes
+ * invokeExtensionsAsync beforeConfigureGraph
+ * invokeExtensionsAsync nodeCreated
+ * invokeExtensions      loadedGraphNode
+ * invokeExtensionsAsync afterConfigureGraph
+ * invokeExtensionsAsync setup
+ *
+ * -- Loading workflow --
+ * invokeExtensionsAsync beforeConfigureGraph
+ * invokeExtensionsAsync beforeRegisterNodeDef   [zero, one, or multiple times]
+ * invokeExtensionsAsync nodeCreated             [repeated multiple times]
+ * invokeExtensions      loadedGraphNode         [repeated multiple times]
+ * invokeExtensionsAsync afterConfigureGraph
+ *
+ * -- Adding new node --
+ * invokeExtensionsAsync nodeCreated
+ *
+ *
+ * more info about what the hell a node is etc
+ * https://docs.comfy.org/essentials/javascript_objects_and_hijacking
+ */
 app.registerExtension({
     name: "Comfy.Compositor",
+
     async getCustomWidgets(app) {
         return {
             COMPOSITOR(node, inputName, inputData, app) {
-
-                // preferences
-                // https://docs.comfy.org/essentials/javascript_examples
-
                 let {
                     CANVAS_BORDER_COLOR,
                     COMPOSITION_BORDER_COLOR,
@@ -370,58 +457,48 @@ app.registerExtension({
 
                 const compositorId = getRandomCompositorUniqueId();
 
-                initStuff(node, compositorId, CANVAS_BORDER_COLOR, COMPOSITION_BORDER_COLOR , COMPOSITION_BORDER_SIZE, COMPOSITION_BACKGROUND_COLOR);
+                initStuff(node,
+                    compositorId,
+                    CANVAS_BORDER_COLOR,
+                    COMPOSITION_BORDER_COLOR,
+                    COMPOSITION_BORDER_SIZE,
+                    COMPOSITION_BACKGROUND_COLOR);
 
-
-                let res;
-                node[COMPOSITOR] = new Promise((resolve) => (res = resolve));
+                node[COMPOSITOR] = new Promise((resolve) => resolve);
 
                 const container = createCompositorContainerDiv();
                 const canvas = createCanvasElement(node);
                 container.appendChild(canvas);
 
-                // https://docs.comfy.org/essentials/javascript_objects_and_hijacking
-
                 /**
                  * NOTE: hideOnZoom:false FIXES not being able to take screenshot and disappearing on zoom out
+                 * but creates some inconsistencies as lines get too small to be rendered properly
                  */
                 return {widget: node.addDOMWidget(inputName, "COMPOSITOR", container, {hideOnZoom: false})};
-                // return {widget: node.addDOMWidget(inputName, "COMPOSITOR", container, {})}; // hideOnZoom:false ,ccanvas: canvas
             },
         };
     },
     /**
      * Called at the end of the startup process.
      * A good place to add event listeners (either for Comfy events, or DOM events), or adding to the global menus,
-     * both of which are discussed elsewhere.
+     * at this point we get a nodeId from a message (if we pass it) but have no node context, so we need to find it.
      */
     async setup(app) {
 
-        addCompositorSettings.call(this, app);
+        // disabled, for now, rely on defaults
+        // addCompositorSettings.call(this, app);
 
-        // need to have a unique node key
-        // and leverage theImage.cacheKey if it's the same image, do nothing
         function addOrReplace(theImage, index, nodeId) {
-            //
-            // console.log(app.graph.getNodeById(nodeId));
-            const node = app.graph.getNodeById(nodeId);
-            // debugger;
-            if (node.stuff[imageNameAt(index)] == null) {
-                node.stuff[imageNameAt(index)] = theImage;
-                node.stuff.canvas.add(theImage);
 
-                //
-            }
+            const node = app.graph.getNodeById(nodeId);
 
             if (stuffHasImageAtIndex(node, index)) {
-                const oldTransform = getOldTransform(node, index);
-                // Remove the old image from the canvas
-                node.stuff.canvas.remove(node.stuff[imageNameAt(index)]);
-                theImage.set(oldTransform);
-                node.stuff.canvas.add(theImage);
-                node.stuff[imageNameAt(index)] = theImage;
+                replaceImageInStuff(node, index, theImage);
+            }else{
+                addImageToStuff(node, index, theImage);
             }
 
+            // whatever it happens, ensure the composition border is on top
             node.stuff.canvas.bringToFront(node.stuff.compositionBorder)
         }
 
@@ -439,10 +516,15 @@ app.registerExtension({
             const images = [...event.detail.names];
 
             images.map((b64, index) => {
-
-                fabric.Image.fromURL(b64, function (oImg) {
+                function fromUrlCallback(oImg) {
                     addOrReplace(oImg, index, nodeId);
-                });
+                }
+
+                /**
+                 * fabric.Image.fromURL
+                 * http://fabricjs.com/docs/fabric.Image.html
+                 */
+                fabric.Image.fromURL(b64, fromUrlCallback);
                 // stuff.canvas.renderAll();
             });
         }
@@ -457,73 +539,77 @@ app.registerExtension({
      * (a LiteGraph object).
      * This is discussed further in Comfy Objects.
      */
-    // async init(args) {
-    //     console.log("init", args)
-    // },
+    async init(args) {
+        // console.log("init", args)
+    },
     /**
      * Called once for each node type (the list of nodes available in the AddNode menu), and is used to modify the behaviour of the node.
      *
      * async beforeRegisterNodeDef(nodeType, nodeData, app)
-     * The object passed in the nodeType parameter essentially serves as a template for all nodes that will be created of this type,
-     * so modifications made to nodeType.prototype will apply to all nodes of this type.
+     * The object passed in the nodeType parameter serves as a template for all nodes that will be created of this type.
+     * The modifications made to "nodeType.prototype" will apply to all nodes of this type.
      * nodeData is an encapsulation of aspects of the node defined in the Python code,
      * such as its category, inputs, and outputs.
      * app is a reference to the main Comfy app object (which you have already imported anyway!)
-     */
-    // async beforeRegisterNodeDef(nodeType, nodeData, app) {
-    //
-    //     if (nodeType.comfyClass == 'Compositor') {
-    // //         console.log("beforeRegisterNodeDef", nodeType, nodeData, app);
-    //
-    //         const orig_nodeCreated = nodeType.prototype.onNodeCreated;
-    //         nodeType.prototype.onNodeCreated = async function () {
-    //             // console.log("onNodeCreated", this);
-    //             orig_nodeCreated?.apply(this, arguments)
-    //             this.setSize([this.stuff.v.getWidth() + 100, this.stuff.v.getHeight() + 556])
-    //         }
-    //
-    //         const onExecuted = nodeType.prototype.onExecuted;
-    //         nodeType.prototype.onExecuted = function (message) {
-    //             // console.log("onExecuted", this, message);
-    //             const r = onExecuted?.apply?.(this, arguments)
-    //             return r;
-    //         }
-    //     }
-    //
+     ```
+     async beforeRegisterNodeDef(nodeType, nodeData, app) {
 
-    // },
-    /** loadedGraphNode, after nodeCreated*/
-    async loadedGraphNode(node, app) {
-        node.type == "Compositor" && console.log("loadedGraphNode", node, app, node.stuff);
+        if (nodeType.comfyClass == 'Compositor') {
+            console.log("beforeRegisterNodeDef", nodeType, nodeData, app);
 
-        // const ns = node.stuff;
-        //
-        // ns.safeArea.setHeight(ns.h.value);
-        // ns.safeArea.setWidth(ns.w.value);
-        // ns.safeArea.setLeft(ns.p.value);
-        // ns.safeArea.setTop(ns.p.value);
-        //
-        // ns.compositionBorder.setHeight(ns.h.value + ns.stuff.COMPOSITION_BORDER_SIZE*2);
-        // ns.compositionBorder.setWidth(ns.w.value  + ns.stuff.COMPOSITION_BORDER_SIZE*2);
-        // ns.compositionBorder.setLeft(ns.p.value - ns.stuff.COMPOSITION_BORDER_SIZE);
-        // ns.compositionBorder.setTop(ns.p.value - ns.stuff.COMPOSITION_BORDER_SIZE*2);
-        // ns.compositionBorder.set("strokeWidth", ns.stuff.COMPOSITION_BORDER_SIZE);
-        // ns.compositionBorder.set("stroke", ns.stuff.COMPOSITION_BORDER_COLOR);
-        // ns.compositionBorder.bringToFront()
-        //
-        // canvas.bringToFront(ns.compositionBorder);
-        //
-        // //console.log(v.getWidth(), v.getHeight(), value);
-        // ns.canvas.setHeight(ns.safeArea.getHeight() + (ns.p.value * 2));
-        // ns.canvas.setWidth(ns.safeArea.getWidth() + (ns.p.value * 2));
-        // ns.canvas.renderAll();
-        // ns.node.setSize(calculateWidgetSize(v));
-        //
-        // ns.capture();
-        // debugger;
+            const orig_nodeCreated = nodeType.prototype.onNodeCreated;
+            nodeType.prototype.onNodeCreated = async function () {
+                // console.log("onNodeCreated", this);
+                orig_nodeCreated?.apply(this, arguments)
+                this.setSize([this.stuff.v.getWidth() + 100, this.stuff.v.getHeight() + 556])
+            }
+
+            const onExecuted = nodeType.prototype.onExecuted;
+            nodeType.prototype.onExecuted = function (message) {
+                // console.log("onExecuted", this, message);
+                const r = onExecuted?.apply?.(this, arguments)
+                return r;
+            }
+        }
     },
-    async afterConfigureGraph(args){
-        console.log("afterConfigureGraph",args);
+     ```
+     */
+    async beforeRegisterNodeDef(nodeType, nodeData, app) {
+    },
+    /** loadedGraphNode, after nodeCreated
+     *  ```
+     if(node.type == "Compositor" && console.log("loadedGraphNode", node, app, node.stuff)){
+         const ns = node.stuff;
+
+         ns.safeArea.setHeight(ns.h.value);
+         ns.safeArea.setWidth(ns.w.value);
+         ns.safeArea.setLeft(ns.p.value);
+         ns.safeArea.setTop(ns.p.value);
+
+         ns.compositionBorder.setHeight(ns.h.value + ns.stuff.COMPOSITION_BORDER_SIZE*2);
+         ns.compositionBorder.setWidth(ns.w.value  + ns.stuff.COMPOSITION_BORDER_SIZE*2);
+         ns.compositionBorder.setLeft(ns.p.value - ns.stuff.COMPOSITION_BORDER_SIZE);
+         ns.compositionBorder.setTop(ns.p.value - ns.stuff.COMPOSITION_BORDER_SIZE*2);
+         ns.compositionBorder.set("strokeWidth", ns.stuff.COMPOSITION_BORDER_SIZE);
+         ns.compositionBorder.set("stroke", ns.stuff.COMPOSITION_BORDER_COLOR);
+         ns.compositionBorder.bringToFront()
+
+         canvas.bringToFront(ns.compositionBorder);
+
+         //console.log(v.getWidth(), v.getHeight(), value);
+         ns.canvas.setHeight(ns.safeArea.getHeight() + (ns.p.value * 2));
+         ns.canvas.setWidth(ns.safeArea.getWidth() + (ns.p.value * 2));
+         ns.canvas.renderAll();
+         ns.node.setSize(calculateWidgetSize(v));
+
+         ns.capture();
+         }
+     ```
+     */
+    async loadedGraphNode(node, app) {
+    },
+    async afterConfigureGraph(args) {
+        console.log("afterConfigureGraph", args);
     },
     /**
      * Called when a specific instance of a node gets created
@@ -534,75 +620,29 @@ app.registerExtension({
      * https://docs.comfy.org/essentials/javascript_objects_and_hijacking
      */
     async nodeCreated(node) {
-        if ((node.type, node.constructor.comfyClass !== "Compositor")) return;
-        console.log("nodeCreated", node)
-
+        if (!isCompositor(node)) return;
+        // ath this point we have W,H etc... with their values
+        //console.log("nodeCreated", node, node.type)
 
         const {composite, w, h, p, captureOnQueue} = getCompositorWidgets(node);
+        const fcanvas = createCanvas(node);
+        const compositionArea = createCompositionArea(p, w, h, node);
+        const compositionBorder = createCompositionBorder(p, w, h, node);
 
-        const v = createCanvas(node.stuff.canvasId);
-
-
-
-        var compositionArea = createCompositionArea(p, w, h, node);
-        var compositionBorder = createCompositionBorder(p, w, h, node);
-
-        compositionBorder.set("strokeWidth", node.stuff.COMPOSITION_BORDER_SIZE);
-        compositionBorder.set("stroke", node.stuff.COMPOSITION_BORDER_COLOR);
-        compositionBorder.set("selectable",false);
-        compositionBorder.set("evented",false);
 
         node.stuff.compositionBorder = compositionBorder;
 
-        v.add(compositionArea);
-        v.add(compositionBorder);
-        v.bringToFront(compositionBorder);
+        fcanvas.add(compositionArea);
+        fcanvas.add(compositionBorder);
+        fcanvas.bringToFront(compositionBorder);
 
 
-        w.origCalback = w.callback;
-        w.callback = (value, graphCanvas, node, pos, event) => {
-
-            v.setWidth(value + (p.value * 2));
-            compositionArea.setWidth(value);
-            compositionBorder.setWidth(value + node.stuff.COMPOSITION_BORDER_SIZE*2);
-            node.setSize(calculateWidgetSize(v))
-
-            v.renderAll();
-        }
-
-        h.origCalback = h.callback;
-        h.callback = (value, graphCanvas, node, pos, event) => {
-
-            v.setHeight(value + (p.value * 2));
-            compositionArea.setHeight(value);
-            compositionBorder.setHeight(value + node.stuff.COMPOSITION_BORDER_SIZE*2);
-
-            node.setSize(calculateWidgetSize(v))
-            v.renderAll();
-        }
-
-        // padding change
-        p.origCallback = p.callback;
-        p.callback = (padding, graphCanvas, node, pos, event) => {
-            // value is the padding value
-            compositionArea.setHeight(h.value);
-            compositionArea.setWidth(w.value);
-            compositionArea.setLeft(padding);
-            compositionArea.setTop(padding);
-
-            compositionBorder.setHeight(h.value + node.stuff.COMPOSITION_BORDER_SIZE*2);
-            compositionBorder.setWidth(w.value + node.stuff.COMPOSITION_BORDER_SIZE*2);
-            compositionBorder.setLeft(padding - node.stuff.COMPOSITION_BORDER_SIZE);
-            compositionBorder.setTop(padding - node.stuff.COMPOSITION_BORDER_SIZE);
-
-            v.setHeight(compositionArea.getHeight() + (padding * 2));
-            v.setWidth(compositionArea.getWidth() + (padding * 2));
-            v.renderAll();
-            node.setSize(calculateWidgetSize(v))
-        }
+        setupWidthChangeCallback(w, fcanvas, p, compositionArea, compositionBorder);
+        setupHeightChangeCallback(h, fcanvas, p, compositionArea, compositionBorder);
+        setupPaddingChangeCallback(p, compositionArea, h, w, compositionBorder, fcanvas);
 
         /** the fabric canvas:v */
-        node.stuff.canvas = v;
+        node.stuff.canvas = fcanvas;
 
         // final image to be associated to the node preview
         const img = new Image();
@@ -610,7 +650,7 @@ app.registerExtension({
         // data url
         let data = null;
         const capture = () => {
-            data = v.toDataURL({
+            data = fcanvas.toDataURL({
                 format: 'jpeg',
                 quality: 0.8,
                 left: p.value,
@@ -631,15 +671,20 @@ app.registerExtension({
         // grab some references in the node.
         // hopefully they are not serialized :D
 
-        setupReferences(node, p, w, h, v, composite, img, compositionArea, compositionBorder, capture);
+        setupReferences(node, p, w, h, fcanvas, composite, img, compositionArea, compositionBorder, capture);
 
 
         const btn = node.addWidget("button", "capture", "capture", capture);
-
-
+        // not really sure if this is needed and for what, but the button does not bring any value (or should it...maybe the checksum ??
         btn.serializeValue = () => undefined;
-        // composite is the input node widget that's mapped to the output, in practice we are pretending we
-        // gave the composite as input
+
+
+        /**
+         * composite is the input node widget that's mapped to the output,
+         * in practice we are pretending we gave the composite as input from the start
+         * and we just let it through in python
+         * that's why, on the first run, it will be empty ... because it is!
+         */
         composite.serializeValue = async () => {
             // we can simply return a path, of an ideally uploaded file and be happy with it
             try {
@@ -650,23 +695,18 @@ app.registerExtension({
                     throw new Error(err);
                 }
                 // remove selection if any or it would render
-                v.discardActiveObject().renderAll();
+                fcanvas.discardActiveObject().renderAll();
 
                 // attempt creating an image
                 let blob = dataURLToBlob(data)
 
                 // do we have anything stored ?
-                if (isImageStored(node)) {
-                    // if no, it's likely the first run, go on with the blob
+                if (neverRun(node)) {
+                    // it's likely the first run, go on with the blob
                 } else {
-                    // else, check if the image stored in the node as last upload is the same as the one we are making
+                    // check if the image stored in the node as last upload is the same as the one we are making
                     // by comparing the checksums
-                    node.stuff.c1 = await getChecksumSha256(node.stuff.cblob);
-                    node.stuff.c2 = await getChecksumSha256(blob);
-                    // console.log(node.stuff.c1, node.stuff.c2, node.stuff.c1 == node.stuff.c2);
-                    node.stuff.sameHash = node.stuff.c1 == node.stuff.c2;
-                    console.log("new image ? ", node.stuff.sameHash ? "no, same has" : "yes, different hash");
-                    if (node.stuff.sameHash) {
+                    if (await hasSameHash(node, blob)) {
                         // exit early, don't re-upload if it is the same content !!!
                         return node.stuff.lastUpload;
                     }
@@ -683,14 +723,14 @@ app.registerExtension({
                 return node.stuff.lastUpload;
             } catch (e) {
                 // we have nothing so...well..just pretend
-                return TEST_IMAGE_2;
+                // return TEST_IMAGE_2;
+                return null;
             }
 
         };
 
-        node.setSize(calculateWidgetSize(v))
+        node.setSize(calculateWidgetSize(fcanvas))
         capture();
-
 
     },
 });

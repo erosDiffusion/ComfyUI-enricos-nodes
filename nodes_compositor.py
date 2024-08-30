@@ -41,11 +41,6 @@ class Compositor(nodes.LoadImage):
     @classmethod
     def IS_CHANGED(cls, **kwargs):
         file = kwargs.get("image")
-        #hash = kwargs.get("hash")
-        #print("is changed")
-        #print(file)
-        #print(hash)
-
         return file
 
     @classmethod
@@ -58,7 +53,6 @@ class Compositor(nodes.LoadImage):
                 "padding": ("INT", {"default": 100, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
                 "capture_on_queue": ("BOOLEAN", {"default": True}),
                 "pause": ("BOOLEAN", {"default": True}),
-                 #"hash": ("STRING", {"default": ""}),
             },
             "optional": {
                 "image1": ("IMAGE",),
@@ -74,7 +68,6 @@ class Compositor(nodes.LoadImage):
                 "prompt": "PROMPT",
                 "extra_pnginfo": "EXTRA_PNGINFO",
                 "node_id": "UNIQUE_ID",
-                "hash": "STRING"
             },
         }
 

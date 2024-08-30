@@ -23,7 +23,7 @@ const createCanvas = (canvasId) => new fabric.Canvas(canvasId, {
 });
 
 /**
- * setup compositor metadata/references in the node
+ * setup compositor metadata/references in the node aka stuff!
  */
 function initStuff(node, compositorId, CANVAS_BORDER_COLOR, COMPOSITION_BORDER_COLOR , COMPOSITION_BORDER_SIZE, COMPOSITION_BACKGROUND_COLOR) {
     node.stuff = {
@@ -118,11 +118,15 @@ const isImageStored = (node) => {
     return node.stuff.cblob == undefined
 }
 
-const createCompositionArea = (p, w, h) => {
+/**
+ * the actual area of WxH dimensions that will be exported as output
+ */
+const createCompositionArea = (p, w, h, node) => {
     return new fabric.Rect({
         left: p.value,
         top: p.value,
-        fill: 'rgba(0,0,0,0.2)',
+        fill: node.stuff.COMPOSITION_BACKGROUND_COLOR,
+        //fill: 'rgba(0,0,0,0.2)',
         width: w.value,
         height: h.value,
         selectable: false,
@@ -159,12 +163,13 @@ const createCompositionArea = (p, w, h) => {
  */
 
 
-function setupReferences(node, p, w, h, v, composite, img, compositionArea, compositionBorder, capture) {
+function setupReferences(node, p, w, h, fcanvas, composite, img, compositionArea, compositionBorder, capture) {
     node.stuff.p = p;
     node.stuff.w = w;
     node.stuff.h = h;
     /** the fabric canvas:v */
-    node.stuff.v = v;
+    // node.stuff.v = v;
+    node.stuff.canvas = fcanvas;
     node.stuff.composite = composite;
     node.stuff.i = img;
     node.stuff.compositionArea = compositionArea;
@@ -218,11 +223,133 @@ function createCompositionBorder(p, w, h, node) {
     return new fabric.Rect({
         left: p.value - node.stuff.COMPOSITION_BORDER_SIZE,
         top: p.value - node.stuff.COMPOSITION_BORDER_SIZE,
-        fill: node.stuff.COMPOSITION_BACKGROUND_COLOR,
+        fill: 'transparent',
         width: w.value + node.stuff.COMPOSITION_BORDER_SIZE*2,
         height: h.value + node.stuff.COMPOSITION_BORDER_SIZE*2,
         selectable: false,
+        evented: false,
     });
+}
+
+/**
+ * generate a unique id...or try
+ */
+function getRandomCompositorUniqueId() {
+    const randomUniqueIds = new Uint32Array(10);
+    const compositorId = 'c_' + self.crypto.getRandomValues(randomUniqueIds)[0] + '_' + self.crypto.getRandomValues(randomUniqueIds)[1];
+    return compositorId;
+}
+
+/**
+ * use the app api to get settings for the Compositor node
+ * settings are defined in the async setup(app) hook/lifecycle method
+ * @param app
+ * @return {{CANVAS_BORDER_COLOR, COMPOSITION_BACKGROUND_COLOR, COMPOSITION_BORDER_COLOR, COMPOSITION_BORDER_SIZE}}
+ */
+function getCompositorSettings(app) {
+    let CANVAS_BORDER_COLOR = app.ui.settings.getSettingValue("Compositor.Canvas.BORDER_COLOR", "#FF0000B0");
+    let COMPOSITION_BORDER_COLOR = app.ui.settings.getSettingValue("Compositor.Composition.BORDER_COLOR", "#00b300b0");
+    let COMPOSITION_BORDER_SIZE = app.ui.settings.getSettingValue("Compositor.Composition.BORDER_SIZE", 2);
+    let COMPOSITION_BACKGROUND_COLOR = app.ui.settings.getSettingValue("Compositor.Composition.BACKGROUND_COLOR", "rgba(0,0,0,0.2)");
+    return {CANVAS_BORDER_COLOR, COMPOSITION_BORDER_COLOR, COMPOSITION_BORDER_SIZE, COMPOSITION_BACKGROUND_COLOR};
+}
+
+function createCompositorContainerDiv() {
+    const container = document.createElement("div");
+    container.style.background = "rgba(0,0,0,0.25)";
+    container.style.textAlign = "center";
+    return container;
+}
+
+function createCanvasElement(node) {
+    const canvas = document.createElement("canvas");
+    canvas.id = node.stuff.canvasId;
+    canvas.style = `outline:1px solid ${node.stuff.CANVAS_BORDER_COLOR}`;
+    // canvas.width = 'auto';
+    // canvas.height = 'auto';
+    // node.resizable = false;
+    return canvas;
+}
+
+function addCanvasBorderColorSetting(app) {
+    app.ui.settings.addSetting({
+        id: "Compositor.Canvas.BORDER_COLOR",
+        name: "Border Color",
+        tooltip: "give an hex code with alpha, e.g.: #00b300b0, it's the area controlled by 'padding' size outside the  output that will not be exported but used for manipulation",
+        type: "text",
+        defaultValue: "#00b300b0",
+        onChange: (newVal, oldVal) => {
+            console.log(newVal, this);
+        },
+    });
+}
+
+function addCompositionBorderColorSetting(app) {
+    app.ui.settings.addSetting({
+        id: "Compositor.Composition.BORDER_COLOR",
+        name: "Border Color (not rendered)",
+        type: "text",
+        tooltip: "give hex code with alpha eg.: #00b300b0, this will help identifying what is withing the output",
+        defaultValue: "#00b300b0",
+        onChange: (newVal, oldVal) => {
+            console.log(newVal, this);
+        },
+
+    });
+}
+
+function addCompositionBorderSizeSetting(app) {
+    app.ui.settings.addSetting({
+        id: "Compositor.Composition.BORDER_SIZE",
+        name: "Border Size",
+        type: "slider",
+        attrs: {
+            min: 0,
+            max: 2,
+            step: 1
+        },
+        defaultValue: 2,
+        tooltip: "Border size, 0 for invisible, overlayed and unselectable, not part of the node ouptut",
+
+        onChange: (newVal, oldVal) => {
+            console.log(newVal, this);
+        },
+    });
+}
+function addCompositionBackgroundColorSetting(app) {
+    app.ui.settings.addSetting({
+        id: "Compositor.Composition.BACKGROUND_COLOR",
+        name: "Background Color - Output",
+        type: "text",
+        tooltip: "give hex code with alpha eg.: #00b300b0, this will help identifying what is withing the output",
+        defaultValue: "rgba(0,0,0,0.2)",
+        onChange: (newVal, oldVal) => {
+            console.log(newVal, this);
+        },
+    });
+}
+
+function addCompositorSettings(app) {
+    addCanvasBorderColorSetting.call(this, app);
+    addCompositionBorderColorSetting.call(this, app);
+    addCompositionBorderSizeSetting.call(this, app);
+    addCompositionBackgroundColorSetting.call(this, app);
+}
+
+/** abstraction to get one widget by name in the node */
+function getCompositorWidget(node,widgetName) {
+    return node.widgets.find((w) => w.name === widgetName);
+}
+
+/** get all widgets we need, these are defined as params in the python file and passed to the node definition */
+function getCompositorWidgets(node) {
+    // const widgetName = "image";
+    const composite = getCompositorWidget(node,"image");
+    const w = getCompositorWidget(node, "width");
+    const h = getCompositorWidget(node, "height");
+    const p = getCompositorWidget(node,"padding");
+    const captureOnQueue = getCompositorWidget(node, "capture_on_queue");
+    return {composite, w, h, p, captureOnQueue};
 }
 
 app.registerExtension({
@@ -234,38 +361,31 @@ app.registerExtension({
                 // preferences
                 // https://docs.comfy.org/essentials/javascript_examples
 
-                let CANVAS_BORDER_COLOR = app.ui.settings.getSettingValue("Compositor.Canvas.BORDER_COLOR", "#FF0000B0");
-                let COMPOSITION_BORDER_COLOR = app.ui.settings.getSettingValue("Compositor.Composition.BORDER_COLOR", "#00b300b0");
-                // overlay;
-                let COMPOSITION_BORDER_SIZE = app.ui.settings.getSettingValue("Compositor.Composition.BORDER_SIZE", 2);
-                let COMPOSITION_BACKGROUND_COLOR = app.ui.settings.getSettingValue("Compositor.Composition.COMPOSITION_BACKGROUND_COLOR", "#000000b0");
+                let {
+                    CANVAS_BORDER_COLOR,
+                    COMPOSITION_BORDER_COLOR,
+                    COMPOSITION_BORDER_SIZE,
+                    COMPOSITION_BACKGROUND_COLOR
+                } = getCompositorSettings(app);
 
-                const array = new Uint32Array(10);
-                const compositorId = 'c_' + self.crypto.getRandomValues(array)[0] + '_' + self.crypto.getRandomValues(array)[1];
+                const compositorId = getRandomCompositorUniqueId();
 
                 initStuff(node, compositorId, CANVAS_BORDER_COLOR, COMPOSITION_BORDER_COLOR , COMPOSITION_BORDER_SIZE, COMPOSITION_BACKGROUND_COLOR);
 
-                // console.log("getCustomWidgets", node, node.id, inputName, inputData, app, node.stuff);
+
                 let res;
                 node[COMPOSITOR] = new Promise((resolve) => (res = resolve));
 
-                const container = document.createElement("div");
-                container.style.background = "rgba(0,0,0,0.25)";
-                container.style.textAlign = "center";
-
-                const canvas = document.createElement("canvas");
-                canvas.id = node.stuff.canvasId;
-                canvas.style = `outline:1px solid ${CANVAS_BORDER_COLOR}`;
-                // canvas.width = 'auto';
-                // canvas.height = 'auto';
-                // node.resizable = false;
-
+                const container = createCompositorContainerDiv();
+                const canvas = createCanvasElement(node);
                 container.appendChild(canvas);
+
                 // https://docs.comfy.org/essentials/javascript_objects_and_hijacking
 
-
-                // NOTE: hideOnZoom:false FIXES not being able to take screenshot and disappearing on zomout
-                return {widget: node.addDOMWidget(inputName, "COMPOSITOR", container, {hideOnZoom: false})}; // hideOnZoom:false ,ccanvas: canvas
+                /**
+                 * NOTE: hideOnZoom:false FIXES not being able to take screenshot and disappearing on zoom out
+                 */
+                return {widget: node.addDOMWidget(inputName, "COMPOSITOR", container, {hideOnZoom: false})};
                 // return {widget: node.addDOMWidget(inputName, "COMPOSITOR", container, {})}; // hideOnZoom:false ,ccanvas: canvas
             },
         };
@@ -277,59 +397,7 @@ app.registerExtension({
      */
     async setup(app) {
 
-
-        // app.ui.settings.addSetting({
-        //     id: "Compositor.Canvas.BORDER_COLOR",
-        //     name: "Border Color",
-        //     tooltip: "give an hex code with alpha, e.g.: #00b300b0, it's the area controlled by 'padding' size outside the  output that will not be exported but used for manipulation",
-        //     type: "text",
-        //     defaultValue: "#00b300b0",
-        //     onChange: (newVal, oldVal) => {
-        //         console.log(newVal, this);
-        //     },
-        //
-        // });
-        //
-        // app.ui.settings.addSetting({
-        //     id: "Compositor.Composition.BORDER_COLOR",
-        //     name: "Border Color (not rendered)",
-        //     type: "text",
-        //     tooltip: "give hex code with alpha eg.: #00b300b0, this will help identifying what is withing the output",
-        //     defaultValue: "#00b300b0",
-        //     onChange: (newVal, oldVal) => {
-        //         console.log(newVal, this);
-        //     },
-        //
-        // });
-
-        // app.ui.settings.addSetting({
-        //     id: "Compositor.Composition.BORDER_SIZE",
-        //     name: "Border Size",
-        //     type: "slider",
-        //     attrs: {
-        //         min: 0,
-        //         max: 2,
-        //         step: 1
-        //     },
-        //     defaultValue: 2,
-        //     tooltip: "Border size, 0 for invisible, overlayed and unselectable, not part of the node ouptut",
-        //
-        //     onChange: (newVal, oldVal) => {
-        //         console.log(newVal, this);
-        //     },
-        // });
-
-        // app.ui.settings.addSetting({
-        //     id: "Compositor.Composition.COMPOSITION_BACKGROUND_COLOR",
-        //     name: "Background Color - Output",
-        //     type: "text",
-        //     tooltip: "give hex code with alpha eg.: #00b300b0, this will help identifying what is withing the output",
-        //     defaultValue: "#00b300b0",
-        //     onChange: (newVal, oldVal) => {
-        //         console.log(newVal, this);
-        //     },
-        // });
-
+        addCompositorSettings.call(this, app);
 
         // need to have a unique node key
         // and leverage theImage.cacheKey if it's the same image, do nothing
@@ -353,7 +421,8 @@ app.registerExtension({
                 node.stuff.canvas.add(theImage);
                 node.stuff[imageNameAt(index)] = theImage;
             }
-            // node.stuff.canvas.bringToFront(node.stuff.compositionBorder)
+
+            node.stuff.canvas.bringToFront(node.stuff.compositionBorder)
         }
 
         /**
@@ -423,34 +492,38 @@ app.registerExtension({
     //
 
     // },
-    /** loadedGraphNode */
+    /** loadedGraphNode, after nodeCreated*/
     async loadedGraphNode(node, app) {
-        // node.type == "Compositor" && console.log("loadedGraphNode", node, app, node.stuff);
+        node.type == "Compositor" && console.log("loadedGraphNode", node, app, node.stuff);
 
         // const ns = node.stuff;
         //
-        // ns.compositionArea.setHeight(ns.h.value);
-        // ns.compositionArea.setWidth(ns.w.value);
-        // ns.compositionArea.setLeft(ns.p.value);
-        // ns.compositionArea.setTop(ns.p.value);
+        // ns.safeArea.setHeight(ns.h.value);
+        // ns.safeArea.setWidth(ns.w.value);
+        // ns.safeArea.setLeft(ns.p.value);
+        // ns.safeArea.setTop(ns.p.value);
         //
-        // ns.compositionBorder.setHeight(ns.h.value + 2);
-        // ns.compositionBorder.setWidth(ns.w.value + 2);
-        // ns.compositionBorder.setLeft(ns.p.value - 1);
-        // ns.compositionBorder.setTop(ns.p.value - 1);
-        // ns.compositionBorder.set("strokeWidth", 1);
-        // ns.compositionBorder.set("stroke", IMAGE_BOUNDARY_AREA_BORDER_COLOR);
+        // ns.compositionBorder.setHeight(ns.h.value + ns.stuff.COMPOSITION_BORDER_SIZE*2);
+        // ns.compositionBorder.setWidth(ns.w.value  + ns.stuff.COMPOSITION_BORDER_SIZE*2);
+        // ns.compositionBorder.setLeft(ns.p.value - ns.stuff.COMPOSITION_BORDER_SIZE);
+        // ns.compositionBorder.setTop(ns.p.value - ns.stuff.COMPOSITION_BORDER_SIZE*2);
+        // ns.compositionBorder.set("strokeWidth", ns.stuff.COMPOSITION_BORDER_SIZE);
+        // ns.compositionBorder.set("stroke", ns.stuff.COMPOSITION_BORDER_COLOR);
         // ns.compositionBorder.bringToFront()
         //
-        // ns.canvas.bringToFront(ns.compositionBorder);
+        // canvas.bringToFront(ns.compositionBorder);
         //
         // //console.log(v.getWidth(), v.getHeight(), value);
-        // ns.v.setHeight(ns.compositionArea.getHeight() + (ns.p.value * 2));
-        // ns.v.setWidth(ns.compositionArea.getWidth() + (ns.p.value * 2));
-        // ns.v.renderAll();
-        // ns.node.setSize([ns.v.getWidth() + 100, ns.v.getHeight() + 556]);
+        // ns.canvas.setHeight(ns.safeArea.getHeight() + (ns.p.value * 2));
+        // ns.canvas.setWidth(ns.safeArea.getWidth() + (ns.p.value * 2));
+        // ns.canvas.renderAll();
+        // ns.node.setSize(calculateWidgetSize(v));
+        //
         // ns.capture();
-
+        // debugger;
+    },
+    async afterConfigureGraph(args){
+        console.log("afterConfigureGraph",args);
     },
     /**
      * Called when a specific instance of a node gets created
@@ -462,40 +535,36 @@ app.registerExtension({
      */
     async nodeCreated(node) {
         if ((node.type, node.constructor.comfyClass !== "Compositor")) return;
-        // node.stuff.SAFE_AREA_BORDER_SIZE = 2;
-        // console.log("nodeCreated", node)
+        console.log("nodeCreated", node)
 
 
-        const composite = node.widgets.find((w) => w.name === "image");
-        const w = node.widgets.find((w) => w.name === "width");
-        const h = node.widgets.find((w) => w.name === "height");
-        const p = node.widgets.find((w) => w.name === "padding");
-        const captureOnQueue = node.widgets.find((w) => w.name === "capture_on_queue");
+        const {composite, w, h, p, captureOnQueue} = getCompositorWidgets(node);
 
         const v = createCanvas(node.stuff.canvasId);
 
 
-        /**
-         * the actual area of WxH dimensions that will be exported as output
-         */
-        var compositionArea = createCompositionArea(p, w, h);
 
+        var compositionArea = createCompositionArea(p, w, h, node);
         var compositionBorder = createCompositionBorder(p, w, h, node);
-        //
+
         compositionBorder.set("strokeWidth", node.stuff.COMPOSITION_BORDER_SIZE);
         compositionBorder.set("stroke", node.stuff.COMPOSITION_BORDER_COLOR);
+        compositionBorder.set("selectable",false);
+        compositionBorder.set("evented",false);
+
         node.stuff.compositionBorder = compositionBorder;
 
         v.add(compositionArea);
-        // v.add(compositionBorder);
-        // v.bringToFront(compositionBorder);
+        v.add(compositionBorder);
+        v.bringToFront(compositionBorder);
+
 
         w.origCalback = w.callback;
         w.callback = (value, graphCanvas, node, pos, event) => {
 
             v.setWidth(value + (p.value * 2));
             compositionArea.setWidth(value);
-            compositionBorder.setWidth(value + node.stuff.COMPOSITION_BORDER_SIZE);
+            compositionBorder.setWidth(value + node.stuff.COMPOSITION_BORDER_SIZE*2);
             node.setSize(calculateWidgetSize(v))
 
             v.renderAll();
@@ -506,7 +575,7 @@ app.registerExtension({
 
             v.setHeight(value + (p.value * 2));
             compositionArea.setHeight(value);
-            //compositionBorder.setHeight(value + 2);
+            compositionBorder.setHeight(value + node.stuff.COMPOSITION_BORDER_SIZE*2);
 
             node.setSize(calculateWidgetSize(v))
             v.renderAll();
@@ -514,20 +583,20 @@ app.registerExtension({
 
         // padding change
         p.origCallback = p.callback;
-        p.callback = (value, graphCanvas, node, pos, event) => {
-
+        p.callback = (padding, graphCanvas, node, pos, event) => {
+            // value is the padding value
             compositionArea.setHeight(h.value);
             compositionArea.setWidth(w.value);
-            compositionArea.setLeft(value);
-            compositionArea.setTop(value);
+            compositionArea.setLeft(padding);
+            compositionArea.setTop(padding);
 
             compositionBorder.setHeight(h.value + node.stuff.COMPOSITION_BORDER_SIZE*2);
             compositionBorder.setWidth(w.value + node.stuff.COMPOSITION_BORDER_SIZE*2);
-            compositionBorder.setLeft(value - node.stuff.COMPOSITION_BORDER_SIZE);
-            compositionBorder.setTop(value - node.stuff.COMPOSITION_BORDER_SIZE);
+            compositionBorder.setLeft(padding - node.stuff.COMPOSITION_BORDER_SIZE);
+            compositionBorder.setTop(padding - node.stuff.COMPOSITION_BORDER_SIZE);
 
-            v.setHeight(compositionArea.getHeight() + (value * 2));
-            v.setWidth(compositionArea.getWidth() + (value * 2));
+            v.setHeight(compositionArea.getHeight() + (padding * 2));
+            v.setWidth(compositionArea.getWidth() + (padding * 2));
             v.renderAll();
             node.setSize(calculateWidgetSize(v))
         }
@@ -537,7 +606,6 @@ app.registerExtension({
 
         // final image to be associated to the node preview
         const img = new Image();
-
 
         // data url
         let data = null;
@@ -597,7 +665,7 @@ app.registerExtension({
                     node.stuff.c2 = await getChecksumSha256(blob);
                     // console.log(node.stuff.c1, node.stuff.c2, node.stuff.c1 == node.stuff.c2);
                     node.stuff.sameHash = node.stuff.c1 == node.stuff.c2;
-                    console.log("new image ? ", node.stuff.sameHash ? "yes" : "no");
+                    console.log("new image ? ", node.stuff.sameHash ? "no, same has" : "yes, different hash");
                     if (node.stuff.sameHash) {
                         // exit early, don't re-upload if it is the same content !!!
                         return node.stuff.lastUpload;

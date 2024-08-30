@@ -19,11 +19,12 @@ With the Compositor Node you can:
 
 ## Changelog
   - V **1.0.9** - 30.08.2024 - Huge refactoring!
-    - **multiple instances** are now possible
-    - **zooming out does not hide the compositor images anymore**
-    - when **saving a png with the workflow** the **compositor content is now visible** (will not be restored...yet)
-    - the node **does not re-trigger** the execution of the flow if the image is not changed
-    - does not upload anymore an image when the contents have not changed **checksum check**
+    - new feature: **multiple instances** are now possible
+    - bugfix: **zooming out does not hide the compositor images anymore**
+    - bugfix: when **saving a png with the workflow** the **compositor content is now visible** (will not be restored...yet)
+    - enhancement: the node **does not re-trigger** the execution of the flow if the image is not changed
+    - performance: the node is **now more efficient** and correctly implements the is_changed check via **checksum**, avoiding re-triggering flows downstream if the composition has not changed
+    - mantainability: the node is now refactored and better engineered, with a lot of comments. could be a good use case for those learning to code comfy extensions.
   - V **1.0.8** - 28.08.2024 - new feature: **safe area  indication** - a green border is overlaid on top of the composition to indicate the exported area  
   - V **1.0.7** - 28.08.2024 - new feature: **preserve stacking order**. when selecting a node, it's z-order is preserved.
     - the first connected node will be the most distant from camera (background)

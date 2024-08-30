@@ -18,6 +18,12 @@ With the Compositor Node you can:
 - flip an image via negative scaling (drag a corner towards and past the inside of the image)
 
 ## Changelog
+  - V **1.0.9** 30.08.2024 huge refactoring!
+    - multiple instances are now possible
+    - zooming out does not hide the compositor images anymore
+    - it's possible to save the workflow with the image of the composite (will not be restored...yet)
+    - the node **does not re-trigger** the execution of the flow if the image is not changed
+    - does not upload anymore an image when the contents have not changed **checksum check**
   - V **1.0.8** 28.08.2024 new feature: **safe area  indication** - a green border is overlaid on top of the composition to indicate the exported area  
   - V **1.0.7** 28.08.2024 new feature: **preserve stacking order**. when selecting a node, it's z-order is preserved.
     - the first connected node will be the most distant from camera (background)

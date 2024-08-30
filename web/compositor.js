@@ -159,7 +159,7 @@ const createCompositionArea = (p, w, h) => {
  */
 
 
-function setupReferences(node, p, w, h, v, composite, img, compositionArea, capture) {
+function setupReferences(node, p, w, h, v, composite, img, compositionArea, compositionBorder, capture) {
     node.stuff.p = p;
     node.stuff.w = w;
     node.stuff.h = h;
@@ -563,7 +563,7 @@ app.registerExtension({
         // grab some references in the node.
         // hopefully they are not serialized :D
 
-        setupReferences(node, p, w, h, v, composite, img, compositionArea, capture);
+        setupReferences(node, p, w, h, v, composite, img, compositionArea, compositionBorder, capture);
 
 
         const btn = node.addWidget("button", "capture", "capture", capture);

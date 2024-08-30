@@ -39,13 +39,18 @@ class Compositor(nodes.LoadImage):
     last_ic = {}
 
     @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        file = kwargs.get("image")
+        return file
+
+    @classmethod
     def INPUT_TYPES(s):
         return {
             "required": {
                 "image": ("COMPOSITOR", {"lazy": True}),
-                "width": ("INT", {"default": 0, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
-                "height": ("INT", {"default": 0, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
-                "padding": ("INT", {"default": 0, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
+                "width": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
+                "height": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
+                "padding": ("INT", {"default": 100, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
                 "capture_on_queue": ("BOOLEAN", {"default": True}),
                 "pause": ("BOOLEAN", {"default": True}),
             },
@@ -59,7 +64,11 @@ class Compositor(nodes.LoadImage):
                 "image7": ("IMAGE",),
                 "image8": ("IMAGE",),
             },
-            "hidden": {"prompt": "PROMPT", "extra_pnginfo": "EXTRA_PNGINFO", "id": "UNIQUE_ID"},
+            "hidden": {
+                "prompt": "PROMPT",
+                "extra_pnginfo": "EXTRA_PNGINFO",
+                "node_id": "UNIQUE_ID",
+            },
         }
 
     RETURN_TYPES = ("IMAGE",)
@@ -79,20 +88,6 @@ The compositor node
 - use "join image with alpha" to apply a mask  (hand drawn or extracted via sam or other way) and get and rgba to pass to the node
 - use Image remove background (rembg) from comfyui-rembg-node to extract an rgba image with no background
 """
-
-    @classmethod
-    def IS_CHANGED(s, id, **kwargs):
-        # mode = kwargs.get("onexecute","")
-        print(s.last_ic)
-        if (not id[0] in s.last_ic): s.last_ic[id[0]] = random.random()
-        return s.last_ic[id[0]]
-
-    # def check_lazy_status(self, image, **kwargs):
-    #     pause = kwargs.pop('pause', False)
-    #     needed = []
-    #     if pause:
-    #         needed.append("pause")
-    #     return needed
 
     def composite(self, image, **kwargs):
         # extract the images
@@ -114,6 +109,7 @@ The compositor node
         image6 = kwargs.pop('image6', None)
         image7 = kwargs.pop('image7', None)
         image8 = kwargs.pop('image8', None)
+        node_id = kwargs.pop('node_id', None)
 
         images = [image1, image2, image3, image4, image5, image6, image7, image8, ]
         input_images = []
@@ -126,7 +122,7 @@ The compositor node
                 input_images.append(img)
 
         PromptServer.instance.send_sync(
-            "compositor.images", {"names": input_images}
+            "compositor.images", {"names": input_images, "node": node_id}
         )
 
         if pause:

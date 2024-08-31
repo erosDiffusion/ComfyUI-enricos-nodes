@@ -1,7 +1,7 @@
 import nodes
 import folder_paths
 from server import PromptServer
-from aiohttp import web
+# from aiohttp import web
 import numpy as np
 import base64
 from io import BytesIO
@@ -33,21 +33,24 @@ def toBase64ImgUrl(img):
 # it should not be necessary to pass b64 but just the names of the uploaded images
 # author: erosdiffusionai@gmail.com
 
-class Compositor(nodes.LoadImage):
+class Compositor:
+    # class Compositor(nodes.LoadImage):
     # INPUT_IS_LIST=True
     OUTPUT_NODE = False
     last_ic = {}
 
-    @classmethod
-    def IS_CHANGED(cls, **kwargs):
-        file = kwargs.get("image")
-        return file
+    # @classmethod
+    # def IS_CHANGED(cls, **kwargs):
+    #     file = kwargs.get("image")
+    #     return file
 
     @classmethod
-    def INPUT_TYPES(s):
+    def INPUT_TYPES(cls):
         return {
             "required": {
-                "image": ("COMPOSITOR", {"lazy": True}),
+                # {"lazy": True, "forceInput": True}
+                "config": ("COMPOSITOR_CONFIG", ),
+                # "image": ("COMPOSITOR", {"lazy": True}),
                 "width": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
                 "height": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
                 "padding": ("INT", {"default": 100, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
@@ -55,14 +58,15 @@ class Compositor(nodes.LoadImage):
                 "pause": ("BOOLEAN", {"default": True}),
             },
             "optional": {
-                "image1": ("IMAGE",),
-                "image2": ("IMAGE",),
-                "image3": ("IMAGE",),
-                "image4": ("IMAGE",),
-                "image5": ("IMAGE",),
-                "image6": ("IMAGE",),
-                "image7": ("IMAGE",),
-                "image8": ("IMAGE",),
+
+                # "image1": ("IMAGE",),
+                # "image2": ("IMAGE",),
+                # "image3": ("IMAGE",),
+                # "image4": ("IMAGE",),
+                # "image5": ("IMAGE",),
+                # "image6": ("IMAGE",),
+                # "image7": ("IMAGE",),
+                # "image8": ("IMAGE",),
             },
             "hidden": {
                 "prompt": "PROMPT",
@@ -89,29 +93,34 @@ The compositor node
 - use Image remove background (rembg) from comfyui-rembg-node to extract an rgba image with no background
 """
 
-    def composite(self, image, **kwargs):
+    def composite(self, **kwargs):
         # extract the images
         # convert them from tensor to pil and then to base 64
         # send as custom to be able to be used by ui
         # finally return the resulting image (the composite "image" is seen as input but it's actually the output)
 
         # onexecute = kwargs.pop('onexecute', ["Pause", ])
-        pause = kwargs.pop('pause', False)
+        pause = kwargs.get('pause', False)
         # print(onexecute)
         # print(self.last_ic)
 
-        # image = kwargs.pop('image', None)
-        image1 = kwargs.pop('image1', None)
-        image2 = kwargs.pop('image2', None)
-        image3 = kwargs.pop('image3', None)
-        image4 = kwargs.pop('image4', None)
-        image5 = kwargs.pop('image5', None)
-        image6 = kwargs.pop('image6', None)
-        image7 = kwargs.pop('image7', None)
-        image8 = kwargs.pop('image8', None)
+        # image = kwargs.get('image', None)
+        # image1 = kwargs.get('image1', None)
+        # image2 = kwargs.get('image2', None)
+        # image3 = kwargs.get('image3', None)
+        # image4 = kwargs.get('image4', None)
+        # image5 = kwargs.get('image5', None)
+        # image6 = kwargs.get('image6', None)
+        # image7 = kwargs.get('image7', None)
+        # image8 = kwargs.get('image8', None)
+        config = kwargs.get('config', "default")
+
+        print(config["padding"])
         node_id = kwargs.pop('node_id', None)
 
-        images = [image1, image2, image3, image4, image5, image6, image7, image8, ]
+        # extract from config
+        # images = [image1, image2, image3, image4, image5, image6, image7, image8, ]
+        images = []
         input_images = []
 
         for img in images:
@@ -130,7 +139,7 @@ The compositor node
             return (ExecutionBlocker(None),)
 
         else:
-            res = super().load_image(folder_paths.get_annotated_filepath(image))
+            #res = super().load_image(folder_paths.get_annotated_filepath(image))
 
             # call PreviewImage base
             # ret = self.save_images(images=images_in, **kwargs)
@@ -146,13 +155,5 @@ The compositor node
             #    raise InterruptProcessingException()
             #    return (None, None,)
 
-            return res
-
-
-NODE_CLASS_MAPPINGS = {
-    "Compositor": Compositor,
-}
-
-NODE_DISPLAY_NAME_MAPPINGS = {
-    "Compositor": "Compositor",
-}
+            #return res
+            return None

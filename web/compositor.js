@@ -511,6 +511,7 @@ app.registerExtension({
          *
          */
         function imageMessageHandler(event) {
+            console.log(event);
             const nodeId = event.detail.node;
             // as base64 or null, always at same index
             const images = [...event.detail.names];

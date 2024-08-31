@@ -1,14 +1,11 @@
 # author: erosdiffusionai@gmail.com
 import nodes
-import folder_paths
-from server import PromptServer
-# from aiohttp import web
 import numpy as np
 import base64
 from io import BytesIO
-from PIL import Image, ImageOps
-from comfy_execution.graph import ExecutionBlocker
-import random
+from PIL import Image
+import torch
+from server import PromptServer
 
 MAX_RESOLUTION = nodes.MAX_RESOLUTION
 
@@ -28,6 +25,7 @@ def toBase64ImgUrl(img):
 
 
 class CompositorConfig:
+    masked = None
     OUTPUT_NODE = False
 
     # @classmethod
@@ -71,8 +69,8 @@ class CompositorConfig:
             },
         }
 
-    RETURN_TYPES = ("COMPOSITOR_CONFIG",)
-    RETURN_NAMES = ("config",)
+    RETURN_TYPES = ("COMPOSITOR_CONFIG", "IMAGE", )
+    RETURN_NAMES = ("config", "masked", )
 
     FUNCTION = "configure"
 
@@ -129,19 +127,29 @@ The compositor node
         masks = [mask1, mask2, mask3, mask4, mask5, mask6, mask7, mask8, ]
         input_images = []
 
-        # apply the masks to the images if any so we get an rgba
+        # apply the masks to the images if any so that we get a rgba
         # then pass the rgba in the return value
 
-        for img in images:
+        for (img, mask) in zip(images, masks):
             if img is not None:
-                i = tensor2pil(img)
-                input_images.append(toBase64ImgUrl(i))
+                if mask is not None:
+                    # apply the mask and return
+                    masked = self.apply_mask(img, mask)
+                    self.masked = masked[0]
+
+                    i = tensor2pil(self.masked)
+                    input_images.append(toBase64ImgUrl(i))
+                else:
+                    # no need to apply the mask
+                    i = tensor2pil(img)
+                    input_images.append(toBase64ImgUrl(i))
             else:
+                # input is None, forward
                 input_images.append(img)
 
-        # PromptServer.instance.send_sync(
-        #     "compositor.images", {"names": input_images, "node": node_id}
-        # )
+        PromptServer.instance.send_sync(
+            "compositor.images", {"names": input_images, "node": node_id}
+        )
 
         # res = []
         # res.append({"pause": pause,
@@ -174,4 +182,19 @@ The compositor node
                "height": height,
                "node_id": node_id
                }
-        return (res, )
+        return (res, self.masked, )
+
+    def apply_mask(self, image: torch.Tensor, alpha: torch.Tensor):
+        batch_size = min(len(image), len(alpha))
+        out_images = []
+
+        alpha = 1.0 - resize_mask(alpha, image.shape[1:])
+        for i in range(batch_size):
+            out_images.append(torch.cat((image[i][:, :, :3], alpha[i].unsqueeze(2)), dim=2))
+
+        result = (torch.stack(out_images),)
+        return result
+
+
+def resize_mask(mask, shape):
+    return torch.nn.functional.interpolate(mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])), size=(shape[0], shape[1]), mode="bilinear").squeeze(1)

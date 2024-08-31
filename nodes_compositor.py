@@ -130,9 +130,9 @@ The compositor node
             else:
                 input_images.append(img)
 
-        PromptServer.instance.send_sync(
-            "compositor.images", {"names": input_images, "node": node_id}
-        )
+        # PromptServer.instance.send_sync(
+        #     "compositor.images", {"names": input_images, "node": node_id}
+        # )
 
         if pause:
             # raise InterruptProcessingException()

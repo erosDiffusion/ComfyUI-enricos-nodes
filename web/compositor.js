@@ -61,10 +61,15 @@ app.registerExtension({
         }
 
         function configMessageHandler(event) {
-
+            // Litegraph docs
+            // https://github.com/jagenjo/litegraph.js/blob/master/guides/README.md
             // get stuff connected to this config also...careful with the gui now...
             const node = hook(81);
             node.widgets[0].element.src = event.detail.names[7];
+            node.setSize([event.detail.width,event.detail.height]);
+
+            // node.widgets[0].element.style.width = event.detail.width+"px";
+            // node.widgets[0].element.style.height = event.detail.height+"px";
         }
 
         api.addEventListener("compositor.images", imageMessageHandler);

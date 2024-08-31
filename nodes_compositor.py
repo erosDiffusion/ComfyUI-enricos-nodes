@@ -50,12 +50,7 @@ class Compositor:
             "required": {
                 # {"lazy": True, "forceInput": True}
                 "config": ("COMPOSITOR_CONFIG", ),
-                # "image": ("COMPOSITOR", {"lazy": True}),
-                "width": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
-                "height": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
-                "padding": ("INT", {"default": 100, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
-                "capture_on_queue": ("BOOLEAN", {"default": True}),
-                "pause": ("BOOLEAN", {"default": True}),
+                "image": ("COMPOSITOR", {"lazy": True}),
             },
             "optional": {
 
@@ -94,66 +89,26 @@ The compositor node
 """
 
     def composite(self, **kwargs):
-        # extract the images
-        # convert them from tensor to pil and then to base 64
-        # send as custom to be able to be used by ui
-        # finally return the resulting image (the composite "image" is seen as input but it's actually the output)
 
-        # onexecute = kwargs.pop('onexecute', ["Pause", ])
-        pause = kwargs.get('pause', False)
-        # print(onexecute)
-        # print(self.last_ic)
-
-        # image = kwargs.get('image', None)
-        # image1 = kwargs.get('image1', None)
-        # image2 = kwargs.get('image2', None)
-        # image3 = kwargs.get('image3', None)
-        # image4 = kwargs.get('image4', None)
-        # image5 = kwargs.get('image5', None)
-        # image6 = kwargs.get('image6', None)
-        # image7 = kwargs.get('image7', None)
-        # image8 = kwargs.get('image8', None)
         config = kwargs.get('config', "default")
-
-        print(config["padding"])
+        pause = config["pause"]
+        padding = config["padding"]
+        capture_on_queue = config["capture_on_queue"]
+        width = config["width"]
+        height = config["height"]
+        config_node_id = config["node_id"]
+        images = config["images"]
         node_id = kwargs.pop('node_id', None)
+        # prompt
+        # extra_pnginfo
 
-        # extract from config
-        # images = [image1, image2, image3, image4, image5, image6, image7, image8, ]
         images = []
-        input_images = []
 
-        for img in images:
-            if img is not None:
-                i = tensor2pil(img)
-                input_images.append(toBase64ImgUrl(i))
-            else:
-                input_images.append(img)
-
-        # PromptServer.instance.send_sync(
-        #     "compositor.images", {"names": input_images, "node": node_id}
-        # )
+        PromptServer.instance.send_sync(
+            "compositor.images", {"names": images, "node": node_id}
+        )
 
         if pause:
-            # raise InterruptProcessingException()
             return (ExecutionBlocker(None),)
-
         else:
-            #res = super().load_image(folder_paths.get_annotated_filepath(image))
-
-            # call PreviewImage base
-            # ret = self.save_images(images=images_in, **kwargs)
-
-            # send the images to view
-            # PromptServer.instance.send_sync("early-image-handler", {"id": id, "urls":ret['ui']['images']})
-
-            # try:
-            #    is_block_condition = (mode == "Always pause" or mode == "Progress first pick" or self.batch > 1)
-            #    is_blocking_mode = (mode not in ["Pass through", "Take First n", "Take Last n"])
-            #    selections = MessageHolder.waitForMessage(id, asList=True) if (is_blocking_mode and is_block_condition) else [0]
-            # except Cancelled:
-            #    raise InterruptProcessingException()
-            #    return (None, None,)
-
-            #return res
             return None

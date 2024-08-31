@@ -94,11 +94,6 @@ The compositor node
         # send as custom to be able to be used by ui
         # finally return the resulting image (the composite "image" is seen as input but it's actually the output)
 
-        # onexecute = kwargs.pop('onexecute', ["Pause", ])
-        pause = kwargs.pop('pause', False)
-        # print(onexecute)
-        # print(self.last_ic)
-
         # image = kwargs.pop('image', None)
         image1 = kwargs.pop('image1', None)
         image2 = kwargs.pop('image2', None)
@@ -116,12 +111,13 @@ The compositor node
         mask6 = kwargs.pop('mask6', None)
         mask7 = kwargs.pop('mask7', None)
         mask8 = kwargs.pop('mask8', None)
-        pause = kwargs.pop('pause', None)
-        capture_on_queue = kwargs.pop('capture_on_queue', None)
-        padding = kwargs.pop('padding', None)
-        width = kwargs.pop('width', None)
-        height = kwargs.pop('height', None)
-        node_id = kwargs.pop('node_id', None)
+        pause = kwargs.pop('pause', False)
+        capture_on_queue = kwargs.pop('capture_on_queue', True)
+        padding = kwargs.pop('padding', 100)
+        width = kwargs.pop('width', 512)
+        height = kwargs.pop('height', 512)
+        node_id = kwargs.pop('node_id', 512)
+
 
         images = [image1, image2, image3, image4, image5, image6, image7, image8, ]
         masks = [mask1, mask2, mask3, mask4, mask5, mask6, mask7, mask8, ]
@@ -151,7 +147,14 @@ The compositor node
         # by the compositor node, where it should be filtered by it's config node id and
         # discard messages not coming from config
         PromptServer.instance.send_sync(
-            "compositor.images", {"names": input_images, "node": node_id}
+            "compositor.config", {"names": input_images,
+                                  "config_node_id": node_id,
+                                  "width": width,
+                                  "height": height,
+                                  "padding": padding,
+                                  "capture_on_queue": capture_on_queue,
+                                  "pause": pause
+                                  }
         )
 
         # res = []
@@ -183,7 +186,8 @@ The compositor node
                "capture_on_queue": capture_on_queue,
                "width": width,
                "height": height,
-               "node_id": node_id
+               "node_id": node_id,
+               "images": input_images,
                }
         return (res, self.masked, )
 

@@ -19,17 +19,17 @@ With the Compositor Node you can:
 
 ## Changelog
   - V **1.0.9** - 30.08.2024 - Huge refactoring!
-    - new feature: **multiple instances** are now possible
-    - bugfix: **zooming out does not hide the compositor images anymore**
-    - bugfix: when **saving a png with the workflow** the **compositor content is now visible** (will not be restored...yet)
-    - enhancement: the node **does not re-trigger** the execution of the flow if the image is not changed
-    - performance: the node is **now more efficient** and correctly implements the is_changed check via **checksum**, avoiding re-triggering flows downstream if the composition has not changed
-    - mantainability: the node is now refactored and better engineered, with a lot of comments. could be a good use case for those learning to code comfy extensions.
-  - V **1.0.8** - 28.08.2024 - new feature: **safe area  indication** - a green border is overlaid on top of the composition to indicate the exported area  
-  - V **1.0.7** - 28.08.2024 - new feature: **preserve stacking order**. when selecting a node, it's z-order is preserved.
+    - _new feature_: **multiple instances** are now possible
+    - _bugfix_: **zooming out does not hide the compositor images anymore**
+    - _bugfix_: when **saving a png with the workflow** the **compositor content is now visible** (will not be restored...yet)
+    - _enhancement_: the node **does not re-trigger** the execution of the flow if the image is not changed
+    - _performance_: the node is **now more efficient** and correctly implements the is_changed check via **checksum**, avoiding re-triggering flows downstream if the composition has not changed
+    - _mantainability_: the node is now refactored and better engineered, with a lot of comments. could be a good use case for those learning to code comfy extensions.
+  - V **1.0.8** - 28.08.2024 - _new feature_: **safe area  indication** - a green border is overlaid on top of the composition to indicate the exported area  
+  - V **1.0.7** - 28.08.2024 - _new feature_: **preserve stacking order**. when selecting a node, it's z-order is preserved image1 being the background/farthest and image8 the foreground/closest.
     - the first connected node will be the most distant from camera (background)
     - the last will be the closest to camera (subject/foreground)
-  - V **1.0.4** - 27.08.2024 - new feature: now it's possible to **pause the flow** with a switch to avoid processing an unfinished composition
+  - V **1.0.4** - 27.08.2024 - _new feature_: now it's possible to **pause the flow** with a switch to avoid processing an unfinished composition
   
 
 ![the compositor node](/assets/sample.png)
@@ -144,14 +144,11 @@ now you are in pixel perfect positioning control of your scene and content !
 
 ### Final words and limitations
 
-- **limitation** you need to run the flow once for the compositor to show images. so just run on fixed or import static and stop the flow, next time you will start from the compositon
-- **limitation** you can only have 1 in the tree...
+- **limitation** you need to run the flow once for the compositor to show images. so just run on fixed or import static and pause/stop the flow, next time you will start from the compositon
 - **limitation**: reloading a flow with compositor will not reload the compostion (x/y position of images and their sizes) you will have to re-do the compositing by hand.
 - **known issue**: for some reason the first load might not make the red box change size of the node...
 - **known issue**: first run might not show images in the editor, if so, reload with browser reload and re-run it should be ok.
-- **known issue**: if you zoom out too much the rendering inside the node might fail (just zoom in)
 - **known issue**: the compositing is not scaled, so if you want a 5k image well... I hope you have a big enough monitor, but it's not (yet) the goal of this node...
-
 
 far from perfect, but hey... it did not exist before, and maybe you can still enjoy it for simple use cases.
 

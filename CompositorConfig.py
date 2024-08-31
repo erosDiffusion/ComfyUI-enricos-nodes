@@ -147,6 +147,9 @@ The compositor node
                 # input is None, forward
                 input_images.append(img)
 
+        # this can act as broadcast to another node, in this case it will be received
+        # by the compositor node, where it should be filtered by it's config node id and
+        # discard messages not coming from config
         PromptServer.instance.send_sync(
             "compositor.images", {"names": input_images, "node": node_id}
         )

@@ -48,20 +48,16 @@ class Compositor(nodes.LoadImage):
     #     return True
 
     # def check_lazy_status(self, image, config):
-    #     # to evaluate whatever is lazy
-    #     # mask_min = mask.min()
-    #     # mask_max = mask.max()
     #     needed = []
-    #     # if image1 is None and (mask_min != 1.0 or mask_max != 1.0):
-    #     #     needed.append("image1")
-    #     # if image2 is None and (mask_min != 0.0 or mask_max != 0.0):
-    #     #     needed.append("image2")
+    #     if image is None and other_condition:
+    #       needed.append("image1")
     #     return needed
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
+                # about forceInput, lazy and other flags: https://docs.comfy.org/essentials/custom_node_datatypes
                 "image": ("COMPOSITOR", {"lazy": True, "default": None}),
                 "config": ("COMPOSITOR_CONFIG", ),
 
@@ -106,11 +102,13 @@ The compositor node
         images = config["images"]
 
         node_id = kwargs.pop('node_id', None)
+        # additional stuff we might send
         # prompt
         # extra_pnginfo
 
         images = []
 
+        # not needed for now, config controls the node
         # PromptServer.instance.send_sync(
         #     "compositor.images", {"names": images, "node": node_id}
         # )

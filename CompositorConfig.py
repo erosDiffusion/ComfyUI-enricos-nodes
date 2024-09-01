@@ -37,7 +37,6 @@ class CompositorConfig:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                # "image": ("COMPOSITOR_CONFIG", {"lazy": True}),
                 "width": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
                 "height": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
                 "padding": ("INT", {"default": 100, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
@@ -69,23 +68,19 @@ class CompositorConfig:
             },
         }
 
-    RETURN_TYPES = ("COMPOSITOR_CONFIG", "IMAGE", )
-    RETURN_NAMES = ("config", "masked", )
+    RETURN_TYPES = ("COMPOSITOR_CONFIG", )
+    RETURN_NAMES = ("config", )
 
     FUNCTION = "configure"
 
     CATEGORY = "image"
     DESCRIPTION = """
 The compositor node
-- drag click to select multiple
-- shift click to add/remove from selected
-- once you have a multiselection you can move/scale/rotate all the items in the selection together
-- use the buffer zone to manipulate big items or park them
-- z-index is no intuitive make sure your graph has the items in the same exact vertical sequence on how they are connected
-- regenerating shows you the sequence, if something does not stack correctly regenerate to see where it goes
-- using the pause button should stop the flow but somenodes don't interpret correctly the break and throw an error. it's irreleveant, just close it
-- use "join image with alpha" to apply a mask  (hand drawn or extracted via sam or other way) and get and rgba to pass to the node
-- use Image remove background (rembg) from comfyui-rembg-node to extract an rgba image with no background
+- pass up to 8 images
+- optionally pass their masks (invert them)
+- masks are automatically applied and internally the compositor is passed an rgba
+- use the sizing controls to configure the compositor, it will be resized on run
+- set the flag to pause to allow yourself time to build your composition (pause acts on compositor, not the config node)
 """
 
     def configure(self, **kwargs):
@@ -157,30 +152,6 @@ The compositor node
                                   }
         )
 
-        # res = []
-        # res.append({"pause": pause,
-        #             "padding": padding,
-        #             "capture_on_queue": capture_on_queue,
-        #             "width": width,
-        #             "height": height,
-        #             "node_id": node_id
-        #             })
-        # res = super().load_image(folder_paths.get_annotated_filepath(image))
-
-        # call PreviewImage base
-        # ret = self.save_images(images=images_in, **kwargs)
-
-        # send the images to view
-        # PromptServer.instance.send_sync("early-image-handler", {"id": id, "urls":ret['ui']['images']})
-
-        # try:
-        #    is_block_condition = (mode == "Always pause" or mode == "Progress first pick" or self.batch > 1)
-        #    is_blocking_mode = (mode not in ["Pass through", "Take First n", "Take Last n"])
-        #    selections = MessageHolder.waitForMessage(id, asList=True)
-        #    if (is_blocking_mode and is_block_condition) else [0]
-        # except Cancelled:
-        #    raise InterruptProcessingException()
-        #    return (None, None,)
         res = {"pause": pause,
                "padding": padding,
                "capture_on_queue": capture_on_queue,
@@ -189,7 +160,8 @@ The compositor node
                "node_id": node_id,
                "images": input_images,
                }
-        return (res, self.masked, )
+        # return (res, self.masked, )
+        return (res, )
 
     def apply_mask(self, image: torch.Tensor, alpha: torch.Tensor):
         batch_size = min(len(image), len(alpha))

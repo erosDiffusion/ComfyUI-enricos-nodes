@@ -33,35 +33,41 @@ def toBase64ImgUrl(img):
 # it should not be necessary to pass b64 but just the names of the uploaded images
 # author: erosdiffusionai@gmail.com
 
-class Compositor:
-    # class Compositor(nodes.LoadImage):
-    # INPUT_IS_LIST=True
+class Compositor(nodes.LoadImage):
     OUTPUT_NODE = False
-    last_ic = {}
+
+
+    @classmethod
+    def IS_CHANGED(cls, **kwargs):
+        file = kwargs.get("image")
+        return file
 
     # @classmethod
-    # def IS_CHANGED(cls, **kwargs):
-    #     file = kwargs.get("image")
-    #     return file
+    # def VALIDATE_INPUTS(cls, image, config):
+    #     # YOLO, anything goes!
+    #     return True
+
+    # def check_lazy_status(self, image, config):
+    #     # to evaluate whatever is lazy
+    #     # mask_min = mask.min()
+    #     # mask_max = mask.max()
+    #     needed = []
+    #     # if image1 is None and (mask_min != 1.0 or mask_max != 1.0):
+    #     #     needed.append("image1")
+    #     # if image2 is None and (mask_min != 0.0 or mask_max != 0.0):
+    #     #     needed.append("image2")
+    #     return needed
 
     @classmethod
     def INPUT_TYPES(cls):
         return {
             "required": {
-                # {"lazy": True, "forceInput": True}
+                "image": ("COMPOSITOR", {"lazy": True, "default": None}),
                 "config": ("COMPOSITOR_CONFIG", ),
-                "image": ("COMPOSITOR", {"lazy": True}),
+
             },
             "optional": {
 
-                # "image1": ("IMAGE",),
-                # "image2": ("IMAGE",),
-                # "image3": ("IMAGE",),
-                # "image4": ("IMAGE",),
-                # "image5": ("IMAGE",),
-                # "image6": ("IMAGE",),
-                # "image7": ("IMAGE",),
-                # "image8": ("IMAGE",),
             },
             "hidden": {
                 "prompt": "PROMPT",
@@ -71,10 +77,10 @@ class Compositor:
         }
 
     RETURN_TYPES = ("IMAGE",)
-    # RETURN_NAMES = ("composite",)
+    RETURN_NAMES = ("composite",)
     FUNCTION = "composite"
-
     CATEGORY = "image"
+
     DESCRIPTION = """
 The compositor node
 - drag click to select multiple
@@ -89,7 +95,7 @@ The compositor node
 """
 
     def composite(self, **kwargs):
-
+        image = kwargs.get('image', None)
         config = kwargs.get('config', "default")
         pause = config["pause"]
         padding = config["padding"]
@@ -98,17 +104,20 @@ The compositor node
         height = config["height"]
         config_node_id = config["node_id"]
         images = config["images"]
+
         node_id = kwargs.pop('node_id', None)
         # prompt
         # extra_pnginfo
 
         images = []
 
-        PromptServer.instance.send_sync(
-            "compositor.images", {"names": images, "node": node_id}
-        )
+        # PromptServer.instance.send_sync(
+        #     "compositor.images", {"names": images, "node": node_id}
+        # )
 
+        # if pause or image is None:
         if pause:
             return (ExecutionBlocker(None),)
         else:
-            return None
+            res = super().load_image(folder_paths.get_annotated_filepath(image))
+            return res

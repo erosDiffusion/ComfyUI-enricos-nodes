@@ -22,7 +22,13 @@ const createCanvas = (node) => new fabric.Canvas(node.stuff.canvasId, {
     // F-10 preserve object stacking
     preserveObjectStacking: true,
     altSelectionKey: "ctrlKey",
+    altActionKey :"ctrlKey",
     centeredKey: "altKey",
+    // centeredRotation: true,
+    // centeredScaling: true,
+
+    // dangerous if you want to move stuff outside view that's transparent
+    // perPixelTargetFind: true,
 
 });
 

@@ -407,7 +407,7 @@ async function hasSameHash(node, blob) {
     node.stuff.c2 = await getChecksumSha256(blob);
     // console.log(node.stuff.c1, node.stuff.c2, node.stuff.c1 == node.stuff.c2);
     node.stuff.sameHash = node.stuff.c1 == node.stuff.c2;
-    console.log("new image ? ", node.stuff.sameHash ? "no, same has" : "yes, different hash");
+    // console.log("new image ? ", node.stuff.sameHash ? "no, same has" : "yes, different hash");
     return node.stuff.sameHash;
 
 }
@@ -557,7 +557,7 @@ app.registerExtension({
 
             const controlledCompositor = running.getOutputNodes(0)[0];
 
-            console.log(running.id, controlledCompositor.id);
+            // console.log(running.id, controlledCompositor.id);
             // this variable is referenced below by closure, do not delete
             const nodeId = controlledCompositor.id;
             const node = hook(controlledCompositor.id);
@@ -673,7 +673,7 @@ app.registerExtension({
     async loadedGraphNode(node, app) {
     },
     async afterConfigureGraph(args) {
-        console.log("afterConfigureGraph", args);
+        / /console.log("afterConfigureGraph", args);
     },
     /**
      * Called when a specific instance of a node gets created
@@ -686,8 +686,8 @@ app.registerExtension({
     async nodeCreated(node) {
         if (!isCompositor(node)) return;
         // ath this point we have W,H etc... with their values
-        //console.log("nodeCreated", node, node.type)
-        
+        // console.log("nodeCreated", node, node.type)
+
         // const {composite, w, h, p, captureOnQueue} = getCompositorWidgets(node);
         const w = {value:512,callback:(value,graphCanvas, node)=>{console.log(value,graphCanvas, node)}};
         const h = {value:512, callback:(value,graphCanvas, node)=>{console.log(value,graphCanvas, node)}};
@@ -704,7 +704,7 @@ app.registerExtension({
             // prevents repeating the same command , eg keeping the shift+up pressed
             //     return;
             // }
-            console.log(options);
+            // console.log(options);
             var key = options.which || options.keyCode; // key detection
             if (key === 37) {
                 // handle Left key
@@ -722,7 +722,7 @@ app.registerExtension({
         });
 
         function moveSelected(direction = [], withShift = false ) {
-            console.log(withShift)
+            // console.log(withShift)
             const Direction = {
                 LEFT: 0,
                 UP: 1,
@@ -737,7 +737,7 @@ app.registerExtension({
                     top: activeObject.top + direction[1] * STEP,
                 });
                 fcanvas.renderAll();
-                console.log("selected objects are moved");
+                // console.log("selected objects are moved");
             }
         }
 

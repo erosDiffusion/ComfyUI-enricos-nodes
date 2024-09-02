@@ -259,9 +259,11 @@ function createCompositorContainerDiv() {
 function createCanvasElement(node) {
     const canvas = document.createElement("canvas");
     canvas.id = node.stuff.canvasId;
-    canvas.style = `outline:1px solid ${node.stuff.CANVAS_BORDER_COLOR}`;
-    // canvas.width = 'auto';
-    // canvas.height = 'auto';
+    // canvas.style = `outline:1px solid ${node.stuff.CANVAS_BORDER_COLOR}`;
+
+
+
+
     node.resizable = false;
     return canvas;
 }
@@ -685,9 +687,7 @@ app.registerExtension({
         if (!isCompositor(node)) return;
         // ath this point we have W,H etc... with their values
         //console.log("nodeCreated", node, node.type)
-
-
-
+        
         // const {composite, w, h, p, captureOnQueue} = getCompositorWidgets(node);
         const w = {value:512,callback:(value,graphCanvas, node)=>{console.log(value,graphCanvas, node)}};
         const h = {value:512, callback:(value,graphCanvas, node)=>{console.log(value,graphCanvas, node)}};
@@ -697,6 +697,51 @@ app.registerExtension({
         const composite = getCompositorWidget(node, "image");
 
         const fcanvas = createCanvas(node);
+
+        fabric.util.addListener(document.body, 'keydown', function(options) {
+
+            // if (options.repeat) {
+            // prevents repeating the same command , eg keeping the shift+up pressed
+            //     return;
+            // }
+            console.log(options);
+            var key = options.which || options.keyCode; // key detection
+            if (key === 37) {
+                // handle Left key
+                moveSelected([-1, 0],options.shiftKey);
+            } else if (key === 38) {
+                // handle Up key
+                moveSelected([0, -1],options.shiftKey);
+            } else if (key === 39) {
+                // handle Right key
+                moveSelected([1, 0],options.shiftKey);
+            } else if (key === 40) {
+                // handle Down key
+                moveSelected([0, 1],options.shiftKey);
+            }
+        });
+
+        function moveSelected(direction = [], withShift = false ) {
+            console.log(withShift)
+            const Direction = {
+                LEFT: 0,
+                UP: 1,
+                RIGHT: 2,
+                DOWN: 3
+            };
+            const STEP = withShift ? 10 : 1;
+            const activeObject = fcanvas.getActiveObject();
+            if (activeObject) {
+                activeObject.set({
+                    left: activeObject.left + direction[0] * STEP,
+                    top: activeObject.top + direction[1] * STEP,
+                });
+                fcanvas.renderAll();
+                console.log("selected objects are moved");
+            }
+        }
+
+
         const compositionArea = createCompositionArea(p, w, h, node);
         const compositionBorder = createCompositionBorder(p, w, h, node);
 

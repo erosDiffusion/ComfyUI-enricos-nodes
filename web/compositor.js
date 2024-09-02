@@ -673,7 +673,7 @@ app.registerExtension({
     async loadedGraphNode(node, app) {
     },
     async afterConfigureGraph(args) {
-        / /console.log("afterConfigureGraph", args);
+        // console.log("afterConfigureGraph", args);
     },
     /**
      * Called when a specific instance of a node gets created

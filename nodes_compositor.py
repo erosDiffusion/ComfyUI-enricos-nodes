@@ -7,6 +7,7 @@ import base64
 from io import BytesIO
 from PIL import Image, ImageOps
 from comfy_execution.graph import ExecutionBlocker
+from pathlib import Path
 import random
 
 MAX_RESOLUTION = nodes.MAX_RESOLUTION
@@ -35,7 +36,7 @@ def toBase64ImgUrl(img):
 
 class Compositor(nodes.LoadImage):
     OUTPUT_NODE = False
-
+    counter = 1
     # By default, Comfy considers that a node has changed if any of its inputs or widgets have changed.
     # This is normally correct, but you may need to override this if, for instance,
     # the node uses a random number (and does not specify a seed - it’s best practice to have a seed input in this case
@@ -52,8 +53,11 @@ class Compositor(nodes.LoadImage):
     def IS_CHANGED(cls, **kwargs):
         # it seems that for the image, it's ignored as something else changed ???
         file = kwargs.get("image")
-        print(file)
+        # if folder_paths.exists_annotated_filepath(file):
+        #     print(file)
         return file
+        # else
+        #     return float("NaN")
 
     # @classmethod
     # def VALIDATE_INPUTS(cls, image, config):
@@ -112,7 +116,7 @@ The compositor node
         width = config["width"]
         height = config["height"]
         config_node_id = config["node_id"]
-        images = config["images"]
+        # images = config["images"]
         names = config["names"]
 
         node_id = kwargs.pop('node_id', None)
@@ -125,6 +129,13 @@ The compositor node
         # (or as a way to communicate with a downstream node).
 
         images = []
+
+
+        # test progress callback
+        # self.progress("test1")
+        # self.progress("test2")
+        # self.progress("test3")
+
 
         # not needed for now, config controls the node
         # PromptServer.instance.send_sync(
@@ -144,14 +155,32 @@ The compositor node
             # "images": images,
             "names": names,
         }
-        print(image is None)
+
+        invalidImage = self.imageDoesNotExist(image);
+        #print(image is None)
         # if pause or image is None:
-        if pause or image is None:
+        if pause or image is None or invalidImage:
             # at the end of my main method
             # awkward return types, can't assign variable need tuple (val,) or list [val]
+            print(f"compositor {node_id} with config {config_node_id} executed, with pause {pause} or image {image} is None {image is None} or invalidImage {invalidImage}]")
+            print(f"pause {pause}")
             return {"ui": ui, "result": (ExecutionBlocker(None),)}
 
         else:
+            print(f"compositor {node_id} with config {config_node_id} executed, else clause: image {image} is None ? {image is None} or invalidImage {invalidImage}")
             return {"ui": ui, "result": super().load_image(folder_paths.get_annotated_filepath(image))}
+
+    # example of progress feedback, not sure about the details dictionary signature:
+    # we're supposed to teg node and prompt_id
+    def progress(self, a):
+        # node (node id), prompt_id, value, max
+        # print(a)
+        self.counter = self.counter + 1
+        PromptServer.instance.send_sync(
+            "progress", {"value": self.counter, "node": None, "prompt_id": None, "max": 10}
+        )
+
+    def imageDoesNotExist(self, image):
+        return not folder_paths.exists_annotated_filepath(image)
 
 

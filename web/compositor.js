@@ -142,6 +142,18 @@ const uploadImage = async (blob) => {
     return `compositor/${name} [temp]`;
 }
 
+
+/** stop the flow */
+async function interrupt() {
+    const response = await fetch('/interrupt', {
+        method: 'POST',
+        cache: 'no-cache',
+        headers: {
+            'Content-Type': 'text/html'
+        },
+    });
+    return await response.json();}
+
 /**
  * calculates the widget size given the contents, a bit flaky
  * @param v the fabric canvas reference
@@ -733,7 +745,22 @@ app.registerExtension({
                 // stuff.canvas.renderAll();
             });
         }
+
+        /** when a node returns an ui element */
         api.addEventListener("executed",executedMessageHandler);
+
+        /**
+         * handle progress message sent during .py execution
+         */
+        function progressHandler(){
+            // need to filter by node id
+            // console.log(arguments);
+        }
+
+        /**
+         * test "progress" received during .py execution
+         */
+        api.addEventListener("progress",progressHandler);
 
 
     },
@@ -831,10 +858,6 @@ app.registerExtension({
         if (!isCompositor(node)) return;
         // at this point we have W,H etc... with their values
 
-
-
-
-
         // const {composite, w, h, p, captureOnQueue} = getCompositorWidgets(node);
         const w = {value:512,callback:(value,graphCanvas, node)=>{console.log("w callback",value,graphCanvas, node)}};
         const h = {value:512, callback:(value,graphCanvas, node)=>{console.log("h callback",value,graphCanvas, node)}};
@@ -842,7 +865,7 @@ app.registerExtension({
         const captureOnQueue = {value:true,callback:(value,graphCanvas, node)=>{"capture on queue callback",console.log(value,graphCanvas, node)}};
         // const composite  = {value:undefined,callback:(value,graphCanvas, node)=>{console.log(value,graphCanvas, node)}};
         const composite = getCompositorWidget(node, "image");
-        console.log("nodeCreated", node, node.type, composite)
+        // console.log("nodeCreated", node, node.type, composite)
         // setCanvasElSize(node,w,h,p);
 
         const fcanvas = createCanvas(node);
@@ -893,7 +916,9 @@ app.registerExtension({
 
         // data url
         let data = null;
-        const capture = () => {
+        const capture = (first) => {
+            console.log("capture");
+            node.stuff.fist = first
             data = fcanvas.toDataURL({
                 format: 'jpeg',
                 quality: 0.8,
@@ -903,6 +928,7 @@ app.registerExtension({
                 height: h.value
             });
             img.onload = () => {
+                console.log("onload");
                 node.imgs = [img];
                 app.graph.setDirtyCanvas(true);
                 requestAnimationFrame(() => {
@@ -919,8 +945,10 @@ app.registerExtension({
 
 
         const captureBtn = node.addWidget("button", "capture", "capture", capture);
+
         // not really sure if this is needed and for what, but the button does not bring any value (or should it...maybe the checksum ??
         captureBtn.serializeValue = () => {
+            console.log("captureBtn.serializeValue");
             return "capture_"+Date.now();
         };
 
@@ -931,8 +959,13 @@ app.registerExtension({
          * and we just let it through in python
          * that's why, on the first run, it will be empty ... because it is!
          */
+        //composite.originalSerializeValue = composite.serializeValue;
         composite.serializeValue = async () => {
+
+
             // we can simply return a path, of an ideally uploaded file and be happy with it
+            console.log("composite.serializevalue",composite.value, composite,'first:',node.stuff.first);
+            if(composite.value === undefined && node.stuff.pause)
             try {
                 if (captureOnQueue.value) {
                     console.log("captureOnQueue",captureOnQueue.value)
@@ -949,10 +982,10 @@ app.registerExtension({
 
                 // do we have anything stored ?
                 if (neverRun(node)) {
-                    console.log("never run");
+                    // console.log("never run");
                     // it's likely the first run, go on with the blob
                 } else {
-                    console.log("checking hash");
+                    // console.log("checking hash");
                     // check if the image stored in the node as last upload is the same as the one we are making
                     // by comparing the checksums
                     if (await hasSameHash(node, blob)) {
@@ -962,14 +995,27 @@ app.registerExtension({
                 }
                 node.stuff.cblob = blob;
 
+
                 /**
                  * Upload image to temp storage,
                  * the image will be in the compositor subfolder of temp, not input
                  * then store the name last upload
                  */
-                node.stuff.lastUpload = await uploadImage(blob)
 
-                return node.stuff.lastUpload;
+
+                // if(!node.stuff.c1){
+                //     console.log(node.stuff.c1);
+                //     // something is not run, so ...stop
+                //     node.stuff.lastUpload = await uploadImage(blob)
+                //     // const resp = await interrupt();
+                //     return node.stuff.lastUpload;
+                // }else{
+                    // go on as normal, not our first rodeo
+                    node.stuff.lastUpload = await uploadImage(blob)
+                    //const resp = await interrupt();
+                    return node.stuff.lastUpload;
+                // }
+
             } catch (e) {
                 // we have nothing so...well..just pretend
                 // return TEST_IMAGE_2;
@@ -979,9 +1025,8 @@ app.registerExtension({
         };
 
         node.setSize(calculateWidgetSize(fcanvas))
-        capture();
+        capture(true);
 
     },
 });
-
 

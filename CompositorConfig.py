@@ -123,9 +123,9 @@ The compositor node
                 if mask is not None:
                     # apply the mask and return
                     masked = self.apply_mask(img, mask)
-                    self.masked = masked[0]
+                    # self.masked = masked[0]
 
-                    i = tensor2pil(self.masked)
+                    i = tensor2pil(masked[0])
                     input_images.append(toBase64ImgUrl(i))
                 else:
                     # no need to apply the mask
@@ -157,10 +157,10 @@ The compositor node
             "capture_on_queue": capture_on_queue,
             "pause": pause,
              # the image names
-            "images": input_images,
+            # "images": input_images,
             "names": input_images,
         }
-
+        print(f"compositor config {node_id} executed")
         # return (res, self.masked, )
         return (res,)
 

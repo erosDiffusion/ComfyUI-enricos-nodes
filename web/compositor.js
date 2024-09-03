@@ -33,11 +33,39 @@ const createCanvas = (node) => new fabric.Canvas(node.stuff.canvasId, {
 });
 
 /**
- * setup compositor metadata/references in the node aka stuff!
+ *  moves the active object in the passed fabric canva
+ * @param fcanvas the canvas to consider
+ * @param direction array with [x,y] coords in range -1 +1 with 0 for no  movement
+ * @param withShift
  */
-function initStuff(node, compositorId, CANVAS_BORDER_COLOR, COMPOSITION_BORDER_COLOR, COMPOSITION_BORDER_SIZE, COMPOSITION_BACKGROUND_COLOR) {
+function moveSelected(fcanvas, direction = [], withShift = false ) {
+    // console.log(withShift)
+    const Direction = {
+        LEFT: 0,
+        UP: 1,
+        RIGHT: 2,
+        DOWN: 3
+    };
+    const STEP = withShift ? 10 : 1;
+    const activeObject = fcanvas.getActiveObject();
+    if (activeObject) {
+        activeObject.set({
+            left: activeObject.left + direction[0] * STEP,
+            top: activeObject.top + direction[1] * STEP,
+        });
+        fcanvas.renderAll();
+        // console.log("selected objects are moved");
+    }
+}
+
+/**
+ * initialize compositor metadata/references in the node aka stuff!
+ */
+function initStuff(node, compositorId, CANVAS_BORDER_COLOR, COMPOSITION_BORDER_COLOR, COMPOSITION_BORDER_SIZE, COMPOSITION_BACKGROUND_COLOR, divContainer,canvasEl) {
     node.stuff = {
         canvasId: compositorId,
+        container:divContainer,
+        canvasEl:canvasEl,
         /** the fabric canvas */
         canvas: null,
         compositionBorder: null,
@@ -54,6 +82,21 @@ function initStuff(node, compositorId, CANVAS_BORDER_COLOR, COMPOSITION_BORDER_C
 
 
     }
+}
+/** add more references */
+function setupReferences(node, p, w, h, fcanvas, composite, img, compositionArea, compositionBorder, capture, captureOnQueue) {
+    node.stuff.p = p;
+    node.stuff.w = w;
+    node.stuff.h = h;
+    /** the fabric canvas:v */
+    // node.stuff.v = v;
+    node.stuff.canvas = fcanvas;
+    node.stuff.composite = composite;
+    node.stuff.i = img;
+    node.stuff.compositionArea = compositionArea;
+    node.stuff.compositionBorder = compositionBorder;
+    node.stuff.capture = capture;
+    node.stuff.captureOnQueue = captureOnQueue;
 }
 
 /**
@@ -145,19 +188,7 @@ const createCompositionArea = (p, w, h, node) => {
 }
 
 
-function setupReferences(node, p, w, h, fcanvas, composite, img, compositionArea, compositionBorder, capture) {
-    node.stuff.p = p;
-    node.stuff.w = w;
-    node.stuff.h = h;
-    /** the fabric canvas:v */
-    // node.stuff.v = v;
-    node.stuff.canvas = fcanvas;
-    node.stuff.composite = composite;
-    node.stuff.i = img;
-    node.stuff.compositionArea = compositionArea;
-    node.stuff.compositionBorder = compositionBorder;
-    node.stuff.capture = capture;
-}
+
 
 /**
  * checks if the reference at index for an image is not null
@@ -249,21 +280,17 @@ function getCompositorSettings(app) {
     return {CANVAS_BORDER_COLOR, COMPOSITION_BORDER_COLOR, COMPOSITION_BORDER_SIZE, COMPOSITION_BACKGROUND_COLOR};
 }
 
-function createCompositorContainerDiv() {
+function createCompositorContainerDiv(node) {
     const container = document.createElement("div");
     container.style.background = "rgba(0,0,0,0.25)";
     container.style.textAlign = "center";
+
     return container;
 }
 
 function createCanvasElement(node) {
     const canvas = document.createElement("canvas");
     canvas.id = node.stuff.canvasId;
-    // canvas.style = `outline:1px solid ${node.stuff.CANVAS_BORDER_COLOR}`;
-
-
-
-
     node.resizable = false;
     return canvas;
 }
@@ -371,6 +398,13 @@ function setupPaddingChangeCallback(p, compositionArea, h, w, compositionBorder,
     }
 }
 
+function setupCaptureOnQueueCallback(captureOnQueue, compositionArea, h, w, compositionBorder, v) {
+    captureOnQueue.origCallback = captureOnQueue.callback;
+    captureOnQueue.callback = (captureOnQueue, graphCanvas, node) => {
+        node.stuff.captureOnQueue.value = captureOnQueue.value;
+    }
+}
+
 function setupHeightChangeCallback(h, v, p, compositionArea, compositionBorder) {
     h.origCalback = h.callback;
     // callback signature value, graphCanvas, node, pos, event
@@ -388,7 +422,7 @@ function setupHeightChangeCallback(h, v, p, compositionArea, compositionBorder) 
 function setupWidthChangeCallback(w, v, p, compositionArea, compositionBorder) {
     w.origCalback = w.callback;
     w.callback = (value, graphCanvas, node) => {
-
+        console.log("wcallback");
         v.setWidth(value + (p.value * 2));
         compositionArea.setWidth(value);
         compositionBorder.setWidth(value + node.stuff.COMPOSITION_BORDER_SIZE * 2);
@@ -405,9 +439,9 @@ function isCompositor(node) {
 async function hasSameHash(node, blob) {
     node.stuff.c1 = await getChecksumSha256(node.stuff.cblob);
     node.stuff.c2 = await getChecksumSha256(blob);
-    // console.log(node.stuff.c1, node.stuff.c2, node.stuff.c1 == node.stuff.c2);
+    console.log(node.stuff.c1, node.stuff.c2, node.stuff.c1 == node.stuff.c2);
     node.stuff.sameHash = node.stuff.c1 == node.stuff.c2;
-    // console.log("new image ? ", node.stuff.sameHash ? "no, same has" : "yes, different hash");
+    console.log("new image ? ", node.stuff.sameHash ? "no, **same hash**" : "yes, different hash");
     return node.stuff.sameHash;
 
 }
@@ -424,6 +458,39 @@ function replaceImageInStuff(node, index, theImage) {
     theImage.set(oldTransform);
     node.stuff.canvas.add(theImage);
     node.stuff[imageNameAt(index)] = theImage;
+}
+
+function isLeft(key) {
+    return key === 37;
+}
+
+function isTop(key) {
+    return key === 38;
+}
+
+function isRight(key) {
+    return key === 39;
+}
+
+function isDown(key) {
+    return key === 40;
+}
+
+function downDirection() {
+    return [-1, 0];
+}
+
+function topDirection() {
+    return [0, -1];
+}
+
+function rightDirection() {
+    return [1, 0];
+}
+
+function setCanvasElSize(node,w,h,p) {
+    node.stuff.canvasEl.width = w.value + 2 * p.value;
+    node.stuff.canvasEl.height = h.value + 2 * p.value;
 }
 
 /**
@@ -480,8 +547,11 @@ app.registerExtension({
 
                 node[COMPOSITOR] = new Promise((resolve) => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==");
 
-                const container = createCompositorContainerDiv();
+                const container = createCompositorContainerDiv(node);
+                node.stuff.container = container;
+
                 const canvas = createCanvasElement(node);
+                node.stuff.canvasEl = canvas;
                 container.appendChild(canvas);
 
                 /**
@@ -496,12 +566,21 @@ app.registerExtension({
      * Called at the end of the startup process.
      * A good place to add event listeners (either for Comfy events, or DOM events), or adding to the global menus,
      * at this point we get a nodeId from a message (if we pass it) but have no node context, so we need to find it.
+     *
+     * Capture UI events
+     * This works just like you’d expect - find the UI element in the DOM and add an eventListener.
+     * setup() is a good place to do this, since the page has fully loaded.
+     * For instance, to detect a click on the ‘Queue’ button:
+     * ```
+     *      function queue_button_pressed() { console.log("Queue button was pressed!") }
+     *      document.getElementById("queue-button").addEventListener("click", queue_button_pressed);
+     * ```
      */
     async setup(app) {
-
+        // debugger;
         // disabled, for now, rely on defaults
         // addCompositorSettings.call(this, app);
-
+``
         function addOrReplace(theImage, index, nodeId) {
 
             const node = app.graph.getNodeById(nodeId);
@@ -547,6 +626,10 @@ app.registerExtension({
             return app.graph.getNodeById(nodeId);
         }
 
+        /**
+         * when the CompositorConfig gets executed, it sends a config event
+         * @param event
+         */
         function configMessageHandler(event) {
             // Litegraph docs
             // https://github.com/jagenjo/litegraph.js/blob/master/guides/README.md
@@ -562,6 +645,7 @@ app.registerExtension({
             const nodeId = controlledCompositor.id;
             const node = hook(controlledCompositor.id);
 
+
             node.stuff.w.value = event.detail.width;
             node.stuff.h.value = event.detail.height;
             node.stuff.p.value = event.detail.padding;
@@ -569,8 +653,8 @@ app.registerExtension({
             node.stuff.h.callback(event.detail.height,undefined,node)
             node.stuff.p.callback(event.detail.padding,undefined,node)
 
-            //node.setSize([event.detail.width,event.detail.height])
-// config node id
+            // node.setSize([event.detail.width,event.detail.height])
+            // config node id
 
             // as base64 or null, always at same index
             const images = [...event.detail.names];
@@ -590,8 +674,66 @@ app.registerExtension({
 
         }
 
+        /** important messaging considerations  https://docs.comfy.org/essentials/comms_messages */
         api.addEventListener("compositor.images", imageMessageHandler);
         api.addEventListener("compositor.config", configMessageHandler);
+
+        /** example of arbitrary messages */
+        // PromptServer.instance.send_sync("my.custom.message", {"node": node_id, "other_things": etc})
+        /** example of built in*/
+        function executingMessageHandler(event,a,b){
+            console.log("executingMessageHandler",event,a,b);
+        }
+        api.addEventListener("executing",executingMessageHandler);
+
+
+        /** when a node returns an ui element */
+        function executedMessageHandler(event,a,b){
+            console.log("executedMessageHandler",event,a,b);
+
+            // Litegraph docs
+            // https://github.com/jagenjo/litegraph.js/blob/master/guides/README.md
+            // get stuff connected to this config also...careful with the gui now...
+
+
+            //const running = hook(app.runningNodeId);
+
+            //const controlledCompositor = running.getOutputNodes(0)[0];
+
+            // console.log(running.id, controlledCompositor.id);
+            // this variable is referenced below by closure, do not delete
+            const e = event.detail.output;
+            const nodeId = event.detail.node;
+            const node = hook(nodeId);
+
+
+            node.stuff.w.value = e.width[0];
+            node.stuff.h.value = e.height[0];
+            node.stuff.p.value = e.padding[0];
+            node.stuff.w.callback(e.width[0],undefined,node)
+            node.stuff.h.callback(e.height[0],undefined,node)
+            node.stuff.p.callback(e.padding[0],undefined,node)
+
+            // node.setSize([event.detail.width,event.detail.height])
+            // config node id
+
+            // as base64 or null, always at same index
+            const images = [...e.names];
+
+            images.map((b64, index) => {
+                function fromUrlCallback(oImg) {
+                    addOrReplace(oImg, index, nodeId);
+                }
+
+                /**
+                 * fabric.Image.fromURL
+                 * http://fabricjs.com/docs/fabric.Image.html
+                 */
+                fabric.Image.fromURL(b64, fromUrlCallback);
+                // stuff.canvas.renderAll();
+            });
+        }
+        api.addEventListener("executed",executedMessageHandler);
 
 
     },
@@ -671,9 +813,11 @@ app.registerExtension({
      ```
      */
     async loadedGraphNode(node, app) {
+        console.log("loadedGraphNode");
     },
     async afterConfigureGraph(args) {
-        // console.log("afterConfigureGraph", args);
+        // To do something when a workflow has loaded, use afterConfigureGraph, not setup
+        console.log("afterConfigureGraph", args);
     },
     /**
      * Called when a specific instance of a node gets created
@@ -685,61 +829,44 @@ app.registerExtension({
      */
     async nodeCreated(node) {
         if (!isCompositor(node)) return;
-        // ath this point we have W,H etc... with their values
-        // console.log("nodeCreated", node, node.type)
+        // at this point we have W,H etc... with their values
+
+
+
+
 
         // const {composite, w, h, p, captureOnQueue} = getCompositorWidgets(node);
-        const w = {value:512,callback:(value,graphCanvas, node)=>{console.log(value,graphCanvas, node)}};
-        const h = {value:512, callback:(value,graphCanvas, node)=>{console.log(value,graphCanvas, node)}};
-        const p = {value:100, callback:(value,graphCanvas, node)=>{console.log(value,graphCanvas, node)}};
-        const captureOnQueue = {value:true,callback:(value,graphCanvas, node)=>{console.log(value,graphCanvas, node)}};
+        const w = {value:512,callback:(value,graphCanvas, node)=>{console.log("w callback",value,graphCanvas, node)}};
+        const h = {value:512, callback:(value,graphCanvas, node)=>{console.log("h callback",value,graphCanvas, node)}};
+        const p = {value:100, callback:(value,graphCanvas, node)=>{console.log("p callback",value,graphCanvas, node)}};
+        const captureOnQueue = {value:true,callback:(value,graphCanvas, node)=>{"capture on queue callback",console.log(value,graphCanvas, node)}};
         // const composite  = {value:undefined,callback:(value,graphCanvas, node)=>{console.log(value,graphCanvas, node)}};
         const composite = getCompositorWidget(node, "image");
+        console.log("nodeCreated", node, node.type, composite)
+        // setCanvasElSize(node,w,h,p);
 
         const fcanvas = createCanvas(node);
 
-        fabric.util.addListener(document.body, 'keydown', function(options) {
+        fabric.util.addListener(document.body, 'keydown', function keydownHandler(options) {
 
             // if (options.repeat) {
-            // prevents repeating the same command , eg keeping the shift+up pressed
+            // prevents repeating the same command , eg.: keeping the shift+up pressed
             //     return;
             // }
             // console.log(options);
             var key = options.which || options.keyCode; // key detection
-            if (key === 37) {
-                // handle Left key
-                moveSelected([-1, 0],options.shiftKey);
-            } else if (key === 38) {
-                // handle Up key
-                moveSelected([0, -1],options.shiftKey);
-            } else if (key === 39) {
-                // handle Right key
-                moveSelected([1, 0],options.shiftKey);
-            } else if (key === 40) {
-                // handle Down key
-                moveSelected([0, 1],options.shiftKey);
+            if (isLeft(key)) {
+                moveSelected(fcanvas, downDirection(),options.shiftKey);
+            } else if (isTop(key)) {
+                moveSelected(fcanvas, topDirection(),options.shiftKey);
+            } else if (isRight(key)) {
+                moveSelected(fcanvas, rightDirection(),options.shiftKey);
+            } else if (isDown(key)) {
+                moveSelected(fcanvas, [0, 1],options.shiftKey);
             }
         });
 
-        function moveSelected(direction = [], withShift = false ) {
-            // console.log(withShift)
-            const Direction = {
-                LEFT: 0,
-                UP: 1,
-                RIGHT: 2,
-                DOWN: 3
-            };
-            const STEP = withShift ? 10 : 1;
-            const activeObject = fcanvas.getActiveObject();
-            if (activeObject) {
-                activeObject.set({
-                    left: activeObject.left + direction[0] * STEP,
-                    top: activeObject.top + direction[1] * STEP,
-                });
-                fcanvas.renderAll();
-                // console.log("selected objects are moved");
-            }
-        }
+
 
 
         const compositionArea = createCompositionArea(p, w, h, node);
@@ -756,8 +883,9 @@ app.registerExtension({
         setupWidthChangeCallback(w, fcanvas, p, compositionArea, compositionBorder);
         setupHeightChangeCallback(h, fcanvas, p, compositionArea, compositionBorder);
         setupPaddingChangeCallback(p, compositionArea, h, w, compositionBorder, fcanvas);
+        setupCaptureOnQueueCallback(captureOnQueue, compositionArea, h, w, compositionBorder, fcanvas);
 
-        /** the fabric canvas:v */
+        /** the fabric fcanvas set to stuff.canvas */
         node.stuff.canvas = fcanvas;
 
         // final image to be associated to the node preview
@@ -787,7 +915,7 @@ app.registerExtension({
         // grab some references in the node.
         // hopefully they are not serialized :D
 
-        setupReferences(node, p, w, h, fcanvas, composite, img, compositionArea, compositionBorder, capture);
+        setupReferences(node, p, w, h, fcanvas, composite, img, compositionArea, compositionBorder, capture, captureOnQueue);
 
 
         const captureBtn = node.addWidget("button", "capture", "capture", capture);
@@ -807,6 +935,7 @@ app.registerExtension({
             // we can simply return a path, of an ideally uploaded file and be happy with it
             try {
                 if (captureOnQueue.value) {
+                    console.log("captureOnQueue",captureOnQueue.value)
                     capture();
                 } else if (!node.imgs?.length) {
                     const err = `Composition not saved`;
@@ -820,8 +949,10 @@ app.registerExtension({
 
                 // do we have anything stored ?
                 if (neverRun(node)) {
+                    console.log("never run");
                     // it's likely the first run, go on with the blob
                 } else {
+                    console.log("checking hash");
                     // check if the image stored in the node as last upload is the same as the one we are making
                     // by comparing the checksums
                     if (await hasSameHash(node, blob)) {

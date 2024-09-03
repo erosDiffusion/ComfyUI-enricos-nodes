@@ -36,10 +36,23 @@ def toBase64ImgUrl(img):
 class Compositor(nodes.LoadImage):
     OUTPUT_NODE = False
 
-
+    # By default, Comfy considers that a node has changed if any of its inputs or widgets have changed.
+    # This is normally correct, but you may need to override this if, for instance,
+    # the node uses a random number (and does not specify a seed - it’s best practice to have a seed input in this case
+    # so that the user can control reproducability and avoid unecessary execution),
+    # or loads an input that may have changed externally, or sometimes ignores inputs
+    # (so doesn’t need to execute just because those inputs changed).
+    #
+    # Despite the name, IS_CHANGED should not return a bool
+    # IS_CHANGED is passed the same arguments as the main function defined by FUNCTION,
+    # and can return any Python object. This object is compared with the one returned in the previous run (if any)
+    # and the node will be considered to have changed if is_changed != is_changed_old
+    # (this code is in execution.py if you need to dig).
     @classmethod
     def IS_CHANGED(cls, **kwargs):
+        # it seems that for the image, it's ignored as something else changed ???
         file = kwargs.get("image")
+        print(file)
         return file
 
     # @classmethod
@@ -59,7 +72,7 @@ class Compositor(nodes.LoadImage):
             "required": {
                 # about forceInput, lazy and other flags: https://docs.comfy.org/essentials/custom_node_datatypes
                 "image": ("COMPOSITOR", {"lazy": True, "default": None}),
-                "config": ("COMPOSITOR_CONFIG", ),
+                "config": ("COMPOSITOR_CONFIG", {"forceInput": True}),
 
             },
             "optional": {
@@ -100,11 +113,16 @@ The compositor node
         height = config["height"]
         config_node_id = config["node_id"]
         images = config["images"]
+        names = config["names"]
 
         node_id = kwargs.pop('node_id', None)
         # additional stuff we might send
         # prompt
         # extra_pnginfo
+        # EXTRA_PNGINFO <- will need to save x,y, scale, rotate, skew, etc inside here to be able to re-load
+        # EXTRA_PNGINFO is a dictionary that will be copied into the metadata of any .png files saved.
+        # Custom nodes can store additional information in this dictionary for saving
+        # (or as a way to communicate with a downstream node).
 
         images = []
 
@@ -113,9 +131,27 @@ The compositor node
         #     "compositor.images", {"names": images, "node": node_id}
         # )
 
+        # values to send the gui for update, includes base64 images
+        ui = {
+            "test": ("value",),
+            "pause": [pause],
+            "padding": [padding],
+            "capture_on_queue": [capture_on_queue],
+            "width": [width],
+            "height": [height],
+            "config_node_id": [config_node_id],
+            "node_id": [node_id],
+            # "images": images,
+            "names": names,
+        }
+        print(image is None)
         # if pause or image is None:
-        if pause:
-            return (ExecutionBlocker(None),)
+        if pause or image is None:
+            # at the end of my main method
+            # awkward return types, can't assign variable need tuple (val,) or list [val]
+            return {"ui": ui, "result": (ExecutionBlocker(None),)}
+
         else:
-            res = super().load_image(folder_paths.get_annotated_filepath(image))
-            return res
+            return {"ui": ui, "result": super().load_image(folder_paths.get_annotated_filepath(image))}
+
+

@@ -25,13 +25,11 @@ def toBase64ImgUrl(img):
 
 
 class CompositorConfig:
-    masked = None
-    OUTPUT_NODE = False
+    OUTPUT_NODE = True
 
     # @classmethod
     # def IS_CHANGED(cls, **kwargs):
-    #     file = kwargs.get("image")
-    #     return file
+    #     return float("NaN")
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -68,8 +66,8 @@ class CompositorConfig:
             },
         }
 
-    RETURN_TYPES = ("COMPOSITOR_CONFIG", )
-    RETURN_NAMES = ("config", )
+    RETURN_TYPES = ("COMPOSITOR_CONFIG",)
+    RETURN_NAMES = ("config",)
 
     FUNCTION = "configure"
 
@@ -113,7 +111,6 @@ The compositor node
         height = kwargs.pop('height', 512)
         node_id = kwargs.pop('node_id', 512)
 
-
         images = [image1, image2, image3, image4, image5, image6, image7, image8, ]
         masks = [mask1, mask2, mask3, mask4, mask5, mask6, mask7, mask8, ]
         input_images = []
@@ -141,27 +138,31 @@ The compositor node
         # this can act as broadcast to another node, in this case it will be received
         # by the compositor node, where it should be filtered by it's config node id and
         # discard messages not coming from config
-        PromptServer.instance.send_sync(
-            "compositor.config", {"names": input_images,
-                                  "config_node_id": node_id,
-                                  "width": width,
-                                  "height": height,
-                                  "padding": padding,
-                                  "capture_on_queue": capture_on_queue,
-                                  "pause": pause
-                                  }
-        )
+        # PromptServer.instance.send_sync(
+        #     "compositor.config", {"names": input_images,
+        #                           "config_node_id": node_id,
+        #                           "width": width,
+        #                           "height": height,
+        #                           "padding": padding,
+        #                           "capture_on_queue": capture_on_queue,
+        #                           "pause": pause
+        #                           }
+        # )
 
-        res = {"pause": pause,
-               "padding": padding,
-               "capture_on_queue": capture_on_queue,
-               "width": width,
-               "height": height,
-               "node_id": node_id,
-               "images": input_images,
-               }
+        res = {
+            "node_id": node_id,
+            "width": width,
+            "height": height,
+            "padding": padding,
+            "capture_on_queue": capture_on_queue,
+            "pause": pause,
+             # the image names
+            "images": input_images,
+            "names": input_images,
+        }
+
         # return (res, self.masked, )
-        return (res, )
+        return (res,)
 
     def apply_mask(self, image: torch.Tensor, alpha: torch.Tensor):
         batch_size = min(len(image), len(alpha))
@@ -176,4 +177,5 @@ The compositor node
 
 
 def resize_mask(mask, shape):
-    return torch.nn.functional.interpolate(mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])), size=(shape[0], shape[1]), mode="bilinear").squeeze(1)
+    return torch.nn.functional.interpolate(mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])),
+                                           size=(shape[0], shape[1]), mode="bilinear").squeeze(1)

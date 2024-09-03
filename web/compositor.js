@@ -639,7 +639,9 @@ app.registerExtension({
         }
 
         /**
-         * when the CompositorConfig gets executed, it sends a config event
+         * @deprecated
+         * when the CompositorConfig gets executed, it sends a config event -> now it's changed so we receive from Compositor.
+         *
          * @param event
          */
         function configMessageHandler(event) {
@@ -649,7 +651,6 @@ app.registerExtension({
 
 
             const running = hook(app.runningNodeId);
-
             const controlledCompositor = running.getOutputNodes(0)[0];
 
             // console.log(running.id, controlledCompositor.id);
@@ -695,13 +696,14 @@ app.registerExtension({
         /** example of built in*/
         function executingMessageHandler(event,a,b){
             console.log("executingMessageHandler",event,a,b);
+
         }
         api.addEventListener("executing",executingMessageHandler);
 
 
-        /** when a node returns an ui element */
+        /** when a node "returns" an ui element, usually at the end of processing */
         function executedMessageHandler(event,a,b){
-            console.log("executedMessageHandler",event,a,b);
+            // console.log("executedMessageHandler",event,a,b);
 
             // Litegraph docs
             // https://github.com/jagenjo/litegraph.js/blob/master/guides/README.md
@@ -714,10 +716,14 @@ app.registerExtension({
 
             // console.log(running.id, controlledCompositor.id);
             // this variable is referenced below by closure, do not delete
+            // debugger;
             const e = event.detail.output;
             const nodeId = event.detail.node;
             const node = hook(nodeId);
-
+            if(node.type != "Compositor"){
+                console.log(node.type);
+                return;
+            }
 
             node.stuff.w.value = e.width[0];
             node.stuff.h.value = e.height[0];
@@ -918,7 +924,7 @@ app.registerExtension({
         let data = null;
         const capture = (first) => {
             console.log("capture");
-            node.stuff.fist = first
+            node.stuff.first = first
             data = fcanvas.toDataURL({
                 format: 'jpeg',
                 quality: 0.8,
@@ -927,8 +933,11 @@ app.registerExtension({
                 width: w.value,
                 height: h.value
             });
+            /** triggered by setting the image to data right below definition,
+             * node imgs should be the trigger to serialize*/
             img.onload = () => {
                 console.log("onload");
+                /** is this triggering serialize -> this is the preview */
                 node.imgs = [img];
                 app.graph.setDirtyCanvas(true);
                 requestAnimationFrame(() => {
@@ -955,17 +964,16 @@ app.registerExtension({
 
         /**
          * composite is the input node widget that's mapped to the output,
-         * in practice we are pretending we gave the composite as input from the start
+         * in practice we are pretending we gave the composite as input from the start,
          * and we just let it through in python
          * that's why, on the first run, it will be empty ... because it is!
          */
-        //composite.originalSerializeValue = composite.serializeValue;
-        composite.serializeValue = async () => {
 
+        composite.serializeValue = async () => {
 
             // we can simply return a path, of an ideally uploaded file and be happy with it
             console.log("composite.serializevalue",composite.value, composite,'first:',node.stuff.first);
-            if(composite.value === undefined && node.stuff.pause)
+
             try {
                 if (captureOnQueue.value) {
                     console.log("captureOnQueue",captureOnQueue.value)
@@ -979,16 +987,20 @@ app.registerExtension({
 
                 // attempt creating an image
                 let blob = dataURLToBlob(data)
-
+                const hasNeverRun = neverRun(node);
                 // do we have anything stored ?
-                if (neverRun(node)) {
-                    // console.log("never run");
-                    // it's likely the first run, go on with the blob
+
+
+
+                if (hasNeverRun) {
+                    console.log("never run");
+                    // it's likely the first run, go on with the blob as we need to update the value
                 } else {
-                    // console.log("checking hash");
+                    console.log("checking hash");
                     // check if the image stored in the node as last upload is the same as the one we are making
                     // by comparing the checksums
                     if (await hasSameHash(node, blob)) {
+                        console.log("same hash, exit early!");
                         // exit early, don't re-upload if it is the same content !!!
                         return node.stuff.lastUpload;
                     }
@@ -1001,31 +1013,21 @@ app.registerExtension({
                  * the image will be in the compositor subfolder of temp, not input
                  * then store the name last upload
                  */
+                 // go on as normal, not our first rodeo
+                 node.stuff.lastUpload = await uploadImage(blob)
 
+                 return hasNeverRun ? "test_empty.png" : node.stuff.lastUpload;
 
-                // if(!node.stuff.c1){
-                //     console.log(node.stuff.c1);
-                //     // something is not run, so ...stop
-                //     node.stuff.lastUpload = await uploadImage(blob)
-                //     // const resp = await interrupt();
-                //     return node.stuff.lastUpload;
-                // }else{
-                    // go on as normal, not our first rodeo
-                    node.stuff.lastUpload = await uploadImage(blob)
-                    //const resp = await interrupt();
-                    return node.stuff.lastUpload;
-                // }
 
             } catch (e) {
                 // we have nothing so...well..just pretend
-                // return TEST_IMAGE_2;
                 return null;
             }
 
         };
 
         node.setSize(calculateWidgetSize(fcanvas))
-        capture(true);
+        capture();
 
     },
 });

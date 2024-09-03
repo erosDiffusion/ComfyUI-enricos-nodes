@@ -37,6 +37,7 @@ def toBase64ImgUrl(img):
 class Compositor(nodes.LoadImage):
     OUTPUT_NODE = False
     counter = 1
+
     # By default, Comfy considers that a node has changed if any of its inputs or widgets have changed.
     # This is normally correct, but you may need to override this if, for instance,
     # the node uses a random number (and does not specify a seed - it’s best practice to have a seed input in this case
@@ -49,15 +50,13 @@ class Compositor(nodes.LoadImage):
     # and can return any Python object. This object is compared with the one returned in the previous run (if any)
     # and the node will be considered to have changed if is_changed != is_changed_old
     # (this code is in execution.py if you need to dig).
+    # could also be @staticmethod but need to try, or not annotated
     @classmethod
     def IS_CHANGED(cls, **kwargs):
         # it seems that for the image, it's ignored as something else changed ???
         file = kwargs.get("image")
-        # if folder_paths.exists_annotated_filepath(file):
-        #     print(file)
+        print(file)
         return file
-        # else
-        #     return float("NaN")
 
     # @classmethod
     # def VALIDATE_INPUTS(cls, image, config):
@@ -75,7 +74,7 @@ class Compositor(nodes.LoadImage):
         return {
             "required": {
                 # about forceInput, lazy and other flags: https://docs.comfy.org/essentials/custom_node_datatypes
-                "image": ("COMPOSITOR", {"lazy": True, "default": None}),
+                "image": ("COMPOSITOR", {"lazy": True, "default": "test_empty.png"}),
                 "config": ("COMPOSITOR_CONFIG", {"forceInput": True}),
 
             },
@@ -130,12 +129,10 @@ The compositor node
 
         images = []
 
-
         # test progress callback
         # self.progress("test1")
         # self.progress("test2")
         # self.progress("test3")
-
 
         # not needed for now, config controls the node
         # PromptServer.instance.send_sync(
@@ -154,20 +151,24 @@ The compositor node
             "node_id": [node_id],
             # "images": images,
             "names": names,
+            "image": [image],
         }
 
-        invalidImage = self.imageDoesNotExist(image);
-        #print(image is None)
+        invalidImage = self.imageDoesNotExist(image)
+        isPippo = self.imageIsPippo(image)
+        # print(image is None)
         # if pause or image is None:
-        if pause or image is None or invalidImage:
+        if pause or image is None or invalidImage or isPippo:
             # at the end of my main method
             # awkward return types, can't assign variable need tuple (val,) or list [val]
-            print(f"compositor {node_id} with config {config_node_id} executed, with pause {pause} or image {image} is None {image is None} or invalidImage {invalidImage}]")
+            print(
+                f"compositor {node_id} with config {config_node_id} executed, with pause {pause} or image {image} is None {image is None} or invalidImage {invalidImage}]")
             print(f"pause {pause}")
             return {"ui": ui, "result": (ExecutionBlocker(None),)}
 
         else:
-            print(f"compositor {node_id} with config {config_node_id} executed, else clause: image {image} is None ? {image is None} or invalidImage {invalidImage}")
+            print(
+                f"compositor {node_id} with config {config_node_id} executed, else clause: image {image} is None ? {image is None} or invalidImage {invalidImage}")
             return {"ui": ui, "result": super().load_image(folder_paths.get_annotated_filepath(image))}
 
     # example of progress feedback, not sure about the details dictionary signature:
@@ -183,4 +184,5 @@ The compositor node
     def imageDoesNotExist(self, image):
         return not folder_paths.exists_annotated_filepath(image)
 
-
+    def imageIsPippo(self, image):
+        return image == "test_empty.png"

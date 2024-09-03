@@ -5,6 +5,7 @@ import base64
 from io import BytesIO
 from PIL import Image
 import torch
+import folder_paths
 from server import PromptServer
 
 MAX_RESOLUTION = nodes.MAX_RESOLUTION
@@ -149,6 +150,8 @@ The compositor node
         #                           }
         # )
 
+        self.ensureEmpty()
+
         res = {
             "node_id": node_id,
             "width": width,
@@ -156,7 +159,7 @@ The compositor node
             "padding": padding,
             "capture_on_queue": capture_on_queue,
             "pause": pause,
-             # the image names
+            # the image names
             # "images": input_images,
             "names": input_images,
         }
@@ -174,6 +177,14 @@ The compositor node
 
         result = (torch.stack(out_images),)
         return result
+
+    # ensures empty.png exists
+    def ensureEmpty(self):
+        image = "test_empty.png"
+        if not folder_paths.exists_annotated_filepath(image):
+            print("it does not exist")
+            img = Image.new('RGB', (512,512), 'white')
+            img.save(folder_paths.get_annotated_filepath(image))
 
 
 def resize_mask(mask, shape):

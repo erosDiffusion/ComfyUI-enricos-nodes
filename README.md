@@ -42,7 +42,7 @@ With the Compositor Node you can:
   - V **1.0.4** - 27.08.2024 - _new feature_: now it's possible to **pause the flow** with a switch to avoid processing an unfinished composition
   
 
-![the compositor node](/assets/sample.png)
+
 
 ### Setup
 
@@ -67,15 +67,7 @@ and set the security to weak (at your risk)
 
 ![the compositor node](/assets/weak.png)
 
-### Demo
 
-Demo workflows: after installing, drag and drop in your comfy and Pray (if nothing happens, like the red box does not scale and you can't see images after running once) refresh and run again.
-
-Sample Workflow (with MTB nodes rembg for background removal)
-![demo workflow 2](/assets/demo2.png)
-
-Sample Workflow (with batch rembg for background removal)
-![demo workflow 1](/assets/demo.png)
 
 ### Why this node ?
 

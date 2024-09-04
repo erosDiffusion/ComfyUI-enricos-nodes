@@ -18,7 +18,7 @@ With the Compositor Node you can:
 - flip an image via negative scaling (drag a corner towards and past the inside of the image)
 
 ## Changelog
-  - v **2.0.0** 05.09.2024 - V2 is here
+  - v **2.0.0** 05.09.2024 - **V2 is HERE!**
     - _enhancement_: An all **new widget layout** with maximized working area and less clutter
     - _new feature_: A **new companion configuration widget** to allow more control and easier maintenance
     - _enhancement_: More control! it's now possible to select an image or group and then pressing and holding control right before the movement to **center scale and rotate**

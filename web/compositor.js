@@ -1,4 +1,19 @@
 // author: erosdiffusionai@gmail.com
+// note to self:
+// good if I would look at this
+// https://github.com/kijai/ComfyUI-KJNodes/blob/main/web/js/point_editor.js to organize better the code
+// logically there are hidden widget outputs (also thought at this, seems hiding is not working properly there)
+// that are used to store json formatted data for the node which also helps reloading
+// some data seems embedded in the wf as reloading restores it
+// big use of this to fetch the context, i'm not using it here, storing directly in node.
+// another big thing seems the way he uses non py aware widgets for image and stuff
+// finally the chain callback way of handling server side and lifecycle events
+// expecially onOnfigure that i was no even aware of
+// for py https://github.com/kijai/ComfyUI-KJNodes/blob/main/nodes/curve_nodes.py where the PointEditor class is
+// in here what's interesting is the usage of json helper stuff and that there is only ever one ui  update at end
+// of execution
+
+
 import {app} from "../../scripts/app.js";
 import {api} from "../../scripts/api.js";
 

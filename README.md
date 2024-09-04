@@ -28,6 +28,10 @@ With the Compositor Node you can:
     - _new feature_: the node now **remembers the transforms** you have applied, so on refresh or exchanging a flow the composition will be the same! (size of json is bigger as it now contains a lot of metadata)
     - _new feature_: you can now **pass masks** and they will be applied automatically!
     - _regression_: a bit annoying but is_changed is not being observed so flows are re-triggered even on fixed
+
+![the compositor node](/assets/v2.PNG)
+
+
   - V **1.0.9** - 30.08.2024 - Huge refactoring!
     - _new feature_: **multiple instances** are now possible
     - _bugfix_: **zooming out does not hide the compositor images anymore**

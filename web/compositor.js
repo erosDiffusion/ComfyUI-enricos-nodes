@@ -406,7 +406,9 @@ function getCompositorWidgets(node) {
 
 function setupPaddingChangeCallback(p, compositionArea, h, w, compositionBorder, v) {
     p.origCallback = p.callback;
+
     p.callback = (padding, graphCanvas, node) => {
+        console.log("p callback")
         // value is the padding value
         compositionArea.setHeight(h.value);
         compositionArea.setWidth(w.value);
@@ -422,12 +424,15 @@ function setupPaddingChangeCallback(p, compositionArea, h, w, compositionBorder,
         v.setWidth(compositionArea.getWidth() + (padding * 2));
         v.renderAll();
         node.setSize(calculateWidgetSize(v))
+
+
     }
 }
 
 function setupCaptureOnQueueCallback(captureOnQueue, compositionArea, h, w, compositionBorder, v) {
     captureOnQueue.origCallback = captureOnQueue.callback;
     captureOnQueue.callback = (captureOnQueue, graphCanvas, node) => {
+        console.log("capure on queue callback");
         node.stuff.captureOnQueue.value = captureOnQueue.value;
     }
 }
@@ -436,7 +441,7 @@ function setupHeightChangeCallback(h, v, p, compositionArea, compositionBorder) 
     h.origCalback = h.callback;
     // callback signature value, graphCanvas, node, pos, event
     h.callback = (value, graphCanvas, node) => {
-
+        console.log("h callback");
         v.setHeight(value + (p.value * 2));
         compositionArea.setHeight(value);
         compositionBorder.setHeight(value + node.stuff.COMPOSITION_BORDER_SIZE * 2);
@@ -449,7 +454,7 @@ function setupHeightChangeCallback(h, v, p, compositionArea, compositionBorder) 
 function setupWidthChangeCallback(w, v, p, compositionArea, compositionBorder) {
     w.origCalback = w.callback;
     w.callback = (value, graphCanvas, node) => {
-        console.log("wcallback");
+        console.log("w callback");
         v.setWidth(value + (p.value * 2));
         compositionArea.setWidth(value);
         compositionBorder.setWidth(value + node.stuff.COMPOSITION_BORDER_SIZE * 2);
@@ -829,6 +834,15 @@ app.registerExtension({
      ```
      */
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
+        // chainCallback(nodeType.prototype, "onNodeCreate, createdCallback(){
+        // this is the node here, we can add widgets, hide them, add button, add property to widgets
+        // in this case he's addn the whole point editor or resetting this in case it does or does not have
+        // certain properties, like points
+        // same place for onConfigure and onExecuted
+        //}
+        // console.log("beforeRegisterNodeDef",nodeType,nodeData);
+        // KJ initailizes the node here
+        // with a callback for onNodeCreated
     },
     /** loadedGraphNode, after nodeCreated
      *  ```
@@ -866,26 +880,70 @@ app.registerExtension({
     async afterConfigureGraph(args) {
         // To do something when a workflow has loaded, use afterConfigureGraph, not setup
         console.log("afterConfigureGraph", args);
+
+        const node = app.graph.getNodeById(164);
+        const restore =  deserializeStuff(node.stuff.fabricDataWidget.value);
+        console.log("restore",restore);
+        node.stuff.image1 = restore[0];
+        node.stuff.image2 = restore[1];
+        node.stuff.image3 = restore[2];
+        node.stuff.image4 = restore[3];
+        node.stuff.image5 = restore[4];
+        node.stuff.image6 = restore[5];
+        node.stuff.image7 = restore[6];
+        node.stuff.image8 = restore[7];
     },
     /**
      * Called when a specific instance of a node gets created
      * (right at the end of the ComfyNode() function on nodeType which serves as a constructor).
-     * In this hook you can make modifications to individual instances of your node.
-     *
+     * In this hook you can make modifications to **individual instances** of your node.
+     * nde: whereas **before register node def is better for prototype changes** (??)
      * node ref
      * https://docs.comfy.org/essentials/javascript_objects_and_hijacking
+     *
+     * is this the same nodeCreated event available in beforeRegisterNodeDef prototype ?
      */
     async nodeCreated(node) {
         if (!isCompositor(node)) return;
         // at this point we have W,H etc... with their values
 
         // const {composite, w, h, p, captureOnQueue} = getCompositorWidgets(node);
-        const w = {value:512,callback:(value,graphCanvas, node)=>{console.log("w callback",value,graphCanvas, node)}};
-        const h = {value:512, callback:(value,graphCanvas, node)=>{console.log("h callback",value,graphCanvas, node)}};
-        const p = {value:100, callback:(value,graphCanvas, node)=>{console.log("p callback",value,graphCanvas, node)}};
-        const captureOnQueue = {value:true,callback:(value,graphCanvas, node)=>{"capture on queue callback",console.log(value,graphCanvas, node)}};
+
+        // could as well get create widgets and hide them
+
+        // these are fake widget-like properties, that seem no never get called from the lifecycle
+
+        const w = {value:512,callback:(value,graphCanvas, node)=>{console.log("w1 callback",value,graphCanvas, node)}};
+        const h = {value:512, callback:(value,graphCanvas, node)=>{console.log("h1 callback",value,graphCanvas, node)}};
+        const p = {value:100, callback:(value,graphCanvas, node)=>{console.log("p1 callback",value,graphCanvas, node)}};
+        const captureOnQueue = {value:true,callback:(value,graphCanvas, node)=>{"capture on queue callback 1",console.log(value,graphCanvas, node)}};
         // const composite  = {value:undefined,callback:(value,graphCanvas, node)=>{console.log(value,graphCanvas, node)}};
+        /** our output composite image */
         const composite = getCompositorWidget(node, "image");
+        const fabricDataWidget = getCompositorWidget(node, "fabricData");
+        node.stuff.fabricDataWidget = fabricDataWidget;
+        // kill compute size
+        fabricDataWidget.computeSize = () => [0, -4];
+
+
+
+        // debugger;
+        fabricDataWidget.callback = ()=>{
+            // this is the registration object with class name aka "registerNodeDef"
+            // closure is on nodeCreated, module is COMPOSITOR
+            // should lift at node prototype level, it's a bit global here ;D
+            // fabricDataWidget.value = "xxxx";
+            console.log("fabricDataCallback",arguments);
+        }
+        //hideWidgetForGood(this, fabricData);
+        //fabricDataWidget.value = JSON.stringify({foo:"1",bar:2,baz:["2",3,"abracadabra"]});
+        console.log("fabricData")
+        // const orig = fabricData.serializeValue;
+        // fabricData.serializeValue = ()=>{
+        //     console.log(orig,this,arguments)
+        //     orig.apply(this,arguments);
+        //
+        // }
         // console.log("nodeCreated", node, node.type, composite)
         // setCanvasElSize(node,w,h,p);
 
@@ -1031,7 +1089,11 @@ app.registerExtension({
                  // go on as normal, not our first rodeo
                  node.stuff.lastUpload = await uploadImage(blob)
 
-                 return hasNeverRun ? "test_empty.png" : node.stuff.lastUpload;
+                // also update the data
+                node.stuff.fabricDataWidget.value = serializeStuff(node);
+                console.log(node.stuff.fabricDataWidget.value)
+
+                return hasNeverRun ? "test_empty.png" : node.stuff.lastUpload;
 
 
             } catch (e) {
@@ -1046,4 +1108,39 @@ app.registerExtension({
 
     },
 });
+
+//from melmass
+function hideWidgetForGood(node, widget, suffix = '') {
+    widget.origType = widget.type
+    widget.origComputeSize = widget.computeSize
+    widget.origSerializeValue = widget.serializeValue
+    widget.computeSize = () => [0, -4] // -4 is due to the gap litegraph adds between widgets automatically
+    widget.type = "converted-widget" + suffix
+    // widget.serializeValue = () => {
+    //     // Prevent serializing the widget if we have no input linked
+    //     const w = node.inputs?.find((i) => i.widget?.name === widget.name);
+    //     if (w?.link == null) {
+    //         return undefined;
+    //     }
+    //     return widget.origSerializeValue ? widget.origSerializeValue() : widget.value;
+    // };
+
+    // Hide any linked widgets, e.g. seed+seedControl
+    if (widget.linkedWidgets) {
+        for (const w of widget.linkedWidgets) {
+            hideWidgetForGood(node, w, ':' + widget.name)
+        }
+    }
+}
+
+function serializeStuff(node){
+    const data = [node.stuff["image1"], node.stuff["image2"], node.stuff["image3"], node.stuff["image4"], node.stuff["image5"], node.stuff["image6"], node.stuff["image7"], node.stuff["image8"]];
+    return JSON.stringify(data);
+}
+
+function deserializeStuff(value){
+    return JSON.parse(value)
+}
+
+
 

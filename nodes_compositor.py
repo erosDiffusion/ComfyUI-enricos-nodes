@@ -76,6 +76,7 @@ class Compositor(nodes.LoadImage):
                 # about forceInput, lazy and other flags: https://docs.comfy.org/essentials/custom_node_datatypes
                 "image": ("COMPOSITOR", {"lazy": True, "default": "test_empty.png"}),
                 "config": ("COMPOSITOR_CONFIG", {"forceInput": True}),
+                "fabricData": ("STRING", {"default": "{}"}),
 
             },
             "optional": {
@@ -117,6 +118,7 @@ The compositor node
         config_node_id = config["node_id"]
         # images = config["images"]
         names = config["names"]
+        fabricData = kwargs.get("fabricData")
 
         node_id = kwargs.pop('node_id', None)
         # additional stuff we might send
@@ -152,6 +154,7 @@ The compositor node
             # "images": images,
             "names": names,
             "image": [image],
+            "fabricData": [fabricData],
         }
 
         invalidImage = self.imageDoesNotExist(image)

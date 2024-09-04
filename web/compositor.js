@@ -1,4 +1,19 @@
 // author: erosdiffusionai@gmail.com
+// note to self:
+// good if I would look at this
+// https://github.com/kijai/ComfyUI-KJNodes/blob/main/web/js/point_editor.js to organize better the code
+// logically there are hidden widget outputs (also thought at this, seems hiding is not working properly there)
+// that are used to store json formatted data for the node which also helps reloading
+// some data seems embedded in the wf as reloading restores it
+// big use of this to fetch the context, i'm not using it here, storing directly in node.
+// another big thing seems the way he uses non py aware widgets for image and stuff
+// finally the chain callback way of handling server side and lifecycle events
+// expecially onOnfigure that i was no even aware of
+// for py https://github.com/kijai/ComfyUI-KJNodes/blob/main/nodes/curve_nodes.py where the PointEditor class is
+// in here what's interesting is the usage of json helper stuff and that there is only ever one ui  update at end
+// of execution
+
+
 import {app} from "../../scripts/app.js";
 import {api} from "../../scripts/api.js";
 
@@ -11,6 +26,7 @@ const COMPOSITOR = Symbol();
  * Initialize a fabricJs instance.
  * Fabric is the engine that makes it possible to  manipulate the images
  * and extract the final composite image
+ * init params: http://fabricjs.com/docs/fabric.Canvas.html
  * @param canvasId
  * @return {fabric.Canvas}
  */
@@ -20,14 +36,51 @@ const createCanvas = (node) => new fabric.Canvas(node.stuff.canvasId, {
     selectionLineWidth: 1,
     // F-10 preserve object stacking
     preserveObjectStacking: true,
+    altSelectionKey: "ctrlKey",
+    altActionKey :"ctrlKey",
+    centeredKey: "altKey",
+    // centeredRotation: true,
+    // centeredScaling: true,
+
+    // dangerous if you want to move stuff outside view that's transparent
+    // perPixelTargetFind: true,
+
 });
 
 /**
- * setup compositor metadata/references in the node aka stuff!
+ *  moves the active object in the passed fabric canva
+ * @param fcanvas the canvas to consider
+ * @param direction array with [x,y] coords in range -1 +1 with 0 for no  movement
+ * @param withShift
  */
-function initStuff(node, compositorId, CANVAS_BORDER_COLOR, COMPOSITION_BORDER_COLOR, COMPOSITION_BORDER_SIZE, COMPOSITION_BACKGROUND_COLOR) {
+function moveSelected(fcanvas, direction = [], withShift = false ) {
+    // console.log(withShift)
+    const Direction = {
+        LEFT: 0,
+        UP: 1,
+        RIGHT: 2,
+        DOWN: 3
+    };
+    const STEP = withShift ? 10 : 1;
+    const activeObject = fcanvas.getActiveObject();
+    if (activeObject) {
+        activeObject.set({
+            left: activeObject.left + direction[0] * STEP,
+            top: activeObject.top + direction[1] * STEP,
+        });
+        fcanvas.renderAll();
+        // console.log("selected objects are moved");
+    }
+}
+
+/**
+ * initialize compositor metadata/references in the node aka stuff!
+ */
+function initStuff(node, compositorId, CANVAS_BORDER_COLOR, COMPOSITION_BORDER_COLOR, COMPOSITION_BORDER_SIZE, COMPOSITION_BACKGROUND_COLOR, divContainer,canvasEl) {
     node.stuff = {
         canvasId: compositorId,
+        container:divContainer,
+        canvasEl:canvasEl,
         /** the fabric canvas */
         canvas: null,
         compositionBorder: null,
@@ -44,6 +97,21 @@ function initStuff(node, compositorId, CANVAS_BORDER_COLOR, COMPOSITION_BORDER_C
 
 
     }
+}
+/** add more references */
+function setupReferences(node, p, w, h, fcanvas, composite, img, compositionArea, compositionBorder, capture, captureOnQueue) {
+    node.stuff.p = p;
+    node.stuff.w = w;
+    node.stuff.h = h;
+    /** the fabric canvas:v */
+    // node.stuff.v = v;
+    node.stuff.canvas = fcanvas;
+    node.stuff.composite = composite;
+    node.stuff.i = img;
+    node.stuff.compositionArea = compositionArea;
+    node.stuff.compositionBorder = compositionBorder;
+    node.stuff.capture = capture;
+    node.stuff.captureOnQueue = captureOnQueue;
 }
 
 /**
@@ -89,13 +157,26 @@ const uploadImage = async (blob) => {
     return `compositor/${name} [temp]`;
 }
 
+
+/** stop the flow */
+async function interrupt() {
+    const response = await fetch('/interrupt', {
+        method: 'POST',
+        cache: 'no-cache',
+        headers: {
+            'Content-Type': 'text/html'
+        },
+    });
+    return await response.json();}
+
 /**
  * calculates the widget size given the contents, a bit flaky
  * @param v the fabric canvas reference
  * @return the size array [w,h]
  */
 const calculateWidgetSize = (v) => {
-    return [v.getWidth() + 100, v.getHeight() + 558];
+    //return [v.getWidth() + 100, v.getHeight() + 558];
+    return [v.getWidth() + 21, v.getHeight() + 291];
 }
 
 
@@ -134,19 +215,7 @@ const createCompositionArea = (p, w, h, node) => {
 }
 
 
-function setupReferences(node, p, w, h, fcanvas, composite, img, compositionArea, compositionBorder, capture) {
-    node.stuff.p = p;
-    node.stuff.w = w;
-    node.stuff.h = h;
-    /** the fabric canvas:v */
-    // node.stuff.v = v;
-    node.stuff.canvas = fcanvas;
-    node.stuff.composite = composite;
-    node.stuff.i = img;
-    node.stuff.compositionArea = compositionArea;
-    node.stuff.compositionBorder = compositionBorder;
-    node.stuff.capture = capture;
-}
+
 
 /**
  * checks if the reference at index for an image is not null
@@ -230,27 +299,26 @@ function getRandomCompositorUniqueId() {
  * @return {{CANVAS_BORDER_COLOR, COMPOSITION_BACKGROUND_COLOR, COMPOSITION_BORDER_COLOR, COMPOSITION_BORDER_SIZE}} *
  */
 function getCompositorSettings(app) {
-    let CANVAS_BORDER_COLOR = app.ui.settings.getSettingValue("Compositor.Canvas.BORDER_COLOR", "#FF0000B0");
+    // let CANVAS_BORDER_COLOR = app.ui.settings.getSettingValue("Compositor.Canvas.BORDER_COLOR", "#FF0000B0");
+    let CANVAS_BORDER_COLOR = app.ui.settings.getSettingValue("Compositor.Canvas.BORDER_COLOR", "rgba(255,153,0,0.00)");
     let COMPOSITION_BORDER_COLOR = app.ui.settings.getSettingValue("Compositor.Composition.BORDER_COLOR", "#00b300b0");
     let COMPOSITION_BORDER_SIZE = app.ui.settings.getSettingValue("Compositor.Composition.BORDER_SIZE", 2);
     let COMPOSITION_BACKGROUND_COLOR = app.ui.settings.getSettingValue("Compositor.Composition.BACKGROUND_COLOR", "rgba(0,0,0,0.2)");
     return {CANVAS_BORDER_COLOR, COMPOSITION_BORDER_COLOR, COMPOSITION_BORDER_SIZE, COMPOSITION_BACKGROUND_COLOR};
 }
 
-function createCompositorContainerDiv() {
+function createCompositorContainerDiv(node) {
     const container = document.createElement("div");
     container.style.background = "rgba(0,0,0,0.25)";
     container.style.textAlign = "center";
+
     return container;
 }
 
 function createCanvasElement(node) {
     const canvas = document.createElement("canvas");
     canvas.id = node.stuff.canvasId;
-    canvas.style = `outline:1px solid ${node.stuff.CANVAS_BORDER_COLOR}`;
-    // canvas.width = 'auto';
-    // canvas.height = 'auto';
-    // node.resizable = false;
+    node.resizable = false;
     return canvas;
 }
 
@@ -338,7 +406,9 @@ function getCompositorWidgets(node) {
 
 function setupPaddingChangeCallback(p, compositionArea, h, w, compositionBorder, v) {
     p.origCallback = p.callback;
+
     p.callback = (padding, graphCanvas, node) => {
+        console.log("p callback")
         // value is the padding value
         compositionArea.setHeight(h.value);
         compositionArea.setWidth(w.value);
@@ -354,6 +424,16 @@ function setupPaddingChangeCallback(p, compositionArea, h, w, compositionBorder,
         v.setWidth(compositionArea.getWidth() + (padding * 2));
         v.renderAll();
         node.setSize(calculateWidgetSize(v))
+
+
+    }
+}
+
+function setupCaptureOnQueueCallback(captureOnQueue, compositionArea, h, w, compositionBorder, v) {
+    captureOnQueue.origCallback = captureOnQueue.callback;
+    captureOnQueue.callback = (captureOnQueue, graphCanvas, node) => {
+        console.log("capure on queue callback");
+        node.stuff.captureOnQueue.value = captureOnQueue.value;
     }
 }
 
@@ -361,7 +441,7 @@ function setupHeightChangeCallback(h, v, p, compositionArea, compositionBorder) 
     h.origCalback = h.callback;
     // callback signature value, graphCanvas, node, pos, event
     h.callback = (value, graphCanvas, node) => {
-
+        console.log("h callback");
         v.setHeight(value + (p.value * 2));
         compositionArea.setHeight(value);
         compositionBorder.setHeight(value + node.stuff.COMPOSITION_BORDER_SIZE * 2);
@@ -374,7 +454,7 @@ function setupHeightChangeCallback(h, v, p, compositionArea, compositionBorder) 
 function setupWidthChangeCallback(w, v, p, compositionArea, compositionBorder) {
     w.origCalback = w.callback;
     w.callback = (value, graphCanvas, node) => {
-
+        console.log("w callback");
         v.setWidth(value + (p.value * 2));
         compositionArea.setWidth(value);
         compositionBorder.setWidth(value + node.stuff.COMPOSITION_BORDER_SIZE * 2);
@@ -391,9 +471,9 @@ function isCompositor(node) {
 async function hasSameHash(node, blob) {
     node.stuff.c1 = await getChecksumSha256(node.stuff.cblob);
     node.stuff.c2 = await getChecksumSha256(blob);
-    // console.log(node.stuff.c1, node.stuff.c2, node.stuff.c1 == node.stuff.c2);
+    console.log(node.stuff.c1, node.stuff.c2, node.stuff.c1 == node.stuff.c2);
     node.stuff.sameHash = node.stuff.c1 == node.stuff.c2;
-    console.log("new image ? ", node.stuff.sameHash ? "no, same has" : "yes, different hash");
+    console.log("new image ? ", node.stuff.sameHash ? "no, **same hash**" : "yes, different hash");
     return node.stuff.sameHash;
 
 }
@@ -410,6 +490,39 @@ function replaceImageInStuff(node, index, theImage) {
     theImage.set(oldTransform);
     node.stuff.canvas.add(theImage);
     node.stuff[imageNameAt(index)] = theImage;
+}
+
+function isLeft(key) {
+    return key === 37;
+}
+
+function isTop(key) {
+    return key === 38;
+}
+
+function isRight(key) {
+    return key === 39;
+}
+
+function isDown(key) {
+    return key === 40;
+}
+
+function downDirection() {
+    return [-1, 0];
+}
+
+function topDirection() {
+    return [0, -1];
+}
+
+function rightDirection() {
+    return [1, 0];
+}
+
+function setCanvasElSize(node,w,h,p) {
+    node.stuff.canvasEl.width = w.value + 2 * p.value;
+    node.stuff.canvasEl.height = h.value + 2 * p.value;
 }
 
 /**
@@ -464,10 +577,13 @@ app.registerExtension({
                     COMPOSITION_BORDER_SIZE,
                     COMPOSITION_BACKGROUND_COLOR);
 
-                node[COMPOSITOR] = new Promise((resolve) => resolve);
+                node[COMPOSITOR] = new Promise((resolve) => "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==");
 
-                const container = createCompositorContainerDiv();
+                const container = createCompositorContainerDiv(node);
+                node.stuff.container = container;
+
                 const canvas = createCanvasElement(node);
+                node.stuff.canvasEl = canvas;
                 container.appendChild(canvas);
 
                 /**
@@ -482,12 +598,21 @@ app.registerExtension({
      * Called at the end of the startup process.
      * A good place to add event listeners (either for Comfy events, or DOM events), or adding to the global menus,
      * at this point we get a nodeId from a message (if we pass it) but have no node context, so we need to find it.
+     *
+     * Capture UI events
+     * This works just like you’d expect - find the UI element in the DOM and add an eventListener.
+     * setup() is a good place to do this, since the page has fully loaded.
+     * For instance, to detect a click on the ‘Queue’ button:
+     * ```
+     *      function queue_button_pressed() { console.log("Queue button was pressed!") }
+     *      document.getElementById("queue-button").addEventListener("click", queue_button_pressed);
+     * ```
      */
     async setup(app) {
-
+        // debugger;
         // disabled, for now, rely on defaults
         // addCompositorSettings.call(this, app);
-
+``
         function addOrReplace(theImage, index, nodeId) {
 
             const node = app.graph.getNodeById(nodeId);
@@ -511,7 +636,59 @@ app.registerExtension({
          *
          */
         function imageMessageHandler(event) {
-            const nodeId = event.detail.node;
+            // const nodeId = event.detail.node;
+            // // as base64 or null, always at same index
+            // const images = [...event.detail.names];
+            //
+            // images.map((b64, index) => {
+            //     function fromUrlCallback(oImg) {
+            //         addOrReplace(oImg, index, nodeId);
+            //     }
+            //
+            //     /**
+            //      * fabric.Image.fromURL
+            //      * http://fabricjs.com/docs/fabric.Image.html
+            //      */
+            //     fabric.Image.fromURL(b64, fromUrlCallback);
+            //     // stuff.canvas.renderAll();
+            // });
+        }
+
+        function hook(nodeId){
+            return app.graph.getNodeById(nodeId);
+        }
+
+        /**
+         * @deprecated
+         * when the CompositorConfig gets executed, it sends a config event -> now it's changed so we receive from Compositor.
+         *
+         * @param event
+         */
+        function configMessageHandler(event) {
+            // Litegraph docs
+            // https://github.com/jagenjo/litegraph.js/blob/master/guides/README.md
+            // get stuff connected to this config also...careful with the gui now...
+
+
+            const running = hook(app.runningNodeId);
+            const controlledCompositor = running.getOutputNodes(0)[0];
+
+            // console.log(running.id, controlledCompositor.id);
+            // this variable is referenced below by closure, do not delete
+            const nodeId = controlledCompositor.id;
+            const node = hook(controlledCompositor.id);
+
+
+            node.stuff.w.value = event.detail.width;
+            node.stuff.h.value = event.detail.height;
+            node.stuff.p.value = event.detail.padding;
+            node.stuff.w.callback(event.detail.width,undefined,node)
+            node.stuff.h.callback(event.detail.height,undefined,node)
+            node.stuff.p.callback(event.detail.padding,undefined,node)
+
+            // node.setSize([event.detail.width,event.detail.height])
+            // config node id
+
             // as base64 or null, always at same index
             const images = [...event.detail.names];
 
@@ -527,9 +704,91 @@ app.registerExtension({
                 fabric.Image.fromURL(b64, fromUrlCallback);
                 // stuff.canvas.renderAll();
             });
+
         }
 
+        /** important messaging considerations  https://docs.comfy.org/essentials/comms_messages */
         api.addEventListener("compositor.images", imageMessageHandler);
+        api.addEventListener("compositor.config", configMessageHandler);
+
+        /** example of arbitrary messages */
+        // PromptServer.instance.send_sync("my.custom.message", {"node": node_id, "other_things": etc})
+        /** example of built in*/
+        function executingMessageHandler(event,a,b){
+            console.log("executingMessageHandler",event,a,b);
+
+        }
+        api.addEventListener("executing",executingMessageHandler);
+
+
+        /** when a node "returns" an ui element, usually at the end of processing */
+        function executedMessageHandler(event,a,b){
+            // console.log("executedMessageHandler",event,a,b);
+
+            // Litegraph docs
+            // https://github.com/jagenjo/litegraph.js/blob/master/guides/README.md
+            // get stuff connected to this config also...careful with the gui now...
+
+
+            //const running = hook(app.runningNodeId);
+
+            //const controlledCompositor = running.getOutputNodes(0)[0];
+
+            // console.log(running.id, controlledCompositor.id);
+            // this variable is referenced below by closure, do not delete
+            // debugger;
+            const e = event.detail.output;
+            const nodeId = event.detail.node;
+            const node = hook(nodeId);
+            if(node.type != "Compositor"){
+                console.log(node.type);
+                return;
+            }
+
+            node.stuff.w.value = e.width[0];
+            node.stuff.h.value = e.height[0];
+            node.stuff.p.value = e.padding[0];
+            node.stuff.w.callback(e.width[0],undefined,node)
+            node.stuff.h.callback(e.height[0],undefined,node)
+            node.stuff.p.callback(e.padding[0],undefined,node)
+
+            // node.setSize([event.detail.width,event.detail.height])
+            // config node id
+
+            // as base64 or null, always at same index
+            const images = [...e.names];
+
+            images.map((b64, index) => {
+                function fromUrlCallback(oImg) {
+                    addOrReplace(oImg, index, nodeId);
+                }
+
+                /**
+                 * fabric.Image.fromURL
+                 * http://fabricjs.com/docs/fabric.Image.html
+                 */
+                fabric.Image.fromURL(b64, fromUrlCallback);
+                // stuff.canvas.renderAll();
+            });
+        }
+
+        /** when a node returns an ui element */
+        api.addEventListener("executed",executedMessageHandler);
+
+        /**
+         * handle progress message sent during .py execution
+         */
+        function progressHandler(){
+            // need to filter by node id
+            // console.log(arguments);
+        }
+
+        /**
+         * test "progress" received during .py execution
+         */
+        api.addEventListener("progress",progressHandler);
+
+
     },
     /**
      * Called when the Comfy webpage is loaded (or reloaded).
@@ -575,6 +834,15 @@ app.registerExtension({
      ```
      */
     async beforeRegisterNodeDef(nodeType, nodeData, app) {
+        // chainCallback(nodeType.prototype, "onNodeCreate, createdCallback(){
+        // this is the node here, we can add widgets, hide them, add button, add property to widgets
+        // in this case he's addn the whole point editor or resetting this in case it does or does not have
+        // certain properties, like points
+        // same place for onConfigure and onExecuted
+        //}
+        // console.log("beforeRegisterNodeDef",nodeType,nodeData);
+        // KJ initailizes the node here
+        // with a callback for onNodeCreated
     },
     /** loadedGraphNode, after nodeCreated
      *  ```
@@ -607,25 +875,102 @@ app.registerExtension({
      ```
      */
     async loadedGraphNode(node, app) {
+        console.log("loadedGraphNode");
     },
     async afterConfigureGraph(args) {
+        // To do something when a workflow has loaded, use afterConfigureGraph, not setup
         console.log("afterConfigureGraph", args);
+
+        const node = app.graph.getNodeById(164);
+        const restore =  deserializeStuff(node.stuff.fabricDataWidget.value);
+        console.log("restore",restore);
+        node.stuff.image1 = restore[0];
+        node.stuff.image2 = restore[1];
+        node.stuff.image3 = restore[2];
+        node.stuff.image4 = restore[3];
+        node.stuff.image5 = restore[4];
+        node.stuff.image6 = restore[5];
+        node.stuff.image7 = restore[6];
+        node.stuff.image8 = restore[7];
     },
     /**
      * Called when a specific instance of a node gets created
      * (right at the end of the ComfyNode() function on nodeType which serves as a constructor).
-     * In this hook you can make modifications to individual instances of your node.
-     *
+     * In this hook you can make modifications to **individual instances** of your node.
+     * nde: whereas **before register node def is better for prototype changes** (??)
      * node ref
      * https://docs.comfy.org/essentials/javascript_objects_and_hijacking
+     *
+     * is this the same nodeCreated event available in beforeRegisterNodeDef prototype ?
      */
     async nodeCreated(node) {
         if (!isCompositor(node)) return;
-        // ath this point we have W,H etc... with their values
-        //console.log("nodeCreated", node, node.type)
+        // at this point we have W,H etc... with their values
 
-        const {composite, w, h, p, captureOnQueue} = getCompositorWidgets(node);
+        // const {composite, w, h, p, captureOnQueue} = getCompositorWidgets(node);
+
+        // could as well get create widgets and hide them
+
+        // these are fake widget-like properties, that seem no never get called from the lifecycle
+
+        const w = {value:512,callback:(value,graphCanvas, node)=>{console.log("w1 callback",value,graphCanvas, node)}};
+        const h = {value:512, callback:(value,graphCanvas, node)=>{console.log("h1 callback",value,graphCanvas, node)}};
+        const p = {value:100, callback:(value,graphCanvas, node)=>{console.log("p1 callback",value,graphCanvas, node)}};
+        const captureOnQueue = {value:true,callback:(value,graphCanvas, node)=>{"capture on queue callback 1",console.log(value,graphCanvas, node)}};
+        // const composite  = {value:undefined,callback:(value,graphCanvas, node)=>{console.log(value,graphCanvas, node)}};
+        /** our output composite image */
+        const composite = getCompositorWidget(node, "image");
+        const fabricDataWidget = getCompositorWidget(node, "fabricData");
+        node.stuff.fabricDataWidget = fabricDataWidget;
+        // kill compute size
+        fabricDataWidget.computeSize = () => [0, -4];
+
+
+
+        // debugger;
+        fabricDataWidget.callback = ()=>{
+            // this is the registration object with class name aka "registerNodeDef"
+            // closure is on nodeCreated, module is COMPOSITOR
+            // should lift at node prototype level, it's a bit global here ;D
+            // fabricDataWidget.value = "xxxx";
+            console.log("fabricDataCallback",arguments);
+        }
+        //hideWidgetForGood(this, fabricData);
+        //fabricDataWidget.value = JSON.stringify({foo:"1",bar:2,baz:["2",3,"abracadabra"]});
+        console.log("fabricData")
+        // const orig = fabricData.serializeValue;
+        // fabricData.serializeValue = ()=>{
+        //     console.log(orig,this,arguments)
+        //     orig.apply(this,arguments);
+        //
+        // }
+        // console.log("nodeCreated", node, node.type, composite)
+        // setCanvasElSize(node,w,h,p);
+
         const fcanvas = createCanvas(node);
+
+        fabric.util.addListener(document.body, 'keydown', function keydownHandler(options) {
+
+            // if (options.repeat) {
+            // prevents repeating the same command , eg.: keeping the shift+up pressed
+            //     return;
+            // }
+            // console.log(options);
+            var key = options.which || options.keyCode; // key detection
+            if (isLeft(key)) {
+                moveSelected(fcanvas, downDirection(),options.shiftKey);
+            } else if (isTop(key)) {
+                moveSelected(fcanvas, topDirection(),options.shiftKey);
+            } else if (isRight(key)) {
+                moveSelected(fcanvas, rightDirection(),options.shiftKey);
+            } else if (isDown(key)) {
+                moveSelected(fcanvas, [0, 1],options.shiftKey);
+            }
+        });
+
+
+
+
         const compositionArea = createCompositionArea(p, w, h, node);
         const compositionBorder = createCompositionBorder(p, w, h, node);
 
@@ -640,8 +985,9 @@ app.registerExtension({
         setupWidthChangeCallback(w, fcanvas, p, compositionArea, compositionBorder);
         setupHeightChangeCallback(h, fcanvas, p, compositionArea, compositionBorder);
         setupPaddingChangeCallback(p, compositionArea, h, w, compositionBorder, fcanvas);
+        setupCaptureOnQueueCallback(captureOnQueue, compositionArea, h, w, compositionBorder, fcanvas);
 
-        /** the fabric canvas:v */
+        /** the fabric fcanvas set to stuff.canvas */
         node.stuff.canvas = fcanvas;
 
         // final image to be associated to the node preview
@@ -649,7 +995,9 @@ app.registerExtension({
 
         // data url
         let data = null;
-        const capture = () => {
+        const capture = (first) => {
+            console.log("capture");
+            node.stuff.first = first
             data = fcanvas.toDataURL({
                 format: 'jpeg',
                 quality: 0.8,
@@ -658,7 +1006,11 @@ app.registerExtension({
                 width: w.value,
                 height: h.value
             });
+            /** triggered by setting the image to data right below definition,
+             * node imgs should be the trigger to serialize*/
             img.onload = () => {
+                console.log("onload");
+                /** is this triggering serialize -> this is the preview */
                 node.imgs = [img];
                 app.graph.setDirtyCanvas(true);
                 requestAnimationFrame(() => {
@@ -671,24 +1023,33 @@ app.registerExtension({
         // grab some references in the node.
         // hopefully they are not serialized :D
 
-        setupReferences(node, p, w, h, fcanvas, composite, img, compositionArea, compositionBorder, capture);
+        setupReferences(node, p, w, h, fcanvas, composite, img, compositionArea, compositionBorder, capture, captureOnQueue);
 
 
-        const btn = node.addWidget("button", "capture", "capture", capture);
+        const captureBtn = node.addWidget("button", "capture", "capture", capture);
+
         // not really sure if this is needed and for what, but the button does not bring any value (or should it...maybe the checksum ??
-        btn.serializeValue = () => undefined;
+        captureBtn.serializeValue = () => {
+            console.log("captureBtn.serializeValue");
+            return "capture_"+Date.now();
+        };
 
 
         /**
          * composite is the input node widget that's mapped to the output,
-         * in practice we are pretending we gave the composite as input from the start
+         * in practice we are pretending we gave the composite as input from the start,
          * and we just let it through in python
          * that's why, on the first run, it will be empty ... because it is!
          */
+
         composite.serializeValue = async () => {
+
             // we can simply return a path, of an ideally uploaded file and be happy with it
+            console.log("composite.serializevalue",composite.value, composite,'first:',node.stuff.first);
+
             try {
                 if (captureOnQueue.value) {
+                    console.log("captureOnQueue",captureOnQueue.value)
                     capture();
                 } else if (!node.imgs?.length) {
                     const err = `Composition not saved`;
@@ -699,31 +1060,44 @@ app.registerExtension({
 
                 // attempt creating an image
                 let blob = dataURLToBlob(data)
-
+                const hasNeverRun = neverRun(node);
                 // do we have anything stored ?
-                if (neverRun(node)) {
-                    // it's likely the first run, go on with the blob
+
+
+
+                if (hasNeverRun) {
+                    console.log("never run");
+                    // it's likely the first run, go on with the blob as we need to update the value
                 } else {
+                    console.log("checking hash");
                     // check if the image stored in the node as last upload is the same as the one we are making
                     // by comparing the checksums
                     if (await hasSameHash(node, blob)) {
+                        console.log("same hash, exit early!");
                         // exit early, don't re-upload if it is the same content !!!
                         return node.stuff.lastUpload;
                     }
                 }
                 node.stuff.cblob = blob;
 
+
                 /**
                  * Upload image to temp storage,
                  * the image will be in the compositor subfolder of temp, not input
                  * then store the name last upload
                  */
-                node.stuff.lastUpload = await uploadImage(blob)
+                 // go on as normal, not our first rodeo
+                 node.stuff.lastUpload = await uploadImage(blob)
 
-                return node.stuff.lastUpload;
+                // also update the data
+                node.stuff.fabricDataWidget.value = serializeStuff(node);
+                console.log(node.stuff.fabricDataWidget.value)
+
+                return hasNeverRun ? "test_empty.png" : node.stuff.lastUpload;
+
+
             } catch (e) {
                 // we have nothing so...well..just pretend
-                // return TEST_IMAGE_2;
                 return null;
             }
 
@@ -734,5 +1108,39 @@ app.registerExtension({
 
     },
 });
+
+//from melmass
+function hideWidgetForGood(node, widget, suffix = '') {
+    widget.origType = widget.type
+    widget.origComputeSize = widget.computeSize
+    widget.origSerializeValue = widget.serializeValue
+    widget.computeSize = () => [0, -4] // -4 is due to the gap litegraph adds between widgets automatically
+    widget.type = "converted-widget" + suffix
+    // widget.serializeValue = () => {
+    //     // Prevent serializing the widget if we have no input linked
+    //     const w = node.inputs?.find((i) => i.widget?.name === widget.name);
+    //     if (w?.link == null) {
+    //         return undefined;
+    //     }
+    //     return widget.origSerializeValue ? widget.origSerializeValue() : widget.value;
+    // };
+
+    // Hide any linked widgets, e.g. seed+seedControl
+    if (widget.linkedWidgets) {
+        for (const w of widget.linkedWidgets) {
+            hideWidgetForGood(node, w, ':' + widget.name)
+        }
+    }
+}
+
+function serializeStuff(node){
+    const data = [node.stuff["image1"], node.stuff["image2"], node.stuff["image3"], node.stuff["image4"], node.stuff["image5"], node.stuff["image6"], node.stuff["image7"], node.stuff["image8"]];
+    return JSON.stringify(data);
+}
+
+function deserializeStuff(value){
+    return JSON.parse(value)
+}
+
 
 

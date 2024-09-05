@@ -26,6 +26,7 @@ With the Compositor Node you can:
     - _enhancement_: More control! it's now possible to select an image or group and then pressing and holding control right before the movement to **center scale and rotate**
     - _new feature_: More control! it's now possible to **nudge a selection** by one pixel by using keyboard arrows, and while holding shift the movement is 10px! pixel perfect alignments!
     - _new feature_: the node now **remembers the transforms** you have applied, so on refresh or exchanging a flow the composition will be the same! (size of json is bigger as it now contains a lot of metadata)
+      - a word of caution **files with this features become huge** I will provide an optimization soon!
     - _new feature_: you can now **pass masks** and they will be applied automatically!
     - _regression_: a bit annoying but is_changed is not being observed so flows are re-triggered even on fixed
 

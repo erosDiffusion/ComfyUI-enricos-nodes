@@ -29,6 +29,7 @@ With the Compositor Node you can:
       - a word of caution **files with this features become huge** I will provide an optimization soon!
     - _new feature_: you can now **pass masks** and they will be applied automatically!
     - _regression_: a bit annoying but is_changed is not being observed so flows are re-triggered even on fixed
+    - _regression_: img in workflow saved is not visible anymore
 
 ![the compositor node](/assets/v2.PNG)
 

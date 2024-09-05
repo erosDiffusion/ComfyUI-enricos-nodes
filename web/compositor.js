@@ -618,7 +618,7 @@ app.registerExtension({
         // addCompositorSettings.call(this, app);
         ``
 
-        function addOrReplace(theImage, index, nodeId, restoreParams, shouldRestore) {
+        function addOrReplace(theImage, index, nodeId, r, shouldRestore) {
 
             const node = app.graph.getNodeById(nodeId);
 
@@ -630,8 +630,11 @@ app.registerExtension({
 
             /** apply transforms if necessary */
             if (shouldRestore) {
+
                 try {
+
                     if (theImage) {
+                        const restoreParams = r.transforms[index];
                         theImage.scaleX = restoreParams.scaleX;
                         theImage.scaleY = restoreParams.scaleY;
                         theImage.angle = restoreParams.angle;
@@ -753,7 +756,7 @@ app.registerExtension({
             const shouldRestore = getConfigWidgetValue(node, 5);
             images.map((b64, index) => {
                 function fromUrlCallback(oImg) {
-                    addOrReplace(oImg, index, nodeId, restore.transforms[index], shouldRestore);
+                    addOrReplace(oImg, index, nodeId, restore, shouldRestore);
                 }
 
                 /**

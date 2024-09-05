@@ -37,7 +37,7 @@ const createCanvas = (node) => new fabric.Canvas(node.stuff.canvasId, {
     // F-10 preserve object stacking
     preserveObjectStacking: true,
     altSelectionKey: "ctrlKey",
-    altActionKey :"ctrlKey",
+    altActionKey: "ctrlKey",
     centeredKey: "altKey",
     // centeredRotation: true,
     // centeredScaling: true,
@@ -53,7 +53,7 @@ const createCanvas = (node) => new fabric.Canvas(node.stuff.canvasId, {
  * @param direction array with [x,y] coords in range -1 +1 with 0 for no  movement
  * @param withShift
  */
-function moveSelected(fcanvas, direction = [], withShift = false ) {
+function moveSelected(fcanvas, direction = [], withShift = false) {
     // console.log(withShift)
     const Direction = {
         LEFT: 0,
@@ -76,11 +76,11 @@ function moveSelected(fcanvas, direction = [], withShift = false ) {
 /**
  * initialize compositor metadata/references in the node aka stuff!
  */
-function initStuff(node, compositorId, CANVAS_BORDER_COLOR, COMPOSITION_BORDER_COLOR, COMPOSITION_BORDER_SIZE, COMPOSITION_BACKGROUND_COLOR, divContainer,canvasEl) {
+function initStuff(node, compositorId, CANVAS_BORDER_COLOR, COMPOSITION_BORDER_COLOR, COMPOSITION_BORDER_SIZE, COMPOSITION_BACKGROUND_COLOR, divContainer, canvasEl) {
     node.stuff = {
         canvasId: compositorId,
-        container:divContainer,
-        canvasEl:canvasEl,
+        container: divContainer,
+        canvasEl: canvasEl,
         /** the fabric canvas */
         canvas: null,
         compositionBorder: null,
@@ -94,10 +94,12 @@ function initStuff(node, compositorId, CANVAS_BORDER_COLOR, COMPOSITION_BORDER_C
         COMPOSITION_BORDER_COLOR: COMPOSITION_BORDER_COLOR,
         COMPOSITION_BORDER_SIZE: COMPOSITION_BORDER_SIZE,
         COMPOSITION_BACKGROUND_COLOR: COMPOSITION_BACKGROUND_COLOR,
+        // fabricDataWidget will be here and contain transforms
 
 
     }
 }
+
 /** add more references */
 function setupReferences(node, p, w, h, fcanvas, composite, img, compositionArea, compositionBorder, capture, captureOnQueue) {
     node.stuff.p = p;
@@ -167,7 +169,8 @@ async function interrupt() {
             'Content-Type': 'text/html'
         },
     });
-    return await response.json();}
+    return await response.json();
+}
 
 /**
  * calculates the widget size given the contents, a bit flaky
@@ -213,8 +216,6 @@ const createCompositionArea = (p, w, h, node) => {
         selectable: false,
     });
 }
-
-
 
 
 /**
@@ -330,7 +331,7 @@ function addCanvasBorderColorSetting(app) {
         type: "text",
         defaultValue: "#00b300b0",
         onChange: (newVal, oldVal) => {
-            console.log(newVal, this);
+            // console.log(newVal, this);
         },
     });
 }
@@ -343,7 +344,7 @@ function addCompositionBorderColorSetting(app) {
         tooltip: "give hex code with alpha eg.: #00b300b0, this will help identifying what is withing the output",
         defaultValue: "#00b300b0",
         onChange: (newVal, oldVal) => {
-            console.log(newVal, this);
+            // console.log(newVal, this);
         },
     });
 }
@@ -362,7 +363,7 @@ function addCompositionBorderSizeSetting(app) {
         tooltip: "Border size, 0 for invisible, overlayed and unselectable, not part of the node ouptut",
 
         onChange: (newVal, oldVal) => {
-            console.log(newVal, this);
+            // console.log(newVal, this);
         },
     });
 }
@@ -375,7 +376,7 @@ function addCompositionBackgroundColorSetting(app) {
         tooltip: "give hex code with alpha eg.: #00b300b0, this will help identifying what is withing the output",
         defaultValue: "rgba(0,0,0,0.2)",
         onChange: (newVal, oldVal) => {
-            console.log(newVal, this);
+            // console.log(newVal, this);
         },
     });
 }
@@ -408,7 +409,7 @@ function setupPaddingChangeCallback(p, compositionArea, h, w, compositionBorder,
     p.origCallback = p.callback;
 
     p.callback = (padding, graphCanvas, node) => {
-        console.log("p callback")
+        // console.log("p callback")
         // value is the padding value
         compositionArea.setHeight(h.value);
         compositionArea.setWidth(w.value);
@@ -432,7 +433,7 @@ function setupPaddingChangeCallback(p, compositionArea, h, w, compositionBorder,
 function setupCaptureOnQueueCallback(captureOnQueue, compositionArea, h, w, compositionBorder, v) {
     captureOnQueue.origCallback = captureOnQueue.callback;
     captureOnQueue.callback = (captureOnQueue, graphCanvas, node) => {
-        console.log("capure on queue callback");
+        // console.log("capure on queue callback");
         node.stuff.captureOnQueue.value = captureOnQueue.value;
     }
 }
@@ -441,7 +442,7 @@ function setupHeightChangeCallback(h, v, p, compositionArea, compositionBorder) 
     h.origCalback = h.callback;
     // callback signature value, graphCanvas, node, pos, event
     h.callback = (value, graphCanvas, node) => {
-        console.log("h callback");
+        // console.log("h callback");
         v.setHeight(value + (p.value * 2));
         compositionArea.setHeight(value);
         compositionBorder.setHeight(value + node.stuff.COMPOSITION_BORDER_SIZE * 2);
@@ -454,7 +455,7 @@ function setupHeightChangeCallback(h, v, p, compositionArea, compositionBorder) 
 function setupWidthChangeCallback(w, v, p, compositionArea, compositionBorder) {
     w.origCalback = w.callback;
     w.callback = (value, graphCanvas, node) => {
-        console.log("w callback");
+        //  console.log("w callback");
         v.setWidth(value + (p.value * 2));
         compositionArea.setWidth(value);
         compositionBorder.setWidth(value + node.stuff.COMPOSITION_BORDER_SIZE * 2);
@@ -471,9 +472,9 @@ function isCompositor(node) {
 async function hasSameHash(node, blob) {
     node.stuff.c1 = await getChecksumSha256(node.stuff.cblob);
     node.stuff.c2 = await getChecksumSha256(blob);
-    console.log(node.stuff.c1, node.stuff.c2, node.stuff.c1 == node.stuff.c2);
+    //  console.log(node.stuff.c1, node.stuff.c2, node.stuff.c1 == node.stuff.c2);
     node.stuff.sameHash = node.stuff.c1 == node.stuff.c2;
-    console.log("new image ? ", node.stuff.sameHash ? "no, **same hash**" : "yes, different hash");
+    //  console.log("new image ? ", node.stuff.sameHash ? "no, **same hash**" : "yes, different hash");
     return node.stuff.sameHash;
 
 }
@@ -481,6 +482,9 @@ async function hasSameHash(node, blob) {
 function addImageToStuff(node, index, theImage) {
     node.stuff[imageNameAt(index)] = theImage;
     node.stuff.canvas.add(theImage);
+    // this will be empty so, should we restore ?
+    // only happens here once at first run afer reloading
+
 }
 
 function replaceImageInStuff(node, index, theImage) {
@@ -520,7 +524,7 @@ function rightDirection() {
     return [1, 0];
 }
 
-function setCanvasElSize(node,w,h,p) {
+function setCanvasElSize(node, w, h, p) {
     node.stuff.canvasEl.width = w.value + 2 * p.value;
     node.stuff.canvasEl.height = h.value + 2 * p.value;
 }
@@ -612,15 +616,39 @@ app.registerExtension({
         // debugger;
         // disabled, for now, rely on defaults
         // addCompositorSettings.call(this, app);
-``
-        function addOrReplace(theImage, index, nodeId) {
+        ``
+
+        function addOrReplace(theImage, index, nodeId, restoreParams, shouldRestore) {
 
             const node = app.graph.getNodeById(nodeId);
 
             if (stuffHasImageAtIndex(node, index)) {
                 replaceImageInStuff(node, index, theImage);
-            }else{
+            } else {
                 addImageToStuff(node, index, theImage);
+            }
+
+            /** apply transforms if necessary */
+            if (shouldRestore) {
+                try {
+                    if (theImage) {
+                        theImage.scaleX = restoreParams.scaleX;
+                        theImage.scaleY = restoreParams.scaleY;
+                        theImage.angle = restoreParams.angle;
+                        theImage.left = restoreParams.left;
+                        theImage.top = restoreParams.top;
+                        theImage.flipX = restoreParams.flipX;
+                        theImage.flipY = restoreParams.flipY;
+                        theImage.originX = restoreParams.originX;
+                        theImage.originY = restoreParams.originY;
+                    }
+
+                    node.stuff.canvas.renderAll();
+
+
+                } catch (e) {
+                    // console.log(e);
+                }
             }
 
             // whatever it happens, ensure the composition border is on top
@@ -628,6 +656,7 @@ app.registerExtension({
         }
 
         /**
+         * @deprecated
          * once the node processes in python, we finally know from the event
          * what are the connected images
          * they are passed as base64 encoded or null if not connected
@@ -654,75 +683,40 @@ app.registerExtension({
             // });
         }
 
-        function hook(nodeId){
+        function hook(nodeId) {
             return app.graph.getNodeById(nodeId);
         }
 
-        /**
-         * @deprecated
-         * when the CompositorConfig gets executed, it sends a config event -> now it's changed so we receive from Compositor.
-         *
-         * @param event
-         */
-        function configMessageHandler(event) {
-            // Litegraph docs
-            // https://github.com/jagenjo/litegraph.js/blob/master/guides/README.md
-            // get stuff connected to this config also...careful with the gui now...
-
-
-            const running = hook(app.runningNodeId);
-            const controlledCompositor = running.getOutputNodes(0)[0];
-
-            // console.log(running.id, controlledCompositor.id);
-            // this variable is referenced below by closure, do not delete
-            const nodeId = controlledCompositor.id;
-            const node = hook(controlledCompositor.id);
-
-
-            node.stuff.w.value = event.detail.width;
-            node.stuff.h.value = event.detail.height;
-            node.stuff.p.value = event.detail.padding;
-            node.stuff.w.callback(event.detail.width,undefined,node)
-            node.stuff.h.callback(event.detail.height,undefined,node)
-            node.stuff.p.callback(event.detail.padding,undefined,node)
-
-            // node.setSize([event.detail.width,event.detail.height])
-            // config node id
-
-            // as base64 or null, always at same index
-            const images = [...event.detail.names];
-
-            images.map((b64, index) => {
-                function fromUrlCallback(oImg) {
-                    addOrReplace(oImg, index, nodeId);
-                }
-
-                /**
-                 * fabric.Image.fromURL
-                 * http://fabricjs.com/docs/fabric.Image.html
-                 */
-                fabric.Image.fromURL(b64, fromUrlCallback);
-                // stuff.canvas.renderAll();
-            });
-
-        }
-
-        /** important messaging considerations  https://docs.comfy.org/essentials/comms_messages */
-        api.addEventListener("compositor.images", imageMessageHandler);
-        api.addEventListener("compositor.config", configMessageHandler);
 
         /** example of arbitrary messages */
         // PromptServer.instance.send_sync("my.custom.message", {"node": node_id, "other_things": etc})
-        /** example of built in*/
-        function executingMessageHandler(event,a,b){
-            console.log("executingMessageHandler",event,a,b);
+        // in api.ts search for "case 'executing'": for all events emitted or "new CustomEvent('executing'"
+        /** example of built-in, this should be when a node is about to start processing (in the back?)*/
+        function executingMessageHandler(event) {
+            //  console.log("executingMessageHandler", event, arguments);
+            const current = app.graph.getNodeById(event.detail);
 
+            // probably too later here as it's already running in the back
+            if (current && current.type == "Compositor") {
+
+                // if pause
+                if (getConfigWidgetValue(current, 4)) {
+                    interrupt();
+                }
+
+            }
         }
-        api.addEventListener("executing",executingMessageHandler);
 
+        /**
+         * handle progress message sent during .py execution
+         */
+        function progressHandler() {
+            // need to filter by node id
+            // console.log(arguments);
+        }
 
         /** when a node "returns" an ui element, usually at the end of processing */
-        function executedMessageHandler(event,a,b){
+        function executedMessageHandler(event, a, b) {
             // console.log("executedMessageHandler",event,a,b);
 
             // Litegraph docs
@@ -740,27 +734,26 @@ app.registerExtension({
             const e = event.detail.output;
             const nodeId = event.detail.node;
             const node = hook(nodeId);
-            if(node.type != "Compositor"){
-                console.log(node.type);
+            if (node.type != "Compositor") {
+                //  console.log(node.type);
                 return;
             }
 
             node.stuff.w.value = e.width[0];
             node.stuff.h.value = e.height[0];
             node.stuff.p.value = e.padding[0];
-            node.stuff.w.callback(e.width[0],undefined,node)
-            node.stuff.h.callback(e.height[0],undefined,node)
-            node.stuff.p.callback(e.padding[0],undefined,node)
-
-            // node.setSize([event.detail.width,event.detail.height])
-            // config node id
+            node.stuff.w.callback(e.width[0], undefined, node)
+            node.stuff.h.callback(e.height[0], undefined, node)
+            node.stuff.p.callback(e.padding[0], undefined, node)
 
             // as base64 or null, always at same index
             const images = [...e.names];
 
+            const restore = deserializeStuff(node.stuff.fabricDataWidget.value);
+            const shouldRestore = getConfigWidgetValue(node, 5);
             images.map((b64, index) => {
                 function fromUrlCallback(oImg) {
-                    addOrReplace(oImg, index, nodeId);
+                    addOrReplace(oImg, index, nodeId, restore.transforms[index], shouldRestore);
                 }
 
                 /**
@@ -768,25 +761,30 @@ app.registerExtension({
                  * http://fabricjs.com/docs/fabric.Image.html
                  */
                 fabric.Image.fromURL(b64, fromUrlCallback);
-                // stuff.canvas.renderAll();
             });
+
+
+
+
+
         }
 
+        /** important messaging considerations  https://docs.comfy.org/essentials/comms_messages */
+        api.addEventListener("compositor.images", imageMessageHandler);
+        //api.addEventListener("compositor.config", configMessageHandler);
+        api.addEventListener("executing", executingMessageHandler);
         /** when a node returns an ui element */
-        api.addEventListener("executed",executedMessageHandler);
-
-        /**
-         * handle progress message sent during .py execution
-         */
-        function progressHandler(){
-            // need to filter by node id
-            // console.log(arguments);
-        }
-
+        api.addEventListener("executed", executedMessageHandler);
         /**
          * test "progress" received during .py execution
          */
-        api.addEventListener("progress",progressHandler);
+        api.addEventListener("progress", progressHandler);
+
+        function configureHandler() {
+            //  console.log("configurehanlder", argument);
+        }
+
+        api.addEventListener("configure", configureHandler);
 
 
     },
@@ -814,7 +812,7 @@ app.registerExtension({
      async beforeRegisterNodeDef(nodeType, nodeData, app) {
 
         if (nodeType.comfyClass == 'Compositor') {
-            console.log("beforeRegisterNodeDef", nodeType, nodeData, app);
+          //  console.log("beforeRegisterNodeDef", nodeType, nodeData, app);
 
             const orig_nodeCreated = nodeType.prototype.onNodeCreated;
             nodeType.prototype.onNodeCreated = async function () {
@@ -875,77 +873,82 @@ app.registerExtension({
      ```
      */
     async loadedGraphNode(node, app) {
-        console.log("loadedGraphNode");
+        //  console.log("loadedGraphNode");
     },
     async afterConfigureGraph(args) {
         // To do something when a workflow has loaded, use afterConfigureGraph, not setup
-        console.log("afterConfigureGraph", args);
+        //  console.log("afterConfigureGraph", args);
 
-        const node = app.graph.getNodeById(164);
-        const restore =  deserializeStuff(node.stuff.fabricDataWidget.value);
-        console.log("restore",restore);
-        node.stuff.image1 = restore[0];
-        node.stuff.image2 = restore[1];
-        node.stuff.image3 = restore[2];
-        node.stuff.image4 = restore[3];
-        node.stuff.image5 = restore[4];
-        node.stuff.image6 = restore[5];
-        node.stuff.image7 = restore[6];
-        node.stuff.image8 = restore[7];
+        const nodes = app.graph.findNodesByType("Compositor");
+
+        // probably too late here as it's already running in the back
+        nodes.forEach((current) => {
+            const config = current.getInputNode(0);
+            //  console.log("looping afterconfiguregraph compostior node", current);
+            //  console.log("looping afterconfiguregraph compostior node configs", config);
+        })
+
+
     },
     /**
-     * Called when a specific instance of a node gets created
+     * Called when a **specific instance** of a node gets created
      * (right at the end of the ComfyNode() function on nodeType which serves as a constructor).
      * In this hook you can make modifications to **individual instances** of your node.
      * nde: whereas **before register node def is better for prototype changes** (??)
      * node ref
      * https://docs.comfy.org/essentials/javascript_objects_and_hijacking
      *
-     * is this the same nodeCreated event available in beforeRegisterNodeDef prototype ?
+     * not the same nodeCreated event available in beforeRegisterNodeDef prototype (that one is aproptotype node class instance)
      */
     async nodeCreated(node) {
         if (!isCompositor(node)) return;
-        // at this point we have W,H etc... with their values
+        // at this point we have W,H etc... with their values -> when they are widgets inside the node
 
         // const {composite, w, h, p, captureOnQueue} = getCompositorWidgets(node);
-
         // could as well get create widgets and hide them
-
         // these are fake widget-like properties, that seem no never get called from the lifecycle
-
-        const w = {value:512,callback:(value,graphCanvas, node)=>{console.log("w1 callback",value,graphCanvas, node)}};
-        const h = {value:512, callback:(value,graphCanvas, node)=>{console.log("h1 callback",value,graphCanvas, node)}};
-        const p = {value:100, callback:(value,graphCanvas, node)=>{console.log("p1 callback",value,graphCanvas, node)}};
-        const captureOnQueue = {value:true,callback:(value,graphCanvas, node)=>{"capture on queue callback 1",console.log(value,graphCanvas, node)}};
+        const config = node.getInputNode(0);
+        //  console.log("config at nodeCreate", config);
+        const w = {
+            value: 512, callback: (value, graphCanvas, node) => {
+                //  console.log("w1 callback", value, graphCanvas, node)
+            }
+        };
+        const h = {
+            value: 512, callback: (value, graphCanvas, node) => {
+                //  console.log("h1 callback", value, graphCanvas, node)
+            }
+        };
+        const p = {
+            value: 100, callback: (value, graphCanvas, node) => {
+                //  console.log("p1 callback", value, graphCanvas, node)
+            }
+        };
+        const captureOnQueue = {
+            value: true, callback: (value, graphCanvas, node) => {
+                "capture on queue callback 1", console.log(value, graphCanvas, node)
+            }
+        };
         // const composite  = {value:undefined,callback:(value,graphCanvas, node)=>{console.log(value,graphCanvas, node)}};
         /** our output composite image */
         const composite = getCompositorWidget(node, "image");
         const fabricDataWidget = getCompositorWidget(node, "fabricData");
-        node.stuff.fabricDataWidget = fabricDataWidget;
-        // kill compute size
-        fabricDataWidget.computeSize = () => [0, -4];
 
+        node.stuff.fabricDataWidget = fabricDataWidget;
+        // kill compute size so we hide the widget
+        fabricDataWidget.computeSize = () => [0, 0];
 
 
         // debugger;
-        fabricDataWidget.callback = ()=>{
+        fabricDataWidget.callback = () => {
+            // random notes, production ready :D
             // this is the registration object with class name aka "registerNodeDef"
             // closure is on nodeCreated, module is COMPOSITOR
             // should lift at node prototype level, it's a bit global here ;D
             // fabricDataWidget.value = "xxxx";
-            console.log("fabricDataCallback",arguments);
+            // console.log("fabricDataCallback", arguments);
         }
-        //hideWidgetForGood(this, fabricData);
-        //fabricDataWidget.value = JSON.stringify({foo:"1",bar:2,baz:["2",3,"abracadabra"]});
-        console.log("fabricData")
-        // const orig = fabricData.serializeValue;
-        // fabricData.serializeValue = ()=>{
-        //     console.log(orig,this,arguments)
-        //     orig.apply(this,arguments);
-        //
-        // }
-        // console.log("nodeCreated", node, node.type, composite)
-        // setCanvasElSize(node,w,h,p);
+        hideWidgetForGood(this, fabricDataWidget);
 
         const fcanvas = createCanvas(node);
 
@@ -955,20 +958,18 @@ app.registerExtension({
             // prevents repeating the same command , eg.: keeping the shift+up pressed
             //     return;
             // }
-            // console.log(options);
+
             var key = options.which || options.keyCode; // key detection
             if (isLeft(key)) {
-                moveSelected(fcanvas, downDirection(),options.shiftKey);
+                moveSelected(fcanvas, downDirection(), options.shiftKey);
             } else if (isTop(key)) {
-                moveSelected(fcanvas, topDirection(),options.shiftKey);
+                moveSelected(fcanvas, topDirection(), options.shiftKey);
             } else if (isRight(key)) {
-                moveSelected(fcanvas, rightDirection(),options.shiftKey);
+                moveSelected(fcanvas, rightDirection(), options.shiftKey);
             } else if (isDown(key)) {
-                moveSelected(fcanvas, [0, 1],options.shiftKey);
+                moveSelected(fcanvas, [0, 1], options.shiftKey);
             }
         });
-
-
 
 
         const compositionArea = createCompositionArea(p, w, h, node);
@@ -996,7 +997,7 @@ app.registerExtension({
         // data url
         let data = null;
         const capture = (first) => {
-            console.log("capture");
+            //  console.log("capture");
             node.stuff.first = first
             data = fcanvas.toDataURL({
                 format: 'jpeg',
@@ -1009,7 +1010,7 @@ app.registerExtension({
             /** triggered by setting the image to data right below definition,
              * node imgs should be the trigger to serialize*/
             img.onload = () => {
-                console.log("onload");
+                //  console.log("onload");
                 /** is this triggering serialize -> this is the preview */
                 node.imgs = [img];
                 app.graph.setDirtyCanvas(true);
@@ -1030,8 +1031,8 @@ app.registerExtension({
 
         // not really sure if this is needed and for what, but the button does not bring any value (or should it...maybe the checksum ??
         captureBtn.serializeValue = () => {
-            console.log("captureBtn.serializeValue");
-            return "capture_"+Date.now();
+            //  console.log("captureBtn.serializeValue");
+            return "capture_" + Date.now();
         };
 
 
@@ -1041,15 +1042,14 @@ app.registerExtension({
          * and we just let it through in python
          * that's why, on the first run, it will be empty ... because it is!
          */
-
         composite.serializeValue = async () => {
 
             // we can simply return a path, of an ideally uploaded file and be happy with it
-            console.log("composite.serializevalue",composite.value, composite,'first:',node.stuff.first);
+            //  console.log("composite.serializevalue", composite.value, composite, 'first:', node.stuff.first);
 
             try {
                 if (captureOnQueue.value) {
-                    console.log("captureOnQueue",captureOnQueue.value)
+                    //  console.log("captureOnQueue", captureOnQueue.value)
                     capture();
                 } else if (!node.imgs?.length) {
                     const err = `Composition not saved`;
@@ -1064,16 +1064,15 @@ app.registerExtension({
                 // do we have anything stored ?
 
 
-
                 if (hasNeverRun) {
-                    console.log("never run");
+                    // console.log("never run");
                     // it's likely the first run, go on with the blob as we need to update the value
                 } else {
-                    console.log("checking hash");
+                    // console.log("checking hash");
                     // check if the image stored in the node as last upload is the same as the one we are making
                     // by comparing the checksums
                     if (await hasSameHash(node, blob)) {
-                        console.log("same hash, exit early!");
+                        //  console.log("same hash, exit early!");
                         // exit early, don't re-upload if it is the same content !!!
                         return node.stuff.lastUpload;
                     }
@@ -1086,12 +1085,17 @@ app.registerExtension({
                  * the image will be in the compositor subfolder of temp, not input
                  * then store the name last upload
                  */
-                 // go on as normal, not our first rodeo
-                 node.stuff.lastUpload = await uploadImage(blob)
+                // go on as normal, not our first rodeo
+                node.stuff.lastUpload = await uploadImage(blob)
 
                 // also update the data
-                node.stuff.fabricDataWidget.value = serializeStuff(node);
-                console.log(node.stuff.fabricDataWidget.value)
+                // should be done conditionally based on config 5 is store transforms
+                const shouldSerialize = getConfigWidgetValue(node, 5);
+                const serialized = serializeStuff(node);
+                // console.log(serialized);
+                if (!serialized.includes("[null,null,null,null,null,null,null,null]"))
+                    node.stuff.fabricDataWidget.value = serialized;
+                //  console.log(node.stuff.fabricDataWidget.value)
 
                 return hasNeverRun ? "test_empty.png" : node.stuff.lastUpload;
 
@@ -1133,14 +1137,71 @@ function hideWidgetForGood(node, widget, suffix = '') {
     }
 }
 
-function serializeStuff(node){
-    const data = [node.stuff["image1"], node.stuff["image2"], node.stuff["image3"], node.stuff["image4"], node.stuff["image5"], node.stuff["image6"], node.stuff["image7"], node.stuff["image8"]];
-    return JSON.stringify(data);
+/**
+ * serializes some info from the node, currently the transforms supplied to the images
+ * this is currently called on capture (regardless of the flag)
+ */
+function serializeStuff(node) {
+    // console.log("serializeStuff");
+    const result = {
+        // or the widget ? boh
+        width:node.stuff.width,
+        height:node.stuff.height,
+        padding:node.stuff.padding,
+        transforms:undefined,
+    };
+    const res = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
+        try {
+            let t = getOldTransform(node, i);
+
+            return t;
+        } catch (e) {
+            return undefined;
+        }
+
+    });
+
+    result.transforms = res;
+
+    return JSON.stringify(result);
+
+    //const data = [node.stuff["image1"], node.stuff["image2"], node.stuff["image3"], node.stuff["image4"], node.stuff["image5"], node.stuff["image6"], node.stuff["image7"], node.stuff["image8"]];
+    //return JSON.stringify(data);
 }
 
-function deserializeStuff(value){
+function deserializeStuff(value) {
     return JSON.parse(value)
 }
 
+/**
+ * in CompositorConfig
+ * - 4 is pause
+ * - 5 is storeTransforms
+ */
+function getConfigWidgetValue(node, slot) {
+    // console.log(node, slot);
+    const connected = node.getInputNode(0);
+    return connected.widgets[slot].value;
+}
+
+
+// if (getConfigWidgetValue(current,5)) {
+//     //const node = app.graph.getNodeById(164);
+//     debugger;
+//     const restore = deserializeStuff(current.stuff.fabricDataWidget.value);
+//     //  console.log("restore", restore);
+//     [0,1,2,3,4,5,6,7].forEach((i)=>{
+//         try{
+//             const data = restore[i];
+//             const imageName = imageNameAt(i);
+//
+//             current.stuff[imageName].set(data);
+//         }catch(e){
+//             // debugger;
+//         }
+//     })
+// } else {
+//     //  console.log("no restoring");
+// }
 
 

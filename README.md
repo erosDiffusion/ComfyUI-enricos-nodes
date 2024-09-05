@@ -20,14 +20,12 @@ With the Compositor Node you can:
 - move with keyboard
 
 ## Changelog
-  - v **2.0.0** - 05.09.2024 - **V2 is HERE!**
+  - v **2.0.1** - 05.09.2024 - **V2 is HERE!**
     - _enhancement_: An all **new widget layout** with maximized working area and less clutter
     - _new feature_: A **new companion configuration widget** to allow more control and easier maintenance
     - _enhancement_: More control! it's now possible to select an image or group and then pressing and holding "alt" right before the movement to **center scale and rotate**
     - _new feature_: More control! it's now possible to **nudge a selection** by one pixel by using keyboard arrows, and while holding shift the movement is 10px! pixel perfect alignments!
-    - _new feature_: the node now **remembers the transforms** you have applied, so on refresh or exchanging a flow the composition will be the same!
-      - **warning** (size of image/json is bigger as it now contains a lot of metadata including the passed images in b64 format)
-      - I will provide an optimization soon as it's not really shareable on discord and wastes a lot of space!
+    - _new feature_: the node now **remembers the transforms** you have applied, on the new run it will re-apply the stored transforms (storing transforms is controlled in the config)     
     - _new feature_: **masks are here**! you can now pass masks and they will be applied automatically! (depending on the results you might want still to invert them)
     - _regression_: a bit annoying but is_changed is not being observed so flows are re-triggered even on fixed
     - _regression_: img in workflow saved is not visible anymore
@@ -137,7 +135,7 @@ Just throw the worst possible images you find on the internet or that you can ge
 ...scale and align quick, give a depth controlnet, describe the full scene and style, render...
 and you will get:
 
-![demo workflow 2](/assets/gallerySamples.jpg)
+![demo workflow 2](/assets/v2workflow.png)
 
 now you are in pixel perfect positioning control of your scene and content !
 

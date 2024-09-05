@@ -119,6 +119,7 @@ The compositor node
         # images = config["images"]
         names = config["names"]
         fabricData = kwargs.get("fabricData")
+        storeTransforms = kwargs.get("storeTransforms")
 
         node_id = kwargs.pop('node_id', None)
         # additional stuff we might send
@@ -155,6 +156,7 @@ The compositor node
             "names": names,
             "image": [image],
             "fabricData": [fabricData],
+            "storeTransforms": [storeTransforms],
         }
 
         invalidImage = self.imageDoesNotExist(image)

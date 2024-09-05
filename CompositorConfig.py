@@ -41,6 +41,7 @@ class CompositorConfig:
                 "padding": ("INT", {"default": 100, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
                 "capture_on_queue": ("BOOLEAN", {"default": True}),
                 "pause": ("BOOLEAN", {"default": True}),
+                "storeTransforms": ("BOOLEAN", {"default": False}),
             },
             "optional": {
                 "image1": ("IMAGE",),
@@ -110,7 +111,8 @@ The compositor node
         padding = kwargs.pop('padding', 100)
         width = kwargs.pop('width', 512)
         height = kwargs.pop('height', 512)
-        node_id = kwargs.pop('node_id', 512)
+        node_id = kwargs.pop('node_id', None)
+        storeTransforms = kwargs.pop('storeTransforms')
 
         images = [image1, image2, image3, image4, image5, image6, image7, image8, ]
         masks = [mask1, mask2, mask3, mask4, mask5, mask6, mask7, mask8, ]
@@ -162,6 +164,7 @@ The compositor node
             # the image names
             # "images": input_images,
             "names": input_images,
+            "storeTransforms": storeTransforms,
         }
         print(f"compositor config {node_id} executed")
         # return (res, self.masked, )

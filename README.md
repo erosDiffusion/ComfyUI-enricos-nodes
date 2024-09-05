@@ -23,7 +23,7 @@ With the Compositor Node you can:
   - v **2.0.0** - 05.09.2024 - **V2 is HERE!**
     - _enhancement_: An all **new widget layout** with maximized working area and less clutter
     - _new feature_: A **new companion configuration widget** to allow more control and easier maintenance
-    - _enhancement_: More control! it's now possible to select an image or group and then pressing and holding control right before the movement to **center scale and rotate**
+    - _enhancement_: More control! it's now possible to select an image or group and then pressing and holding "alt" right before the movement to **center scale and rotate**
     - _new feature_: More control! it's now possible to **nudge a selection** by one pixel by using keyboard arrows, and while holding shift the movement is 10px! pixel perfect alignments!
     - _new feature_: the node now **remembers the transforms** you have applied, so on refresh or exchanging a flow the composition will be the same!
       - **warning** (size of image/json is bigger as it now contains a lot of metadata including the passed images in b64 format)

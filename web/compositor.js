@@ -630,9 +630,7 @@ app.registerExtension({
 
             /** apply transforms if necessary */
             if (shouldRestore) {
-
                 try {
-
                     if (theImage) {
                         const restoreParams = r.transforms[index];
                         theImage.scaleX = restoreParams.scaleX;
@@ -647,8 +645,6 @@ app.registerExtension({
                     }
 
                     node.stuff.canvas.renderAll();
-
-
                 } catch (e) {
                     // console.log(e);
                 }
@@ -765,9 +761,6 @@ app.registerExtension({
                  */
                 fabric.Image.fromURL(b64, fromUrlCallback);
             });
-
-
-
 
 
         }
@@ -954,6 +947,51 @@ app.registerExtension({
         hideWidgetForGood(this, fabricDataWidget);
 
         const fcanvas = createCanvas(node);
+
+
+        fcanvas.on('selection:created', function (opt) {
+            node.stuff.selected = opt.selected;
+            //  debugger;
+            opt.e.preventDefault();
+            opt.e.stopPropagation();
+        });
+
+        fcanvas.on('selection:updated', function (opt) {
+            node.stuff.selected = opt.selected;
+            //  debugger;
+            opt.e.preventDefault();
+            opt.e.stopPropagation();
+        });
+
+        fcanvas.on('selection:cleared', function (opt) {
+            node.stuff.selected = undefined;
+            opt.e.preventDefault();
+            opt.e.stopPropagation();
+        });
+
+        fcanvas.on('mouse:wheel', function (opt) {
+            console.log(opt);
+            try {
+                if (opt.target.cacheKey !== node.stuff.selected[0].cacheKey) return;
+                // var delta = opt.e.deltaY;
+                // var zoom = canvas.getZoom();
+                // zoom *= 0.999 ** delta;
+                // if (zoom > 20) zoom = 20;
+                // if (zoom < 0.01) zoom = 0.01;
+                // canvas.setZoom(zoom);
+                if (!node.stuff.selected) return
+                //node.stuff.selected.setScale([node.stuff.selected.scaleX+opt.e.deltaY,node.stuff.selected.scaleY+opt.e.deltaY]);
+                const sign = Math.sign(opt.e.deltaY);
+                opt.target.scaleX = opt.target.scaleX + (sign * 0.01);
+                opt.target.scaleY = opt.target.scaleY + (sign * 0.01);
+
+                opt.e.preventDefault();
+                opt.e.stopPropagation();
+                fcanvas.renderAll()
+            } catch (e) {
+                return;
+            }
+        })
 
         fabric.util.addListener(document.body, 'keydown', function keydownHandler(options) {
 
@@ -1148,10 +1186,10 @@ function serializeStuff(node) {
     // console.log("serializeStuff");
     const result = {
         // or the widget ? boh
-        width:node.stuff.width,
-        height:node.stuff.height,
-        padding:node.stuff.padding,
-        transforms:undefined,
+        width: node.stuff.width,
+        height: node.stuff.height,
+        padding: node.stuff.padding,
+        transforms: undefined,
     };
     const res = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
         try {

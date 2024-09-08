@@ -20,6 +20,7 @@ With the Compositor Node you can:
 - move with keyboard
 
 ## Changelog
+  - v **2.0.4** 06.09.2024 - You can now scale the selected image via mouse wheel!  
   - v **2.0.1** - 05.09.2024 - **V2 is HERE!**
     - _enhancement_: An all **new widget layout** with maximized working area and less clutter
     - _new feature_: A **new companion configuration widget** to allow more control and easier maintenance

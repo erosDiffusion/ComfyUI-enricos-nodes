@@ -35,7 +35,8 @@ def toBase64ImgUrl(img):
 # author: erosdiffusionai@gmail.com
 
 class Compositor(nodes.LoadImage):
-    OUTPUT_NODE = False
+    #OUTPUT_NODE = False
+    NOT_IDEMPOTENT = True
     counter = 1
 
     # By default, Comfy considers that a node has changed if any of its inputs or widgets have changed.
@@ -54,7 +55,7 @@ class Compositor(nodes.LoadImage):
     @classmethod
     def IS_CHANGED(cls, **kwargs):
         # it seems that for the image, it's ignored as something else changed ???
-        file = kwargs.get("image")
+        file = kwargs.get("hash")
         print(file)
         return file
 
@@ -74,16 +75,13 @@ class Compositor(nodes.LoadImage):
         return {
             "required": {
                 # about forceInput, lazy and other flags: https://docs.comfy.org/essentials/custom_node_datatypes
-                "image": ("COMPOSITOR", {"lazy": True, "default": "test_empty.png"}),
+                "image": ("COMPOSITOR", {"default": "test_empty.png"}),
                 "config": ("COMPOSITOR_CONFIG", {"forceInput": True}),
                 "fabricData": ("STRING", {"default": "{}"}),
-
-            },
-            "optional": {
+                "hash": ("STRING", {"default": "first run"}),
 
             },
             "hidden": {
-                "prompt": "PROMPT",
                 "extra_pnginfo": "EXTRA_PNGINFO",
                 "node_id": "UNIQUE_ID",
             },
@@ -120,6 +118,7 @@ The compositor node
         names = config["names"]
         fabricData = kwargs.get("fabricData")
         storeTransforms = kwargs.get("storeTransforms")
+        use_alignment_controls = config["use_alignment_controls"]
 
         node_id = kwargs.pop('node_id', None)
         # additional stuff we might send
@@ -157,6 +156,7 @@ The compositor node
             "image": [image],
             "fabricData": [fabricData],
             "storeTransforms": [storeTransforms],
+            "use_alignment_controls": [use_alignment_controls],
         }
 
         invalidImage = self.imageDoesNotExist(image)

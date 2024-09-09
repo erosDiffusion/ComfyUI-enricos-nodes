@@ -15,12 +15,12 @@ With the Compositor Node you can:
 - Use the buffer zone to park an asset you don't want to use or easily reach transformations controls
 - Clearly see the exported area through a green overlay
 - Easily re-frame your shot via multiple selection scaling, resizing and re-positioning
-- flip an image via negative scaling (drag a corner towards and past the inside of the image)
-- mask your images quickly
-- move with keyboard
+- Flip an image via negative scaling (drag a corner towards and past the inside of the image)
+- Mask your images quickly
+- Precisely move selections with keyboard
 
 ## Changelog
-  - v **2.0.4** 06.09.2024 - You can now scale the selected image via mouse wheel!  
+  - v **2.0.4** - 06.09.2024 - You can now scale the selected image via mouse wheel!  
   - v **2.0.1** - 05.09.2024 - **V2 is HERE!**
     - _enhancement_: An all **new widget layout** with maximized working area and less clutter
     - _new feature_: A **new companion configuration widget** to allow more control and easier maintenance

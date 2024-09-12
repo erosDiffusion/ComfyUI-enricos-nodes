@@ -24,7 +24,7 @@ With the Compositor Node you can:
   - v **2.0.1** - 05.09.2024 - **V2 is HERE!**
     - _enhancement_: An all **new widget layout** with maximized working area and less clutter
     - _new feature_: A **new companion configuration widget** to allow more control and easier maintenance
-    - _enhancement_: More control! it's now possible to select an image or group and then pressing and holding "alt" right before the movement to **center scale and rotate**
+    - _enhancement_: More control! it's now possible to select an image or group and then pressing and holding "**alt+drag**" to **center scale and rotate**
     - _new feature_: More control! it's now possible to **nudge a selection** by one pixel by using keyboard arrows, and while holding shift the movement is 10px! pixel perfect alignments!
     - _new feature_: the node now **remembers the transforms** you have applied, on the new run it will re-apply the stored transforms (storing transforms is controlled in the config)     
     - _new feature_: **masks are here**! you can now pass masks and they will be applied automatically! (depending on the results you might want still to invert them)

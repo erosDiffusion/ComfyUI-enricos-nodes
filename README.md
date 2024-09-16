@@ -20,11 +20,8 @@ With the Compositor Node you can:
 - Precisely move selections with keyboard
 
 ## Changelog
-  - v **3.0.0** - 16.09.2024
-  this release is a full rewrite of the code and fixes:
-  - #45
-  - #34
-  - #18
+  - v **3.0.0** - 16.09.2024 - this release is a full rewrite of the code and fixes:
+  - issues #45 , #34, #18
   also, and adds **new features**:  
   - _enhancement_: **simplified control panel** (cature on queue, save transform, pause are removed as not needed anymore)
   - _new feature_: **automatic upload** of the output **on mouse out** of the canvas area (no need to click capture)

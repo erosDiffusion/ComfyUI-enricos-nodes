@@ -312,7 +312,6 @@ function createCompositorContainerDiv(node) {
     const container = document.createElement("div");
     container.style.background = "rgba(0,0,0,0.25)";
     container.style.textAlign = "center";
-
     return container;
 }
 
@@ -929,7 +928,8 @@ app.registerExtension({
         /** our output composite image */
         const composite = getCompositorWidget(node, "image");
         const fabricDataWidget = getCompositorWidget(node, "fabricData");
-
+        const hash = getCompositorWidget(node, "hash");
+        node.stuff.hash = hash;
         node.stuff.fabricDataWidget = fabricDataWidget;
         // kill compute size so we hide the widget
         fabricDataWidget.computeSize = () => [0, 0];
@@ -1023,7 +1023,7 @@ app.registerExtension({
         fcanvas.add(compositionBorder);
         fcanvas.bringToFront(compositionBorder);
 
-
+        // called on...callback
         setupWidthChangeCallback(w, fcanvas, p, compositionArea, compositionBorder);
         setupHeightChangeCallback(h, fcanvas, p, compositionArea, compositionBorder);
         setupPaddingChangeCallback(p, compositionArea, h, w, compositionBorder, fcanvas);
@@ -1106,15 +1106,16 @@ app.registerExtension({
 
 
                 if (hasNeverRun) {
-                    // console.log("never run");
+                    console.log("never run");
                     // it's likely the first run, go on with the blob as we need to update the value
                 } else {
-                    // console.log("checking hash");
+                     console.log("checking hash");
                     // check if the image stored in the node as last upload is the same as the one we are making
                     // by comparing the checksums
                     if (await hasSameHash(node, blob)) {
-                        //  console.log("same hash, exit early!");
+                        console.log("same hash, exit early!");
                         // exit early, don't re-upload if it is the same content !!!
+                        node.stuff.hash.value = node.stuff.c2;
                         return node.stuff.lastUpload;
                     }
                 }

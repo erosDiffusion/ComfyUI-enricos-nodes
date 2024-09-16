@@ -1,4 +1,3 @@
-# author: erosdiffusionai@gmail.com
 import nodes
 import numpy as np
 import base64
@@ -6,7 +5,7 @@ from io import BytesIO
 from PIL import Image
 import torch
 import folder_paths
-from server import PromptServer
+
 
 MAX_RESOLUTION = nodes.MAX_RESOLUTION
 
@@ -25,13 +24,8 @@ def toBase64ImgUrl(img):
     return f"data:image/png;base64,{img_base64.decode('utf-8')}"
 
 
-class CompositorConfig:
-    #OUTPUT_NODE = True
+class CompositorConfig3:
     NOT_IDEMPOTENT = True
-
-    # @classmethod
-    # def IS_CHANGED(cls, **kwargs):
-    #     return float("NaN")
 
     @classmethod
     def INPUT_TYPES(cls):
@@ -40,9 +34,7 @@ class CompositorConfig:
                 "width": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
                 "height": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
                 "padding": ("INT", {"default": 100, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
-                "capture_on_queue": ("BOOLEAN", {"default": True}),
-                "pause": ("BOOLEAN", {"default": True}),
-                "storeTransforms": ("BOOLEAN", {"default": False}),
+                "initialized": ("STRING", {"default": ""}),
             },
             "optional": {
                 "image1": ("IMAGE",),
@@ -61,8 +53,6 @@ class CompositorConfig:
                 "mask7": ("MASK",),
                 "image8": ("IMAGE",),
                 "mask8": ("MASK",),
-                "use_alignment_controls": ("BOOLEAN", {"forceInput": True}),
-
             },
             "hidden": {
                 "prompt": "PROMPT",
@@ -92,7 +82,6 @@ The compositor node
         # send as custom to be able to be used by ui
         # finally return the resulting image (the composite "image" is seen as input but it's actually the output)
 
-        # image = kwargs.pop('image', None)
         image1 = kwargs.pop('image1', None)
         image2 = kwargs.pop('image2', None)
         image3 = kwargs.pop('image3', None)
@@ -109,14 +98,11 @@ The compositor node
         mask6 = kwargs.pop('mask6', None)
         mask7 = kwargs.pop('mask7', None)
         mask8 = kwargs.pop('mask8', None)
-        pause = kwargs.pop('pause', False)
-        capture_on_queue = kwargs.pop('capture_on_queue', True)
+        # pause = kwargs.pop('pause', False)
         padding = kwargs.pop('padding', 100)
         width = kwargs.pop('width', 512)
         height = kwargs.pop('height', 512)
         node_id = kwargs.pop('node_id', None)
-        storeTransforms = kwargs.pop('storeTransforms')
-        use_alignment_controls = kwargs.pop('use_alignment_controls')
 
         images = [image1, image2, image3, image4, image5, image6, image7, image8, ]
         masks = [mask1, mask2, mask3, mask4, mask5, mask6, mask7, mask8, ]
@@ -142,19 +128,6 @@ The compositor node
                 # input is None, forward
                 input_images.append(img)
 
-        # this can act as broadcast to another node, in this case it will be received
-        # by the compositor node, where it should be filtered by it's config node id and
-        # discard messages not coming from config
-        # PromptServer.instance.send_sync(
-        #     "compositor.config", {"names": input_images,
-        #                           "config_node_id": node_id,
-        #                           "width": width,
-        #                           "height": height,
-        #                           "padding": padding,
-        #                           "capture_on_queue": capture_on_queue,
-        #                           "pause": pause
-        #                           }
-        # )
 
         self.ensureEmpty()
 
@@ -163,13 +136,7 @@ The compositor node
             "width": width,
             "height": height,
             "padding": padding,
-            "capture_on_queue": capture_on_queue,
-            "pause": pause,
-            # the image names
-            # "images": input_images,
             "names": input_images,
-            "storeTransforms": storeTransforms,
-            "use_alignment_controls": use_alignment_controls,
         }
         print(f"compositor config {node_id} executed")
         # return (res, self.masked, )

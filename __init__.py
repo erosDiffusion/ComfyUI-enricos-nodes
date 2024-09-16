@@ -16,8 +16,8 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     #"Compositor": "Compositor",
     #"CompositorConfig": "CompositorConfig",
-    "Compositor3": "Compositor V3",
-    "CompositorConfig3": "Compositor Config V3",
+    "Compositor3": "💜 Compositor V3",
+    "CompositorConfig3": "💜 Compositor Config V3",
     "Alignment": "Alignment",
 }
 

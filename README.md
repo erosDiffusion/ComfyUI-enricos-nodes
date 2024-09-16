@@ -30,7 +30,7 @@ With the Compositor Node you can:
   - _enhancement_: enqueue with **continue**, on the first run, if necessary information is missing (like output) the flow will stop, make your composition, and click continue to re-enqueue the flash finishes.
   
 
-![the compositor node](/assets/v2.PNG)
+![the compositor node](/assets/v3.PNG)
 
   - v **2.0.4** - 06.09.2024 - _enhancement_: You can now **scale the selected image via mouse wheel**!  
   - v **2.0.1** - 05.09.2024 - **V2 is HERE!**
@@ -137,23 +137,21 @@ and set the security to weak (at your risk)
 - any **controlnet depth for your model** - works well with depth anything v2 preprocessor for both 1.5 (regular controlnet) and xl (via union controlnet) or lineart (like anylineart), for flux you can try x-labs controlnet (but it does not work well for me)
   
 
-### More examples (demo workflow for v3 coming soon!)
+### Demo Workflow for v3
 
 Just throw the worst possible images you find on the internet or that you can generate...
 ...scale and align quick, give a depth controlnet, describe the full scene and style, render...
 and you will get:
 
-![demo workflow 2](/assets/v2workflow.png)
-
-now you are in pixel perfect positioning control of your scene and content !
+![v3.PNG](assets%2Fv3.PNG)
+with the [V3 workflow in json format](assets%2Fv3.json) you are in pixel perfect positioning control of your scene and content !
+images to replicate are in the assets folder.
 
 ### Final words and limitations
 
-- **limitation** you need to run the flow once for the compositor to show images. so just run on fixed or import static and pause/stop the flow, next time you will start from the compositon
+- **limitation** you need to run the flow once for the compositor to show images
 - **known issue**: the compositing is not scaled, so if you want a 5k image well... I hope you have a big enough monitor, but it's not (yet) the goal of this node...
 
-far from perfect, but hey... it did not exist before, and maybe you can still enjoy it for simple use cases.
+**Now go put some wolves in a forest!**
 
-**Now go put some bowtie on the model and render!**
-
-yours, ErosDiffusion
+yours, ErosDiffusion 💜

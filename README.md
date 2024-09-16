@@ -140,7 +140,7 @@ and set the security to weak (at your risk)
 - any **controlnet depth for your model** - works well with depth anything v2 preprocessor for both 1.5 (regular controlnet) and xl (via union controlnet) or lineart (like anylineart), for flux you can try x-labs controlnet (but it does not work well for me)
   
 
-### More examples (with advanced worfkflow you can find in the repo assets/output examples folder)
+### More examples (demo workflow for v3 coming soon!)
 
 Just throw the worst possible images you find on the internet or that you can generate...
 ...scale and align quick, give a depth controlnet, describe the full scene and style, render...

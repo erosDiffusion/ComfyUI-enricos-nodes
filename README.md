@@ -145,13 +145,15 @@ and you will get:
 
 ![v3.PNG](assets%2Fv3.PNG)
 with the [V3 workflow in json format](assets%2Fv3.json) you are in pixel perfect positioning control of your scene and content !
-images to replicate are in the assets folder.
+images to replicate are in the assets folder. after composition is set move the images a bit and continue.
 
 ### Final words and limitations
 
 - **limitation** you need to run the flow once for the compositor to show images
 - **known issue**: the compositing is not scaled, so if you want a 5k image well... I hope you have a big enough monitor, but it's not (yet) the goal of this node...
 
-**Now go put some wolves in a forest!**
+**Now go put a fairy in a forest!**
 
 yours, ErosDiffusion 💜
+
+![v3.2.PNG](assets%2Fv3.2.PNG)

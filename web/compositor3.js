@@ -3,13 +3,13 @@ import {api} from "../../scripts/api.js";
 
 import {fabric} from "./fabric.js";
 
-/** check if this is a Compositor2 node */
-function isCompositor2(node) {
-    return node.constructor.comfyClass == "Compositor2";
+/** check if this is a Compositor3 node */
+function isCompositor3(node) {
+    return node.constructor.comfyClass == "Compositor3";
 }
 
-function isCompositorConfig2(node) {
-    return node.constructor.comfyClass == "CompositorConfig2";
+function isCompositorConfig3(node) {
+    return node.constructor.comfyClass == "CompositorConfig3";
 }
 
 function getCompositorWidget(node, widgetName) {
@@ -67,7 +67,7 @@ function getCompositorWidget(node, widgetName) {
  * https://docs.comfy.org/essentials/javascript_objects_and_hijacking
  */
 app.registerExtension({
-    name: "Comfy.Compositor2",
+    name: "Comfy.Compositor3",
 
     async getCustomWidgets(app) {
         // no custom widgets
@@ -116,7 +116,7 @@ app.registerExtension({
             const current = app.graph.getNodeById(event.detail);
 
             // probably too later here as it's already running in the back
-            // if (current && current.type == "Compositor2") {
+            // if (current && current.type == "Compositor3") {
             //     const instance = current.compositorInstance;
             //     if (instance.captureOnQueue.value) {
             //         //instance.capture();
@@ -151,7 +151,7 @@ app.registerExtension({
             const e = event.detail.output;
             const nodeId = event.detail.node;
             const node = Editor.hook(nodeId);
-            if (node.type != "Compositor2") {
+            if (node.type != "Compositor3") {
                 console.log(node.type);
                 return;
             }
@@ -209,7 +209,6 @@ app.registerExtension({
 
 
         // change_workflow
-
         // global on_change for node and widgets
 
         api.addEventListener("compositor_init", executedMessageHandler);
@@ -325,15 +324,13 @@ app.registerExtension({
         // console.log("afterConfigureGraph", args);
 
 
-        const configs = app.graph.findNodesByType("CompositorConfig2");
+        const configs = app.graph.findNodesByType("CompositorConfig3");
         configs.forEach((c) => {
             const initialized = getCompositorWidget(c, "initialized");
             initialized.value = Date.now();
-
         })
 
-
-        const nodes = app.graph.findNodesByType("Compositor2");
+        const nodes = app.graph.findNodesByType("Compositor3");
         // probably too late here as it's already running in the back
         // nodes.forEach((current) => {
         //     const config = current.getInputNode(0);
@@ -353,7 +350,7 @@ app.registerExtension({
      * not the same nodeCreated event available in beforeRegisterNodeDef prototype (that one is aproptotype node class instance)
      */
     async nodeCreated(node) {
-        if (!isCompositor2(node)) return;
+        if (!isCompositor3(node)) return;
 
         /** our output composite image */
         //node.compositionChangedWidget = getCompositorWidget(node, "compositionChanged");
@@ -536,7 +533,7 @@ class Editor {
 
     static addCanvasBorderColorSetting() {
         app.ui.settings.addSetting({
-            id: "Compositor2.Canvas.BORDER_COLOR",
+            id: "Compositor3.Canvas.BORDER_COLOR",
             name: "Border Color",
             tooltip: "give an hex code with alpha, e.g.: #00b300b0, it's the area controlled by 'padding' size outside the  output that will not be exported but used for manipulation",
             type: "text",
@@ -549,7 +546,7 @@ class Editor {
 
     static addCompositionBorderColorSetting() {
         app.ui.settings.addSetting({
-            id: "Compositor2.Composition.BORDER_COLOR",
+            id: "Compositor3.Composition.BORDER_COLOR",
             name: "Border Color (not rendered)",
             type: "text",
             tooltip: "give hex code with alpha eg.: #00b300b0, this will help identifying what is withing the output",
@@ -562,7 +559,7 @@ class Editor {
 
     static addCompositionBorderSizeSetting() {
         app.ui.settings.addSetting({
-            id: "Compositor2.Composition.BORDER_SIZE",
+            id: "Compositor3.Composition.BORDER_SIZE",
             name: "Border Size",
             type: "slider",
             attrs: {
@@ -581,7 +578,7 @@ class Editor {
 
     static addCompositionBackgroundColorSetting() {
         app.ui.settings.addSetting({
-            id: "Compositor2.Composition.BACKGROUND_COLOR",
+            id: "Compositor3.Composition.BACKGROUND_COLOR",
             name: "Background Color - Output",
             type: "text",
             tooltip: "give hex code with alpha eg.: #00b300b0, this will help identifying what is withing the output",
@@ -600,10 +597,10 @@ class Editor {
     }
 
     getCompositorSettings() {
-        this.CANVAS_BORDER_COLOR = app.ui.settings.getSettingValue("Compositor2.Canvas.BORDER_COLOR", "rgba(255,153,0,0.00)");
-        this.COMPOSITION_BORDER_COLOR = app.ui.settings.getSettingValue("Compositor2.Composition.BORDER_COLOR", "#00b300b0");
-        this.COMPOSITION_BORDER_SIZE = app.ui.settings.getSettingValue("Compositor2.Composition.BORDER_SIZE", 2);
-        this.COMPOSITION_BACKGROUND_COLOR = app.ui.settings.getSettingValue("Compositor2.Composition.BACKGROUND_COLOR", "rgba(0,0,0,0.2)");
+        this.CANVAS_BORDER_COLOR = app.ui.settings.getSettingValue("Compositor3.Canvas.BORDER_COLOR", "rgba(255,153,0,0.00)");
+        this.COMPOSITION_BORDER_COLOR = app.ui.settings.getSettingValue("Compositor3.Composition.BORDER_COLOR", "#00b300b0");
+        this.COMPOSITION_BORDER_SIZE = app.ui.settings.getSettingValue("Compositor3.Composition.BORDER_SIZE", 2);
+        this.COMPOSITION_BACKGROUND_COLOR = app.ui.settings.getSettingValue("Compositor3.Composition.BACKGROUND_COLOR", "rgba(0,0,0,0.2)");
     }
 
     static getRandomCompositorUniqueId() {
@@ -1150,7 +1147,6 @@ class Editor {
 
         this.node["compositorInstance"] = this;
 
-        /** Fixme broken */
         this.node.setSize(this.calculateNodeSize())
         this.node.setDirtyCanvas(true, true);
 

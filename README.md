@@ -20,6 +20,21 @@ With the Compositor Node you can:
 - Precisely move selections with keyboard
 
 ## Changelog
+  - v **3.0.0** - 16.09.2024
+  this release is a full rewrite of the code and fixes:
+  - #45
+  - #34
+  - #18
+  also, and adds **new features**:  
+  - _enhancement_: **simplified control panel** (cature on queue, save transform, pause are removed as not needed anymore)
+  - _new feature_: **automatic upload** of the output **on mouse out** of the canvas area (no need to click capture)
+  - _new feature_: **flash on save** (once the image is uplodaded the composition area green border briefly flashes in orange)
+  - _new feature_: **preliminary work for optional control panels** (they will contain alignment controls, and other tools)
+  - _enhancement_: enqueue with **continue**, on the first run, if necessary information is missing (like output) the flow will stop, make your composition, and click continue to re-enqueue the flash finishes.
+  
+
+![the compositor node](/assets/v2.PNG)
+
   - v **2.0.4** - 06.09.2024 - _enhancement_: You can now **scale the selected image via mouse wheel**!  
   - v **2.0.1** - 05.09.2024 - **V2 is HERE!**
     - _enhancement_: An all **new widget layout** with maximized working area and less clutter
@@ -30,10 +45,6 @@ With the Compositor Node you can:
     - _new feature_: **masks are here**! you can now pass masks and they will be applied automatically! (depending on the results you might want still to invert them)
     - _regression_: a bit annoying but is_changed is not being observed so flows are re-triggered even on fixed
     - _regression_: img in workflow saved is not visible anymore
-
-![the compositor node](/assets/v2.PNG)
-
-
   - V **1.0.9** - 30.08.2024 - Huge refactoring!
     - _new feature_: **multiple instances** are now possible
     - _bugfix_: **zooming out does not hide the compositor images anymore**
@@ -94,16 +105,14 @@ and set the security to weak (at your risk)
 
 **Method1**:
 
-- search "compositor" in the dropdown, connect with config by dragging from the node config slot.
+- search "compositor" (v3) in the dropdown, connect with config (V3) by dragging from the node config slot.
 - configure width, height and padding around node (it's used to be able to move beyond the generated image) the node should will resize when you run
-- leave capture on queue on (at the moment it's always applying)
 - connect the inputs (suggested setup is to always have a fixed size via resize and rembg where needed)
 - important: connect the output (save image, preview image,...)
-- set to pause
-- run once to get the inputs in the compositor
+- run once to get the inputs in the compositor (the flow will stop if there is no output)
 - **create your composition** (see below)
-- remove pause
-- run again
+- mouse out the composition area (green border flashes to orange as the image uploads)
+- click continue to enqueue again (or enqueue)
 - use the output ! (suggestion is to feed it to a depth anything v2 node and use it in a depth controlnet to guide your image)
 
 **Create your composition details:**
@@ -124,6 +133,7 @@ and set the security to weak (at your risk)
 - shift click to select multiple
 - shift click to unselect selected in a group select
 - click "capture" to see what is the real order in memory before running (after the first run where images are generated/associated to the editor)
+- scroll up or down to scale a single image selection
 
 ### supporting nodes I use with this one
 - **Rembg(batch)** -> from https://github.com/Mamaaaamooooo/batchImg-rembg-ComfyUI-nodes.git -> extracts the subject and returns a rgba image

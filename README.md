@@ -20,7 +20,10 @@ With the Compositor Node you can:
 - Precisely move selections with keyboard
 
 ## Changelog
-  - v **3.0.0** - 16.09.2024 - this release is a full rewrite of the code and fixes:
+- v **3.0.1** - 17.09.2024 - **friendly transforms** for area prompting
+  - _enhancement_: a **new node** outputs x,y,width,height othe images into a convenient node to be attached to the transforms output
+  - _enhancement_: save and restore skew from transform
+- v **3.0.0** - 16.09.2024 - this release is a full rewrite of the code and fixes:
   - issues #45 , #34, #18
   also, and adds **new features**:  
   - _enhancement_: **simplified control panel** (cature on queue, save transform, pause are removed as not needed anymore)

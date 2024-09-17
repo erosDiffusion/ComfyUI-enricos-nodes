@@ -152,7 +152,7 @@ app.registerExtension({
             const nodeId = event.detail.node;
             const node = Editor.hook(nodeId);
             if (node.type != "Compositor3") {
-                console.log(node.type);
+                // console.log(node.type);
                 return;
             }
 
@@ -188,15 +188,15 @@ app.registerExtension({
         /** important messaging considerations  https://docs.comfy.org/essentials/comms_messages */
 
         function configureHandler() {
-            console.log("configurehanlder", arguments);
+            //console.log("configurehanlder", arguments);
         }
 
         function executionStartHandler() {
-            console.log("executionStartHandler", arguments);
+            //console.log("executionStartHandler", arguments);
         }
 
         function executionCachedHandler() {
-            console.log("executionCachedHandler", arguments);
+            //console.log("executionCachedHandler", arguments);
         }
 
         function graphChangedHandler() {
@@ -204,7 +204,7 @@ app.registerExtension({
         }
 
         function changeWorkflowHandler() {
-            console.log("changeWorkflowHandler", arguments);
+            //console.log("changeWorkflowHandler", arguments);
         }
 
 
@@ -324,19 +324,40 @@ app.registerExtension({
         // console.log("afterConfigureGraph", args);
 
 
+        // reset the config timestamp, to ensure re-triggering
         const configs = app.graph.findNodesByType("CompositorConfig3");
         configs.forEach((c) => {
             const initialized = getCompositorWidget(c, "initialized");
             initialized.value = Date.now();
         })
 
+        // setup broadcast channel, also needs to be done on node created or connection change...
         const nodes = app.graph.findNodesByType("Compositor3");
         // probably too late here as it's already running in the back
-        // nodes.forEach((current) => {
-        //     const config = current.getInputNode(0);
-        //     //  console.log("looping afterconfiguregraph compostior node", current);
-        //     //  console.log("looping afterconfiguregraph compostior node configs", config);
-        // })
+        nodes.forEach((current) => {
+            const tools = current.getInputNode(1);
+            //const tools = Editor.getToolWidget(this);
+            const CHANNELNAME = `Tools${tools.id}`;
+            //console.log(CHANNELNAME)
+            const channel = new BroadcastChannel(CHANNELNAME);
+            channel.addEventListener("message", (e) => {
+                const optionValue = e.data.value;
+                current.compositorInstance.preciseSelection = optionValue;
+                const c = current.compositorInstance.fcanvas;
+                c.getObjects().map(function (i) {
+                    return i.set('perPixelTargetFind', optionValue);
+                });
+
+            });
+
+            current.channel = channel;
+
+
+
+
+            //  console.log("looping afterconfiguregraph compostior node", current);
+            //  console.log("looping afterconfiguregraph compostior node configs", config);
+        })
         app.graph.setDirtyCanvas(true, true);
     },
     /**
@@ -357,8 +378,8 @@ app.registerExtension({
         node.imageNameWidget = getCompositorWidget(node, "imageName");
         const originalCallback = node.imageNameWidget.callback;
         node.imageNameWidget.callback = () => {
-            debugger;
-            console.log("callback of imageNameWidget with ", arguments);
+            //debugger;
+            //console.log("callback of imageNameWidget with ", arguments);
             originalCallback(arguments);
         }
         node.imageNameWidget.computeSize = () => [0, 0];
@@ -395,7 +416,7 @@ app.registerExtension({
         node.continue = node.addWidget("button", "continue", "continue", compositorInstance.continue.bind(compositorInstance));
 
         node.onMouseOut = function (e, pos, canvas) {
-            console.log("mouseout")
+            // console.log("mouseout")
             const original_onMouseDown = node.onMouseOut;
             return original_onMouseDown?.apply(this, arguments);
         }
@@ -455,6 +476,7 @@ class Editor {
 
     compositionArea;
     compositionBorder;
+    preciseSelection = false;
 
     /** (widget) references / config params*/
     p;
@@ -517,6 +539,12 @@ class Editor {
         const connected = node.getInputNode(0);
         return connected.widgets[slot].value;
     }
+    static getToolWidget(instance) {
+        // console.log(node, slot);
+        return  instance.node.getInputNode(1);
+
+    }
+
 
     /**
      * in CompositorConfig
@@ -618,6 +646,7 @@ class Editor {
 
     static createCanvasElement() {
         const canvas = document.createElement("canvas");
+
         canvas.id = Editor.getRandomCompositorUniqueId();
         return canvas;
     }
@@ -841,7 +870,7 @@ class Editor {
 
     /** this can't be async so resort to promise resolving and callbacks */
     grabUploadAndSetOutput(setDone, callback) {
-        console.log("capture");
+        // console.log("capture");
         // console.log("grap upload and set output")
         // prepare the image
         const img = new Image();
@@ -986,7 +1015,7 @@ class Editor {
         });
 
         this.fcanvas.on('mouse:out', function (opt) {
-            console.log("mouseout")
+            // console.log("mouseout")
             // moving outside editor, this might fail to be intercepted depending on how full the
             // canvas is
             if (opt.target === null || opt.target === undefined || opt.target && opt.nextTarget===undefined) {
@@ -995,7 +1024,7 @@ class Editor {
         });
 
         this.fcanvas.on('object:modified', function (opt) {
-            console.log(this, compositorInstance);
+            // console.log(this, compositorInstance);
             // mark as needing upload so when we mouse out we doit then reset
             // mouse out is flimsy, sometimes it's not triggering
             compositorInstance.needsUpload = true;
@@ -1133,6 +1162,8 @@ class Editor {
         //this.canvasEl.id = 'test'; // ditor.getRandomCompositorUniqueId();
         this.canvasEl.id = Editor.getRandomCompositorUniqueId();
         this.containerDiv.appendChild(this.canvasEl);
+
+
         this.containerDiv.style.overflow ="hidden";
         this.canvasEl.width = this.w.value + 2 * this.p.value;
         this.canvasEl.height = this.h.value + 2 * this.p.value;

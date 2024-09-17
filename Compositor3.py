@@ -35,6 +35,9 @@ class Compositor3:
                 "fabricData": ("STRING", {"default": "{}"}),
                 "imageName": ("STRING", {"default": "new.png"}),
             },
+            "optional": {
+                "tools": ("BOOLEAN", {"forceInput": True, "default": True}),
+            },
             "hidden": {
                 "extra_pnginfo": "EXTRA_PNGINFO",
                 "node_id": "UNIQUE_ID",

@@ -8,7 +8,7 @@ class Alignment:
         }
 
     RETURN_TYPES = ("BOOLEAN",)
-    RETURN_NAMES = ("composite",)
+    RETURN_NAMES = ("tools",)
     FUNCTION = "run"
     CATEGORY = "image"
 

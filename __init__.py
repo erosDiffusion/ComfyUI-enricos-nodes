@@ -19,10 +19,10 @@ NODE_CLASS_MAPPINGS = {
 NODE_DISPLAY_NAME_MAPPINGS = {
     #"Compositor": "Compositor",
     #"CompositorConfig": "CompositorConfig",
-    "Compositor3": "💜 Compositor V3",
-    "CompositorConfig3": "💜 Compositor Config V3",
-    "Alignment": "Alignment",
-    "CompositorTransformsOutV3": "💜 Compositor Transforms Output V3",
+    "Compositor3": "💜 Compositor (V3)",
+    "CompositorConfig3": "💜 Compositor Config (V3)",
+    "Alignment": "💜 Compositor Tools (V3)",
+    "CompositorTransformsOutV3": "💜 Compositor Transforms Output (V3)",
 }
 
 EXTENSION_NAME = "Enrico"

@@ -673,6 +673,8 @@ class Editor {
             flipY: this.inputImages[this.imageNameAt(index)].flipY,
             originX: this.inputImages[this.imageNameAt(index)].originX,
             originY: this.inputImages[this.imageNameAt(index)].originY,
+            width: this.inputImages[this.imageNameAt(index)].height,
+            height: this.inputImages[this.imageNameAt(index)].width,
             skewY: this.inputImages[this.imageNameAt(index)].skewY,
             skewX: this.inputImages[this.imageNameAt(index)].skewX,
         };
@@ -722,6 +724,7 @@ class Editor {
         if (shouldRestore) {
             try {
                 if (theImage) {
+                    // restore the transforms
                     const restoreParams = r.transforms[index];
                     theImage.scaleX = restoreParams.scaleX;
                     theImage.scaleY = restoreParams.scaleY;

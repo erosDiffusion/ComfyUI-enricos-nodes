@@ -20,11 +20,11 @@ With the Compositor Node you can:
 - Precisely move selections with keyboard
 
 ## Changelog
-- v **3.0.2** - 17.09.2024 - **friendly transforms** for area prompting
-  with the goal of being able to do regional area prompting
-  now you will know where you have placed your images (x,y) and their scaled size (width,height) all from a convenient node
-  select the channel corresponding the input and the node will output the values for you.
-  - _enhancement_: a **new node** outputs x,y,width,height othe images into a convenient node to be attached to the transforms output
+- v **3.0.2** - 17.09.2024 - **friendly transforms** for area prompting!  
+  With the goal of being able to do regional area prompting,  
+  now you can easily output each input x,y coordinates and their scaled width and height with the help of the new **Transform Output** node!
+  select the channel corresponding the input and the node will output the values for you.  
+  - _enhancement_: a **new node** outputs x,y,width,height othe images into a convenient node to be attached to the transforms output  
   - _enhancement_: save and restore skew from transform (now you can distort your images to help fake perspective)
 - v **3.0.0** - 16.09.2024 - this release is a full rewrite of the code and fixes:
   - issues #45 , #34, #18

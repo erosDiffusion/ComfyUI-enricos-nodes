@@ -17,7 +17,7 @@ class CompositorTransformsOutV3:
         return {
             "required": {
                 "transforms": ("STRING", {"forceInput": True}),
-                "channel": ("INT", {"min": 1, "max": 8}),
+                "channel": ("INT", {"min": 1, "max": 8, "default": 1}),
 
             },
             "hidden": {
@@ -41,9 +41,9 @@ class CompositorTransformsOutV3:
         padding = data["padding"]
         t = data["transforms"]
         # remap as it's 0 based, scale size as the area is final
-        width = t[channel-1]["width"] * t[channel-1]["scaleX"]
-        height = t[channel-1]["height"] * t[channel-1]["scaleY"]
+        width = t[channel - 1]["width"] * t[channel - 1]["scaleX"]
+        height = t[channel - 1]["height"] * t[channel - 1]["scaleY"]
         # remove the padding as transforms are padding based
-        x = t[channel-1]["left"] - padding
-        y = t[channel-1]["top"] - padding
+        x = t[channel - 1]["left"] - padding
+        y = t[channel - 1]["top"] - padding
         return (x, y, width, height)

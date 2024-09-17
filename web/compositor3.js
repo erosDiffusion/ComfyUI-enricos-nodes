@@ -673,6 +673,8 @@ class Editor {
             flipY: this.inputImages[this.imageNameAt(index)].flipY,
             originX: this.inputImages[this.imageNameAt(index)].originX,
             originY: this.inputImages[this.imageNameAt(index)].originY,
+            skewY: this.inputImages[this.imageNameAt(index)].skewY,
+            skewX: this.inputImages[this.imageNameAt(index)].skewX,
         };
     }
 
@@ -730,6 +732,8 @@ class Editor {
                     theImage.flipY = restoreParams.flipY;
                     theImage.originX = restoreParams.originX;
                     theImage.originY = restoreParams.originY;
+                    theImage.skewY = restoreParams.skewY;
+                    theImage.skewX = restoreParams.skewX;
                 }
             } catch (e) {
                 // console.log(e);

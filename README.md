@@ -158,6 +158,7 @@ images to replicate are in the assets folder. after composition is set move the 
 
 - **limitation** you need to run the flow once for the compositor to show images
 - **known issue**: the compositing is not scaled, so if you want a 5k image well... I hope you have a big enough monitor, but it's not (yet) the goal of this node...
+- upcoming **known issue** the new tooling will require graph changed events to setup frontend only widgets. so reload the wf. if the gui is not coming up in the tool node
 
 **Now go put a fairy in a forest!**
 

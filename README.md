@@ -145,8 +145,9 @@ and set the security to weak (at your risk)
 - click "capture" to see what is the real order in memory before running (after the first run where images are generated/associated to the editor)
 - scroll up or down to scale a single image selection
 
-### supporting nodes I use with this one
+### Aupporting nodes I use with this one
 - **Rembg(batch)** -> from https://github.com/Mamaaaamooooo/batchImg-rembg-ComfyUI-nodes.git -> extracts the subject and returns a rgba image
+- any other technique to create masks (grounding dino, sam, florence2...)
 - any **controlnet depth for your model** - works well with depth anything v2 preprocessor for both 1.5 (regular controlnet) and xl (via union controlnet) or lineart (like anylineart), for flux you can try x-labs controlnet (but it does not work well for me)
   
 

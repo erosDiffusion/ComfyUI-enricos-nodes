@@ -673,8 +673,8 @@ class Editor {
             flipY: this.inputImages[this.imageNameAt(index)].flipY,
             originX: this.inputImages[this.imageNameAt(index)].originX,
             originY: this.inputImages[this.imageNameAt(index)].originY,
-            xwidth: this.inputImages[this.imageNameAt(index)].height,
-            xheight: this.inputImages[this.imageNameAt(index)].width,
+            xwidth: this.inputImages[this.imageNameAt(index)].width,
+            xheight: this.inputImages[this.imageNameAt(index)].height,
             skewY: this.inputImages[this.imageNameAt(index)].skewY,
             skewX: this.inputImages[this.imageNameAt(index)].skewX,
         };

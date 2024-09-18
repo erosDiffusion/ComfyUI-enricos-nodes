@@ -736,6 +736,7 @@ class Editor {
         const oldTransform = this.getOldTransform(index);
         // Remove the old image from the canvas
         this.fcanvas.remove(this.inputImages[this.imageNameAt(index)]);
+        // this breaks if we have width and height so renamed to xwidth and xheight
         theImage.set(oldTransform);
         this.fcanvas.add(theImage);
         this.inputImages[this.imageNameAt(index)] = theImage;

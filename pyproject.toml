@@ -12,4 +12,4 @@ Repository = "https://github.com/erosDiffusion/ComfyUI-enricos-nodes"
 [tool.comfy]
 PublisherId = "erosdiffusion"
 DisplayName = "ComfyUI-enricos-nodes"
-Icon = ""
+Icon = "💜"

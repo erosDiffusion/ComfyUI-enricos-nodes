@@ -117,7 +117,7 @@ The compositor node
             if img is not None:
                 if mask is not None:
                     # apply the mask and return
-                    masked = self.apply_mask(img, mask)
+                    masked = self.apply_mask(img, mask, invertMask)
                     # self.masked = masked[0]
 
                     i = tensor2pil(masked[0])
@@ -145,11 +145,11 @@ The compositor node
         # return (res, self.masked, )
         return (res,)
 
-    def apply_mask(self, image: torch.Tensor, alpha: torch.Tensor, invert_mask=False):
+    def apply_mask(self, image: torch.Tensor, alpha: torch.Tensor, invertMask=False):
         batch_size = min(len(image), len(alpha))
         out_images = []
 
-        if invert_mask:
+        if invertMask:
             alpha = 1.0 - resize_mask(alpha, image.shape[1:])
         else:
             alpha = resize_mask(alpha, image.shape[1:])

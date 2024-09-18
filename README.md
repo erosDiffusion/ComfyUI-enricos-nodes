@@ -18,6 +18,7 @@ With the Compositor Node you can:
 - Flip an image via negative scaling (drag a corner towards and past the inside of the image)
 - Mask your images quickly
 - Precisely move selections with keyboard
+- Use the information about tranforms in other nodes (like conditioning set area)
 
 ## Changelog
 - v **3.0.8** - 18.09.2024

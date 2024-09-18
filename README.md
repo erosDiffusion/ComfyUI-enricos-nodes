@@ -20,6 +20,7 @@ With the Compositor Node you can:
 - Precisely move selections with keyboard
 
 ## Changelog
+- v **3.0.4** - 18.09.2024 - _bugfix_: the width and height stored in transforms were swapped thanks @sky958958 for spottig it
 - v **3.0.2** - 17.09.2024 - **friendly transforms** for area prompting!  
   With the goal of being able to do regional area prompting,  
   now you can easily output each input x,y coordinates and their scaled width and height with the help of the new **Transform Output** node!

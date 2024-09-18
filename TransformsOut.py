@@ -18,6 +18,7 @@ class CompositorTransformsOutV3:
             "required": {
                 "transforms": ("STRING", {"forceInput": True}),
                 "channel": ("INT", {"min": 1, "max": 8, "default": 1}),
+                "forceInt": ("BOOLEAN", {"default": True}),
 
             },
             "hidden": {
@@ -36,16 +37,23 @@ class CompositorTransformsOutV3:
         node_id = kwargs.pop('node_id', None)
         channel = kwargs.pop('channel', 1)
         transforms = kwargs.pop('transforms', {})
-        print(transforms)
+        forceInt = kwargs.pop('forceInt', {})
+        # print(transforms)
         data = json.loads(transforms)
         padding = data["padding"]
-        t = data["transforms"]
+
+        # extract transforms
         # remap as it's 0 based, scale size as the area is final
+        t = data["transforms"]
         width = t[channel - 1]["xwidth"] * t[channel - 1]["scaleX"]
         height = t[channel - 1]["xheight"] * t[channel - 1]["scaleY"]
         angle = t[channel - 1]["angle"]
         # remove the padding as transforms are padding based
         x = t[channel - 1]["left"] - padding
         y = t[channel - 1]["top"] - padding
-        angle = t[channel - 1]["angle"]
-        return (x, y, width, height, angle)
+
+        if forceInt:
+            return (int(x), int(y), int(width), int(height), int(angle))
+        else:
+
+            return (x, y, width, height, angle)

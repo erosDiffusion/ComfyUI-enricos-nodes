@@ -755,8 +755,8 @@ class Editor {
             flipY: ref.flipY,
             originX: ref.originX,
             originY: ref.originY,
-            width: ref.width,
-            height: ref.height,
+            xwidth: ref.width,
+            xheight: ref.height,
             skewY: ref.skewY,
             skewX: ref.skewX,
         };
@@ -774,8 +774,8 @@ class Editor {
             flipY: ref.flipY,
             originX: ref.originX,
             originY: ref.originY,
-            width: ref.height,
-            height: ref.width,
+            xwidth: ref.height,
+            xheight: ref.width,
             skewY: ref.skewY,
             skewX: ref.skewX,
         };
@@ -797,23 +797,10 @@ class Editor {
         this.inputImages[this.imageNameAt(index)].skewX = 0;
         this.inputImages[this.imageNameAt(index)].perPixelTargetFind = this.preciseSelection;
         this.fcanvas.renderAll();
-
-        // return {
-        //     left: this.inputImages[this.imageNameAt(index)].left,
-        //     top: this.inputImages[this.imageNameAt(index)].top,
-        //     scaleX: this.inputImages[this.imageNameAt(index)].scaleX,
-        //     scaleY: this.inputImages[this.imageNameAt(index)].scaleY,
-        //     angle: this.inputImages[this.imageNameAt(index)].angle,
-        //     flipX: this.inputImages[this.imageNameAt(index)].flipX,
-        //     flipY: this.inputImages[this.imageNameAt(index)].flipY,
-        //     originX: this.inputImages[this.imageNameAt(index)].originX,
-        //     originY: this.inputImages[this.imageNameAt(index)].originY,
-        //     xwidth: this.inputImages[this.imageNameAt(index)].height,
-        //     xheight: this.inputImages[this.imageNameAt(index)].width,
-        //     skewY: this.inputImages[this.imageNameAt(index)].skewY,
-        //     skewX: this.inputImages[this.imageNameAt(index)].skewX,
-        // };
     }
+
+
+
 
     /**
      * checks if the reference at index for an image is not null

@@ -27,7 +27,7 @@ class CompositorTransformsOutV3:
             },
         }
 
-    RETURN_TYPES = ("INT", "INT", "INT", "INT", "INT", "INT", "INT", "INT")
+    RETURN_TYPES = ("INT", "INT", "INT", "INT", "INT", "INT", "INT", "INT", "INT")
     RETURN_NAMES = ("x", "y", "width", "height", "bbox x", "bbox y", "bbox width", "bbox height")
 
     FUNCTION = "run"
@@ -44,23 +44,24 @@ class CompositorTransformsOutV3:
 
         # extract transforms
         t = data["transforms"]
-        width = t[channel - 1]["width"] * t[channel - 1]["scaleX"]
-        height = t[channel - 1]["height"] * t[channel - 1]["scaleY"]
+        width = t[channel - 1]["xwidth"] * t[channel - 1]["scaleX"]
+        height = t[channel - 1]["xheight"] * t[channel - 1]["scaleY"]
         # remove the padding as transforms are padding based
+        angle = t[channel - 1]["angle"]
         x = t[channel - 1]["left"] - padding
+
         y = t[channel - 1]["top"] - padding
 
         # bounding box out
         b = data["bboxes"]
-        bwidth = b[channel - 1]["width"]
-        bheight = b[channel - 1]["height"]
+        bwidth = b[channel - 1]["xwidth"]
+        bheight = b[channel - 1]["xheight"]
         # remove the padding as transforms are padding based
         bx = b[channel - 1]["left"] - padding
         by = b[channel - 1]["top"] - padding
 
         if forceInt:
-            return (int(x), int(y), int(width), int(height), int(bx), int(by), int(bwidth), int(bheight))
+            return (int(x), int(y), int(width), int(height), int(angle), int(bx), int(by), int(bwidth), int(bheight))
         else:
             # remap as it's 0 based, scale size as the area is final
-
-            return (x, y, width, height, bx, by, bwidth, bheight)
+            return (x, y, width, height, angle,bx, by, bwidth, bheight)

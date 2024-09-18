@@ -34,6 +34,7 @@ class CompositorConfig3:
                 "width": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
                 "height": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
                 "padding": ("INT", {"default": 100, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
+                "invertMask": ("BOOLEAN", {"default": False}),
                 "initialized": ("STRING", {"default": ""}),
             },
             "optional": {
@@ -102,6 +103,7 @@ The compositor node
         padding = kwargs.pop('padding', 100)
         width = kwargs.pop('width', 512)
         height = kwargs.pop('height', 512)
+        invertMask = kwargs.pop('invertMask', False)
         node_id = kwargs.pop('node_id', None)
 
         images = [image1, image2, image3, image4, image5, image6, image7, image8, ]
@@ -136,17 +138,22 @@ The compositor node
             "width": width,
             "height": height,
             "padding": padding,
+            "invertMask": invertMask,
             "names": input_images,
         }
         print(f"compositor config {node_id} executed")
         # return (res, self.masked, )
         return (res,)
 
-    def apply_mask(self, image: torch.Tensor, alpha: torch.Tensor):
+    def apply_mask(self, image: torch.Tensor, alpha: torch.Tensor, invert_mask=False):
         batch_size = min(len(image), len(alpha))
         out_images = []
 
-        alpha = 1.0 - resize_mask(alpha, image.shape[1:])
+        if invert_mask:
+            alpha = 1.0 - resize_mask(alpha, image.shape[1:])
+        else:
+            alpha = resize_mask(alpha, image.shape[1:])
+
         for i in range(batch_size):
             out_images.append(torch.cat((image[i][:, :, :3], alpha[i].unsqueeze(2)), dim=2))
 

@@ -20,6 +20,9 @@ With the Compositor Node you can:
 - Precisely move selections with keyboard
 
 ## Changelog
+- v **3.0.5** - 18.09.2024
+  - _new feature_: **invert mask** option. the implementation of mask was not correct. now it's possible to invert the mask via toggle.
+  - _new feature_: **angle output** the angle of rotation is now accessible in the output (and soon the bounding box x,y, width and height).
 - v **3.0.4** - 18.09.2024 - **bugfix**: the width and height stored in transforms were swapped and the output node would report them incorrectly. thanks @sky958958 for spotting it
 - v **3.0.2** - 17.09.2024 - **friendly transforms** for area prompting!  
   With the goal of being able to do regional area prompting,  

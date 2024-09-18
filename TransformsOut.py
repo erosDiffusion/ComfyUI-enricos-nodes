@@ -18,6 +18,7 @@ class CompositorTransformsOutV3:
             "required": {
                 "transforms": ("STRING", {"forceInput": True}),
                 "channel": ("INT", {"min": 1, "max": 8, "default": 1}),
+                "forceInt": ("BOOLEAN", {"default": True}),
 
             },
             "hidden": {
@@ -26,8 +27,8 @@ class CompositorTransformsOutV3:
             },
         }
 
-    RETURN_TYPES = ("INT", "INT", "INT", "INT")
-    RETURN_NAMES = ("x", "y", "width", "height")
+    RETURN_TYPES = ("INT", "INT", "INT", "INT", "INT", "INT", "INT", "INT")
+    RETURN_NAMES = ("x", "y", "width", "height", "bbox x", "bbox y", "bbox width", "bbox height")
 
     FUNCTION = "run"
     CATEGORY = "image"
@@ -36,14 +37,30 @@ class CompositorTransformsOutV3:
         node_id = kwargs.pop('node_id', None)
         channel = kwargs.pop('channel', 1)
         transforms = kwargs.pop('transforms', {})
-        print(transforms)
+        forceInt = kwargs.pop('forceInt', {})
+        # print(transforms)
         data = json.loads(transforms)
         padding = data["padding"]
+
+        # extract transforms
         t = data["transforms"]
-        # remap as it's 0 based, scale size as the area is final
-        width = t[channel - 1]["xwidth"] * t[channel - 1]["scaleX"]
-        height = t[channel - 1]["xheight"] * t[channel - 1]["scaleY"]
+        width = t[channel - 1]["width"] * t[channel - 1]["scaleX"]
+        height = t[channel - 1]["height"] * t[channel - 1]["scaleY"]
         # remove the padding as transforms are padding based
         x = t[channel - 1]["left"] - padding
         y = t[channel - 1]["top"] - padding
-        return (x, y, width, height)
+
+        # bounding box out
+        b = data["bboxes"]
+        bwidth = b[channel - 1]["width"]
+        bheight = b[channel - 1]["height"]
+        # remove the padding as transforms are padding based
+        bx = b[channel - 1]["left"] - padding
+        by = b[channel - 1]["top"] - padding
+
+        if forceInt:
+            return (int(x), int(y), int(width), int(height), int(bx), int(by), int(bwidth), int(bheight))
+        else:
+            # remap as it's 0 based, scale size as the area is final
+
+            return (x, y, width, height, bx, by, bwidth, bheight)

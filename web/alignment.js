@@ -39,16 +39,19 @@ app.registerExtension({
             node["togglePreciseSelection"] = () => {
                 //console.log(arguments);
                 channel.postMessage({action:"togglePreciseSelection",value: node.preciseSelection.value, nodeId: node.id});
+            }
 
+            node["centerSelected"] = () => {
+                //console.log(arguments);
+                channel.postMessage({action:"centerSelected",value: true, nodeId: node.id});
             }
 
             node["resetTransforms"] = () => {
                 //console.log(arguments);
                 channel.postMessage({action:"resetTransforms",value: true, nodeId: node.id});
-
             }
 
-
+            node.centerSelected = node.addWidget("button", "centerSelected", false, node.centerSelected);
             node.preciseSelection = node.addWidget("toggle", "preciseSelection", false, node.togglePreciseSelection);
             node.resetTransforms = node.addWidget("button", "resetTransforms", false, node.resetTransforms);
             //node.preciseSelection.serialize = ()=>{}

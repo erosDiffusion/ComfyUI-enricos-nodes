@@ -32,8 +32,23 @@ function handleResetOldTransform(e, currentNode) {
     const c = instance.fcanvas;
     c.getObjects().forEach(function (image, index) {
         instance.resetOldTransform(index);
-
     });
+}
+
+function centerSelected(e, currentNode) {
+    const optionValue = e.data.value;
+    const instance = currentNode.compositorInstance;
+
+    const c = instance.fcanvas;
+    // get the selected and set the
+    instance.needsUpload = true;
+    c.getActiveObjects().forEach((o)=>o.center());
+    c.renderAll();
+    instance.uploadIfNeeded(instance);
+    // c.getObjects().forEach(function (image, index) {
+    //     instance.resetOldTransform(index);
+    //
+    // });
 }
 
 /**
@@ -368,6 +383,9 @@ app.registerExtension({
                     case "resetTransforms":
                         handleResetOldTransform(e, currentNode);
                         break;
+                    case "centerSelected":
+                        centerSelected(e, currentNode);
+                        break;
                     default:
                         console.log("unknown broadcast event", e);
                 }
@@ -545,8 +563,18 @@ class Editor {
                 return undefined;
             }
         });
-
         result.transforms = res;
+
+        const bboxes = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
+            try {
+                let t = instance.getBoundingBox(i);
+                return t;
+            } catch (e) {
+                return undefined;
+            }
+        });
+
+        result.bboxes = bboxes;
 
         return JSON.stringify(result);
     }
@@ -716,20 +744,40 @@ class Editor {
     }
 
     getOldTransform(index) {
+        const ref = this.inputImages[this.imageNameAt(index)];
         return {
-            left: this.inputImages[this.imageNameAt(index)].left,
-            top: this.inputImages[this.imageNameAt(index)].top,
-            scaleX: this.inputImages[this.imageNameAt(index)].scaleX,
-            scaleY: this.inputImages[this.imageNameAt(index)].scaleY,
-            angle: this.inputImages[this.imageNameAt(index)].angle,
-            flipX: this.inputImages[this.imageNameAt(index)].flipX,
-            flipY: this.inputImages[this.imageNameAt(index)].flipY,
-            originX: this.inputImages[this.imageNameAt(index)].originX,
-            originY: this.inputImages[this.imageNameAt(index)].originY,
-            xwidth: this.inputImages[this.imageNameAt(index)].height,
-            xheight: this.inputImages[this.imageNameAt(index)].width,
-            skewY: this.inputImages[this.imageNameAt(index)].skewY,
-            skewX: this.inputImages[this.imageNameAt(index)].skewX,
+            left: ref.left,
+            top: ref.top,
+            scaleX: ref.scaleX,
+            scaleY: ref.scaleY,
+            angle: ref.angle,
+            flipX: ref.flipX,
+            flipY: ref.flipY,
+            originX: ref.originX,
+            originY: ref.originY,
+            width: ref.width,
+            height: ref.height,
+            skewY: ref.skewY,
+            skewX: ref.skewX,
+        };
+    }
+
+    getBoundingBox(index) {
+        const ref = this.inputImages[this.imageNameAt(index)].getBoundingRect();
+        return {
+            left: ref.left,
+            top: ref.top,
+            scaleX: ref.scaleX,
+            scaleY: ref.scaleY,
+            angle: ref.angle,
+            flipX: ref.flipX,
+            flipY: ref.flipY,
+            originX: ref.originX,
+            originY: ref.originY,
+            width: ref.height,
+            height: ref.width,
+            skewY: ref.skewY,
+            skewX: ref.skewX,
         };
     }
 
@@ -743,8 +791,8 @@ class Editor {
         this.inputImages[this.imageNameAt(index)].flipY = false;
         this.inputImages[this.imageNameAt(index)].originX = "top";
         this.inputImages[this.imageNameAt(index)].originY = "left";
-        this.inputImages[this.imageNameAt(index)].height;
-        this.inputImages[this.imageNameAt(index)].width;
+        // this.inputImages[this.imageNameAt(index)].height;
+        // this.inputImages[this.imageNameAt(index)].width;
         this.inputImages[this.imageNameAt(index)].skewY = 0;
         this.inputImages[this.imageNameAt(index)].skewX = 0;
         this.inputImages[this.imageNameAt(index)].perPixelTargetFind = this.preciseSelection;

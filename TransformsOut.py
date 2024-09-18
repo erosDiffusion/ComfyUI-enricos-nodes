@@ -41,8 +41,8 @@ class CompositorTransformsOutV3:
         padding = data["padding"]
         t = data["transforms"]
         # remap as it's 0 based, scale size as the area is final
-        width = t[channel - 1]["width"] * t[channel - 1]["scaleX"]
-        height = t[channel - 1]["height"] * t[channel - 1]["scaleY"]
+        width = t[channel - 1]["xwidth"] * t[channel - 1]["scaleX"]
+        height = t[channel - 1]["xheight"] * t[channel - 1]["scaleY"]
         angle = t[channel - 1]["angle"]
         # remove the padding as transforms are padding based
         x = t[channel - 1]["left"] - padding

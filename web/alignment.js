@@ -24,7 +24,7 @@ app.registerExtension({
     async loadedGraphNode(node, app) {
     },
     async afterConfigureGraph(args) {
-        // not enough to do here, also in node created (for later or connection changed)
+        // not enough to do here only we also in node created (for later or connection changed)
         console.log("after configure graph")
         // To do something when a workflow has loaded, use afterConfigureGraph, not setup
         // console.log("afterConfigureGraph", args);
@@ -38,12 +38,19 @@ app.registerExtension({
 
             node["togglePreciseSelection"] = () => {
                 //console.log(arguments);
-                channel.postMessage({value: node.preciseSelection.value, nodeId: node.id});
+                channel.postMessage({action:"togglePreciseSelection",value: node.preciseSelection.value, nodeId: node.id});
+
+            }
+
+            node["resetTransforms"] = () => {
+                //console.log(arguments);
+                channel.postMessage({action:"resetTransforms",value: true, nodeId: node.id});
 
             }
 
 
             node.preciseSelection = node.addWidget("toggle", "preciseSelection", false, node.togglePreciseSelection);
+            node.resetTransforms = node.addWidget("button", "resetTransforms", false, node.resetTransforms);
             //node.preciseSelection.serialize = ()=>{}
             node.setDirtyCanvas(true, true);
         })

@@ -16,6 +16,26 @@ function getCompositorWidget(node, widgetName) {
     return node.widgets.find((w) => w.name === widgetName);
 }
 
+function handleTogglePreciseSelection(e, currentNode) {
+    const optionValue = e.data.value;
+    currentNode.compositorInstance.preciseSelection = optionValue;
+    const c = currentNode.compositorInstance.fcanvas;
+    c.getObjects().map(function (i) {
+        return i.set('perPixelTargetFind', optionValue);
+    });
+}
+
+function handleResetOldTransform(e, currentNode) {
+    const optionValue = e.data.value;
+    const instance = currentNode.compositorInstance;
+
+    const c = instance.fcanvas;
+    c.getObjects().forEach(function (image, index) {
+        instance.resetOldTransform(index);
+
+    });
+}
+
 /**
  * registering an extension gives the possibility to tap into lifecycle methods
  * here is the sequence from the docs:
@@ -107,10 +127,10 @@ app.registerExtension({
 
 
         /** example of arbitrary messages
-        PromptServer.instance.send_sync("my.custom.message", {"node": node_id, "other_things": etc})
-        in api.ts search for "case 'executing'": for all events emitted or "new CustomEvent('executing'"
-        example of built-in, this should be when a node is about to start processing (in the back?)
-        */
+         PromptServer.instance.send_sync("my.custom.message", {"node": node_id, "other_things": etc})
+         in api.ts search for "case 'executing'": for all events emitted or "new CustomEvent('executing'"
+         example of built-in, this should be when a node is about to start processing (in the back?)
+         */
         function executingMessageHandler(event) {
             //console.log("executingMessageHandler", event, arguments);
             const current = app.graph.getNodeById(event.detail);
@@ -334,25 +354,28 @@ app.registerExtension({
         // setup broadcast channel, also needs to be done on node created or connection change...
         const nodes = app.graph.findNodesByType("Compositor3");
         // probably too late here as it's already running in the back
-        nodes.forEach((current) => {
-            const tools = current.getInputNode(1);
+        nodes.forEach((currentNode) => {
+            const tools = currentNode.getInputNode(1);
             //const tools = Editor.getToolWidget(this);
             const CHANNELNAME = `Tools${tools.id}`;
             //console.log(CHANNELNAME)
             const channel = new BroadcastChannel(CHANNELNAME);
             channel.addEventListener("message", (e) => {
-                const optionValue = e.data.value;
-                current.compositorInstance.preciseSelection = optionValue;
-                const c = current.compositorInstance.fcanvas;
-                c.getObjects().map(function (i) {
-                    return i.set('perPixelTargetFind', optionValue);
-                });
+                switch (e.data.action) {
+                    case "togglePreciseSelection":
+                        handleTogglePreciseSelection(e, currentNode);
+                        break;
+                    case "resetTransforms":
+                        handleResetOldTransform(e, currentNode);
+                        break;
+                    default:
+                        console.log("unknown broadcast event", e);
+                }
+
 
             });
 
-            current.channel = channel;
-
-
+            currentNode.channel = channel;
 
 
             //  console.log("looping afterconfiguregraph compostior node", current);
@@ -505,7 +528,7 @@ class Editor {
      * this is currently called on capture (regardless of the flag)
      */
     static serializeStuff(node) {
-        // console.log("serializeStuff");
+        console.log("serializeStuff");
         const instance = node.compositorInstance;
         const result = {
             // or the widget ? boh
@@ -539,9 +562,10 @@ class Editor {
         const connected = node.getInputNode(0);
         return connected.widgets[slot].value;
     }
+
     static getToolWidget(instance) {
         // console.log(node, slot);
-        return  instance.node.getInputNode(1);
+        return instance.node.getInputNode(1);
 
     }
 
@@ -707,6 +731,40 @@ class Editor {
             skewY: this.inputImages[this.imageNameAt(index)].skewY,
             skewX: this.inputImages[this.imageNameAt(index)].skewX,
         };
+    }
+
+    resetOldTransform(index) {
+        this.inputImages[this.imageNameAt(index)].left = 0;
+        this.inputImages[this.imageNameAt(index)].top = 0;
+        this.inputImages[this.imageNameAt(index)].scaleX = 1;
+        this.inputImages[this.imageNameAt(index)].scaleY = 1;
+        this.inputImages[this.imageNameAt(index)].angle = 0;
+        this.inputImages[this.imageNameAt(index)].flipX = false;
+        this.inputImages[this.imageNameAt(index)].flipY = false;
+        this.inputImages[this.imageNameAt(index)].originX = "top";
+        this.inputImages[this.imageNameAt(index)].originY = "left";
+        this.inputImages[this.imageNameAt(index)].height;
+        this.inputImages[this.imageNameAt(index)].width;
+        this.inputImages[this.imageNameAt(index)].skewY = 0;
+        this.inputImages[this.imageNameAt(index)].skewX = 0;
+        this.inputImages[this.imageNameAt(index)].perPixelTargetFind = this.preciseSelection;
+        this.fcanvas.renderAll();
+
+        // return {
+        //     left: this.inputImages[this.imageNameAt(index)].left,
+        //     top: this.inputImages[this.imageNameAt(index)].top,
+        //     scaleX: this.inputImages[this.imageNameAt(index)].scaleX,
+        //     scaleY: this.inputImages[this.imageNameAt(index)].scaleY,
+        //     angle: this.inputImages[this.imageNameAt(index)].angle,
+        //     flipX: this.inputImages[this.imageNameAt(index)].flipX,
+        //     flipY: this.inputImages[this.imageNameAt(index)].flipY,
+        //     originX: this.inputImages[this.imageNameAt(index)].originX,
+        //     originY: this.inputImages[this.imageNameAt(index)].originY,
+        //     xwidth: this.inputImages[this.imageNameAt(index)].height,
+        //     xheight: this.inputImages[this.imageNameAt(index)].width,
+        //     skewY: this.inputImages[this.imageNameAt(index)].skewY,
+        //     skewX: this.inputImages[this.imageNameAt(index)].skewX,
+        // };
     }
 
     /**
@@ -931,7 +989,7 @@ class Editor {
         // body.append('overwrite', "true");
         // if (setDone) api.fetchApi("/compositor/done", {method: "POST", body});
         // return;
-        app.queuePrompt(0,1);
+        app.queuePrompt(0, 1);
 
     }
 
@@ -1019,7 +1077,7 @@ class Editor {
             // console.log("mouseout")
             // moving outside editor, this might fail to be intercepted depending on how full the
             // canvas is
-            if (opt.target === null || opt.target === undefined || opt.target && opt.nextTarget===undefined) {
+            if (opt.target === null || opt.target === undefined || opt.target && opt.nextTarget === undefined) {
                 compositorInstance.uploadIfNeeded(compositorInstance);
             }
         });
@@ -1165,7 +1223,7 @@ class Editor {
         this.containerDiv.appendChild(this.canvasEl);
 
 
-        this.containerDiv.style.overflow ="hidden";
+        this.containerDiv.style.overflow = "hidden";
         this.canvasEl.width = this.w.value + 2 * this.p.value;
         this.canvasEl.height = this.h.value + 2 * this.p.value;
 

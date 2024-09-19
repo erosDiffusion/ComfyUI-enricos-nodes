@@ -236,33 +236,28 @@ def resize_mask(mask, shape):
     return torch.nn.functional.interpolate(mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])),
                                            size=(shape[0], shape[1]), mode="bilinear").squeeze(1)
 
-
-
-
-
-
 class ImageProcessor:
     def scale_image(self, image_tensor, new_height):
-        # Ensure the input tensor is in the format [batch_size, width, height, channels]
+        # Ensure the input tensor is in the format [batch_size, height, width, channels]
         if image_tensor.ndim != 4:
-            raise ValueError("Expected image tensor to have shape [batch_size, width, height, channels]")
+            raise ValueError("Expected image tensor to have shape [batch_size, height, width, channels]")
 
-        batch_size, width, height, channels = image_tensor.shape
+        batch_size, original_height, original_width, channels = image_tensor.shape
 
         if channels not in (1, 3, 4):
             raise ValueError("Image tensor must have 1 (grayscale), 3 (RGB), or 4 (RGBA) channels")
 
-        # Calculate the new width to maintain aspect ratio
-        aspect_ratio = width / height
+        # Calculate the new width to maintain the aspect ratio
+        aspect_ratio = original_width / original_height
         new_width = int(new_height * aspect_ratio)
 
         # Permute to match PyTorch's expected format [batch_size, channels, height, width]
-        image_tensor = image_tensor.permute(0, 3, 2, 1)  # [batch_size, channels, height, width]
+        image_tensor = image_tensor.permute(0, 3, 1, 2)  # [batch_size, channels, height, width]
 
-        # Resize images to the new dimensions
+        # Resize images to the new dimensions (new_height, new_width)
         resized_images = F.interpolate(image_tensor, size=(new_height, new_width), mode='bilinear', align_corners=False)
 
-        # Permute back to the original format [batch_size, width, height, channels]
-        resized_images = resized_images.permute(0, 3, 2, 1)  # [batch_size, width, height, channels]
+        # Permute back to the original format [batch_size, height, width, channels]
+        resized_images = resized_images.permute(0, 2, 3, 1)  # [batch_size, height, width, channels]
 
         return resized_images

@@ -891,6 +891,7 @@ class Editor {
             altSelectionKey: "ctrlKey",
             altActionKey: "ctrlKey",
             centeredKey: "altKey",
+            // uniScaleTransform: false,
             // selectable:true,
             // evented:true,
             // centeredRotation: true,

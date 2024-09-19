@@ -5,7 +5,10 @@ from io import BytesIO
 from PIL import Image
 import torch
 import folder_paths
-
+import torch
+import torch.nn.functional as F
+import math
+from comfy.utils import common_upscale
 
 MAX_RESOLUTION = nodes.MAX_RESOLUTION
 
@@ -34,6 +37,7 @@ class CompositorConfig3:
                 "width": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
                 "height": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
                 "padding": ("INT", {"default": 100, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
+                "normalizeHeight": ("BOOLEAN", {"default": False}),
                 "initialized": ("STRING", {"default": ""}),
             },
             "optional": {
@@ -102,6 +106,7 @@ The compositor node
         padding = kwargs.pop('padding', 100)
         width = kwargs.pop('width', 512)
         height = kwargs.pop('height', 512)
+        normalizeHeight = kwargs.pop('normalizeHeight', 512)
         node_id = kwargs.pop('node_id', None)
 
         images = [image1, image2, image3, image4, image5, image6, image7, image8, ]
@@ -110,10 +115,26 @@ The compositor node
 
         # apply the masks to the images if any so that we get a rgba
         # then pass the rgba in the return value
-
+        counter = 0
         for (img, mask) in zip(images, masks):
             if img is not None:
+
+                if normalizeHeight:
+                    print(counter)
+                    counter = counter+1
+                    #img = self.upscale(img, "lanczos", height, "height", "disabled")
+                    processor = ImageProcessor()
+                    oldimg = img
+                    img = processor.scale_image(img, height)
+                    #print(oldimg == img)
+                # tensor
+
                 if mask is not None:
+                    if normalizeHeight:
+                        print(mask)
+                        #mask = self.upscale(img, "lanczos", height, "height", "disabled")
+                        mask = processor.scale_image(mask, height)
+
                     # apply the mask and return
                     masked = self.apply_mask(img, mask)
                     # self.masked = masked[0]
@@ -127,7 +148,6 @@ The compositor node
             else:
                 # input is None, forward
                 input_images.append(img)
-
 
         self.ensureEmpty()
 
@@ -158,10 +178,91 @@ The compositor node
         image = "test_empty.png"
         if not folder_paths.exists_annotated_filepath(image):
             print("it does not exist")
-            img = Image.new('RGB', (512,512), 'white')
+            img = Image.new('RGB', (512, 512), 'white')
             img.save(folder_paths.get_annotated_filepath(image))
+
+    def upscale(self, image, upscale_method, side_length: int, side: str, crop):
+        samples = image.movedim(-1, 1)
+
+        size = get_image_size(image)
+
+        width_B = int(size[0])
+        height_B = int(size[1])
+
+        width = width_B
+        height = height_B
+
+        def determineSide(_side: str) -> tuple[int, int]:
+            width, height = 0, 0
+            if _side == "Width":
+                heigh_ratio = height_B / width_B
+                width = side_length
+                height = heigh_ratio * width
+            elif _side == "Height":
+                width_ratio = width_B / height_B
+                height = side_length
+                width = width_ratio * height
+            return width, height
+
+        if side == "Longest":
+            if width > height:
+                width, height = determineSide("Width")
+            else:
+                width, height = determineSide("Height")
+        elif side == "Shortest":
+            if width < height:
+                width, height = determineSide("Width")
+            else:
+                width, height = determineSide("Height")
+        else:
+            width, height = determineSide(side)
+
+        width = math.ceil(width)
+        height = math.ceil(height)
+
+        cls = common_upscale(samples, width, height, upscale_method, crop)
+        cls = cls.movedim(1, -1)
+        return (cls,)
+
+
+def get_image_size(IMAGE) -> tuple[int, int]:
+    samples = IMAGE.movedim(-1, 1)
+    size = samples.shape[3], samples.shape[2]
+    # size = size.movedim(1, -1)
+    return size
 
 
 def resize_mask(mask, shape):
     return torch.nn.functional.interpolate(mask.reshape((-1, 1, mask.shape[-2], mask.shape[-1])),
                                            size=(shape[0], shape[1]), mode="bilinear").squeeze(1)
+
+
+
+
+
+
+class ImageProcessor:
+    def scale_image(self, image_tensor, new_height):
+        # Ensure the input tensor is in the format [batch_size, width, height, channels]
+        if image_tensor.ndim != 4:
+            raise ValueError("Expected image tensor to have shape [batch_size, width, height, channels]")
+
+        batch_size, width, height, channels = image_tensor.shape
+
+        if channels not in (1, 3, 4):
+            raise ValueError("Image tensor must have 1 (grayscale), 3 (RGB), or 4 (RGBA) channels")
+
+        # Calculate the new width to maintain aspect ratio
+        aspect_ratio = width / height
+        new_width = int(new_height * aspect_ratio)
+
+        # Permute to match PyTorch's expected format [batch_size, channels, height, width]
+        image_tensor = image_tensor.permute(0, 3, 2, 1)  # [batch_size, channels, height, width]
+
+        # Resize images to the new dimensions
+        resized_images = F.interpolate(image_tensor, size=(new_height, new_width), mode='bilinear', align_corners=False)
+
+        # Permute back to the original format [batch_size, width, height, channels]
+        resized_images = resized_images.permute(0, 3, 2, 1)  # [batch_size, width, height, channels]
+
+        return resized_images

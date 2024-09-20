@@ -22,12 +22,13 @@ With the Compositor Node you can:
 
 ## Changelog
 - v **3.1.0** - 20.09.2024
-  - _new feature_: **onConfigChange action toggle** when you change the configuration (or any of the attached nodes) you can now choose if_
-    - you want to stop the flow to allow edits
-    - or you want to grab a capture and continue the flow
-  - _enhancement_: output transforms now give you back the angle and bounding box coordinates
-  - _enhancement_: you can force transform output values to be integers (as some nodes requires it)
-  - _new feature_: **normalize height** when this is activated your images will all be the same height of the canvas (this can lower image quality)
+  - _new configuration feature_: **onConfigChange action toggle** when you change the configuration (or any of the attached nodes) you can now choose if:
+    - you want to **stop** the flow to allow edits
+    - or you want to **grab a capture and continue** the flow
+  - _new configuration feature_: **normalize height** when this is activated your images will all be the same height of the canvas (this can lower image quality)
+  - _transforms enhancement_: output transforms now give you back the angle and **bounding box coordinates**
+  - _transforms enhancement_: you can **force transform outputput values to be integers** (as some nodes requires it)
+ 
   - _new feature_: (experimental and limited): **Tools** ! this is an experimental feature. it allows controlling some aspects of the compositor.
     - **precise selection toggle** ignore transparent pixels and select the first image below the mouse
     - **center selected** puts the selected images in the center of canvas
@@ -36,6 +37,12 @@ With the Compositor Node you can:
       you might need to re-select to use centering and reset
 
 ![the compositor node](/assets/v3.1.PNG)
+
+## Previous versions changelog
+<details>
+
+
+<summary><b>click here to expand</b> the changelog...</summary>
 
 - v **3.0.8** - 18.09.2024
     - _new feature_: **invert mask** option. the implementation of mask was not correct. now it's possible to invert the mask via toggle.
@@ -79,11 +86,11 @@ With the Compositor Node you can:
     - the first connected node will be the most distant from camera (background)
     - the last will be the closest to camera (subject/foreground)
   - V **1.0.4** - 27.08.2024 - _new feature_: now it's possible to **pause the flow** with a switch to avoid processing an unfinished composition
-  
+</details>
 
 
 
-### Setup
+## Setup
 
 **Method 1: git clone**
 open the custom nodes directory in your editor and
@@ -107,7 +114,7 @@ and set the security to weak (at your risk)
 ![the compositor node](/assets/weak.png)
 
 
-
+## Reasons and How To use
 ### Why this node ?
 
 - I wanted to learn how to create custom nodes with a GUI in ComfyUI
@@ -165,15 +172,15 @@ and set the security to weak (at your risk)
 - any **controlnet depth for your model** - works well with depth anything v2 preprocessor for both 1.5 (regular controlnet) and xl (via union controlnet) or lineart (like anylineart), for flux you can try x-labs controlnet (but it does not work well for me)
   
 
-### Demo Workflow for v3
+## Demo Workflow for v3.1
 
 Just throw the worst possible images you find on the internet or that you can generate...
 ...scale and align quick, give a depth controlnet, describe the full scene and style, render...
 and you will get:
 
 ![v3.PNG](assets%2Fv3.PNG)
-with the [V3 workflow in json format](assets%2Fv3.1.json) you are in pixel perfect positioning control of your scene and content !
-images to replicate are in the assets folder.
+with the [V3.1 workflow in json format](assets%2Fv3.1.json) you are in pixel perfect positioning control of your scene and content !
+Images to replicate are in the assets folder.
 
 ### Final words and limitations
 

@@ -21,8 +21,8 @@ With the Compositor Node you can:
 - Use the information about transforms in other nodes (like conditioning set area)
 
 ## Changelog
-- v **3.0.9** - 20.09.2024
-  - _new feature_: **onConfigChange action toggle** when you change the configuration (or any of the attached nodes) you can now choose if
+- v **3.1.0** - 20.09.2024
+  - _new feature_: **onConfigChange action toggle** when you change the configuration (or any of the attached nodes) you can now choose if_
     - you want to stop the flow to allow edits
     - or you want to grab a capture and continue the flow
   - _enhancement_: output transforms now give you back the angle and bounding box coordinates
@@ -34,31 +34,29 @@ With the Compositor Node you can:
     - **reset transforms** zeroes out the changes to images bringing them to their original size, angle and 0,0 location (top left)
     - limitations: as saving discards the selection, and it happens on mouse out    
       you might need to re-select to use centering and reset
-    
+
+![the compositor node](/assets/v3.1.PNG)
+
 - v **3.0.8** - 18.09.2024
-  - _new feature_: **invert mask** option. the implementation of mask was not correct. now it's possible to invert the mask via toggle.
-  - _new feature_: **angle output** the angle of rotation is now accessible in the output (and soon the bounding box x,y, width and height).
-  - _bugfix_: **fix cut images on swap due to wrongly preserved width and height**
-  - _new feature: **added force int** to allow the outputs to be used with set area conditioning (that requires int)
+    - _new feature_: **invert mask** option. the implementation of mask was not correct. now it's possible to invert the mask via toggle.
+    - _new feature_: **angle output** the angle of rotation is now accessible in the output (and soon the bounding box x,y, width and height).
+    - _bugfix_: **fix cut images on swap due to wrongly preserved width and height**
+    - _new feature: **added force int** to allow the outputs to be used with set area conditioning (that requires int)
 - v **3.0.4** - 18.09.2024 - **bugfix**: the width and height stored in transforms were swapped and the output node would report them incorrectly. thanks @sky958958 for spotting it
 - v **3.0.2** - 17.09.2024 - **friendly transforms** for area prompting!  
   With the goal of being able to do regional area prompting,  
   now you can easily output each input x,y coordinates and their scaled width and height with the help of the new **Transform Output** node!
-  select the channel corresponding the input and the node will output the values for you.  
-  - _enhancement_: a **new node** outputs x,y,width,height other images into a convenient node to be attached to the transforms output  
-  - _enhancement_: save and restore skew from transform (now you can distort your images to help fake perspective)
+  select the channel corresponding the input and the node will output the values for you.
+    - _enhancement_: a **new node** outputs x,y,width,height other images into a convenient node to be attached to the transforms output
+    - _enhancement_: save and restore skew from transform (now you can distort your images to help fake perspective)
 - v **3.0.0** - 16.09.2024 - this release is a full rewrite of the code and fixes:
-  - issues #45 , #34, #18
-  also, and adds **new features**:  
-  - _enhancement_: **simplified control panel** (cature on queue, save transform, pause are removed as not needed anymore)
-  - _new feature_: **automatic upload** of the output **on mouse out** of the canvas area (no need to click capture)
-  - _new feature_: **flash on save** (once the image is uploaded the composition area green border briefly flashes in orange)
-  - _new feature_: **preliminary work for optional control panels** (they will contain alignment controls, and other tools)
-  - _enhancement_: enqueue with **continue**, on the first run, if necessary information is missing (like output) the flow will stop, make your composition, and click continue to re-enqueue the flash finishes.
-  
-
-![the compositor node](/assets/v3.PNG)
-
+    - issues #45 , #34, #18
+      also, and adds **new features**:
+    - _enhancement_: **simplified control panel** (cature on queue, save transform, pause are removed as not needed anymore)
+    - _new feature_: **automatic upload** of the output **on mouse out** of the canvas area (no need to click capture)
+    - _new feature_: **flash on save** (once the image is uploaded the composition area green border briefly flashes in orange)
+    - _new feature_: **preliminary work for optional control panels** (they will contain alignment controls, and other tools)
+    - _enhancement_: enqueue with **continue**, on the first run, if necessary information is missing (like output) the flow will stop, make your composition, and click continue to re-enqueue the flash finishes.
   - v **2.0.4** - 06.09.2024 - _enhancement_: You can now **scale the selected image via mouse wheel**!  
   - v **2.0.1** - 05.09.2024 - **V2 is HERE!**
     - _enhancement_: An all **new widget layout** with maximized working area and less clutter

@@ -208,9 +208,9 @@ app.registerExtension({
             const normalizeHeight = Editor.getConfigWidgetValue(node, 3);
             const onConfigChanged = Editor.getConfigWidgetValue(node, 4);
 
-           instance.normalizeHeigh = normalizeHeight;
-           instance.onConfigChanged = onConfigChanged;
-           instance.configChanged = e.configChanged[0];
+            instance.normalizeHeigh = normalizeHeight;
+            instance.onConfigChanged = onConfigChanged;
+            instance.configChanged = e.configChanged[0];
 
             images.map((b64, index) => {
                 function fromUrlCallback(oImg) {

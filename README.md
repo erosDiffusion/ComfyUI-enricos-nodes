@@ -18,20 +18,41 @@ With the Compositor Node you can:
 - Flip an image via negative scaling (drag a corner towards and past the inside of the image)
 - Mask your images quickly
 - Precisely move selections with keyboard
+- Use the information about transforms in other nodes (like conditioning set area)
 
 ## Changelog
+- v **3.0.9** - 20.09.2024
+  - _new feature_: **onConfigChange action toggle** when you change the configuration (or any of the attached nodes) you can now choose if
+    - you want to stop the flow to allow edits
+    - or you want to grab a capture and continue the flow
+  - _enhancement_: output transforms now give you back the angle and bounding box coordinates
+  - _enhancement_: you can force transform output values to be integers (as some nodes requires it)
+  - _new feature_: **normalize height** when this is activated your images will all be the same height of the canvas (this can lower image quality)
+  - _new feature_: (experimental and limited): **Tools** ! this is an experimental feature. it allows controlling some aspects of the compositor.
+    - **precise selection toggle** ignore transparent pixels and select the first image below the mouse
+    - **center selected** puts the selected images in the center of canvas
+    - **reset transforms** zeroes out the changes to images bringing them to their original size, angle and 0,0 location (top left)
+    - limitations: as saving discards the selection, and it happens on mouse out    
+      you might need to re-select to use centering and reset
+    
+- v **3.0.8** - 18.09.2024
+  - _new feature_: **invert mask** option. the implementation of mask was not correct. now it's possible to invert the mask via toggle.
+  - _new feature_: **angle output** the angle of rotation is now accessible in the output (and soon the bounding box x,y, width and height).
+  - _bugfix_: **fix cut images on swap due to wrongly preserved width and height**
+  - _new feature: **added force int** to allow the outputs to be used with set area conditioning (that requires int)
+- v **3.0.4** - 18.09.2024 - **bugfix**: the width and height stored in transforms were swapped and the output node would report them incorrectly. thanks @sky958958 for spotting it
 - v **3.0.2** - 17.09.2024 - **friendly transforms** for area prompting!  
   With the goal of being able to do regional area prompting,  
   now you can easily output each input x,y coordinates and their scaled width and height with the help of the new **Transform Output** node!
   select the channel corresponding the input and the node will output the values for you.  
-  - _enhancement_: a **new node** outputs x,y,width,height othe images into a convenient node to be attached to the transforms output  
+  - _enhancement_: a **new node** outputs x,y,width,height other images into a convenient node to be attached to the transforms output  
   - _enhancement_: save and restore skew from transform (now you can distort your images to help fake perspective)
 - v **3.0.0** - 16.09.2024 - this release is a full rewrite of the code and fixes:
   - issues #45 , #34, #18
   also, and adds **new features**:  
   - _enhancement_: **simplified control panel** (cature on queue, save transform, pause are removed as not needed anymore)
   - _new feature_: **automatic upload** of the output **on mouse out** of the canvas area (no need to click capture)
-  - _new feature_: **flash on save** (once the image is uplodaded the composition area green border briefly flashes in orange)
+  - _new feature_: **flash on save** (once the image is uploaded the composition area green border briefly flashes in orange)
   - _new feature_: **preliminary work for optional control panels** (they will contain alignment controls, and other tools)
   - _enhancement_: enqueue with **continue**, on the first run, if necessary information is missing (like output) the flow will stop, make your composition, and click continue to re-enqueue the flash finishes.
   
@@ -45,7 +66,7 @@ With the Compositor Node you can:
     - _enhancement_: More control! it's now possible to select an image or group and then "**alt+drag**" to **center scale and rotate**
     - _new feature_: More control! it's now possible to **nudge a selection** by one pixel by using keyboard arrows, and while holding shift the movement is 10px! pixel perfect alignments!
     - _new feature_: the node now **remembers the transforms** you have applied, on the new run it will re-apply the stored transforms (storing transforms is controlled in the config)     
-    - _new feature_: **masks are here**! you can now pass masks and they will be applied automatically! (depending on the results you might want still to invert them)
+    - _new feature_: **masks are here**! you can now pass masks, and they will be applied automatically! (depending on the results you might want still to invert them)
     - _regression_: a bit annoying but is_changed is not being observed so flows are re-triggered even on fixed
     - _regression_: img in workflow saved is not visible anymore
   - V **1.0.9** - 30.08.2024 - Huge refactoring!
@@ -54,7 +75,7 @@ With the Compositor Node you can:
     - _bugfix_: when **saving a png with the workflow** the **compositor content is now visible** (will not be restored...yet)
     - _enhancement_: the node **does not re-trigger** the execution of the flow if the image is not changed
     - _performance_: the node is **now more efficient** and correctly implements the is_changed check via **checksum**, avoiding re-triggering flows downstream if the composition has not changed
-    - _mantainability_: the node is now refactored and better engineered, with a lot of comments. could be a good use case for those learning to code comfy extensions.
+    - _maintainability_: the node is now refactored and better engineered, with a lot of comments. could be a good use case for those learning to code comfy extensions.
   - V **1.0.8** - 28.08.2024 - _new feature_: **safe area  indication** - a green border is overlaid on top of the composition to indicate the exported area  
   - V **1.0.7** - 28.08.2024 - _new feature_: **preserve stacking order**. when selecting a node, it's z-order is preserved image1 being the background/farthest and image8 the foreground/closest.
     - the first connected node will be the most distant from camera (background)
@@ -102,7 +123,7 @@ and set the security to weak (at your risk)
 - the painter node is great and works better and does a million things more, but it misses some of these features.
 - continue compositing your image like caveman using pixel coordinates
 - well...photoshop and import via million clicks
-- use krita or photoshop integrations with comfy (inversion of control)
+- use Krita or photoshop integrations with comfy (inversion of control)
 
 ### How to use
 
@@ -138,8 +159,9 @@ and set the security to weak (at your risk)
 - click "capture" to see what is the real order in memory before running (after the first run where images are generated/associated to the editor)
 - scroll up or down to scale a single image selection
 
-### supporting nodes I use with this one
+### Aupporting nodes I use with this one
 - **Rembg(batch)** -> from https://github.com/Mamaaaamooooo/batchImg-rembg-ComfyUI-nodes.git -> extracts the subject and returns a rgba image
+- any other technique to create masks (grounding dino, sam, florence2...)
 - any **controlnet depth for your model** - works well with depth anything v2 preprocessor for both 1.5 (regular controlnet) and xl (via union controlnet) or lineart (like anylineart), for flux you can try x-labs controlnet (but it does not work well for me)
   
 
@@ -157,6 +179,7 @@ images to replicate are in the assets folder. after composition is set move the 
 
 - **limitation** you need to run the flow once for the compositor to show images
 - **known issue**: the compositing is not scaled, so if you want a 5k image well... I hope you have a big enough monitor, but it's not (yet) the goal of this node...
+- upcoming **known issue** the new tooling will require graph changed events to setup frontend only widgets. so reload the wf. if the gui is not coming up in the tool node
 
 **Now go put a fairy in a forest!**
 

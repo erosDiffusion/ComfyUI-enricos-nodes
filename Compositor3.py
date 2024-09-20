@@ -59,6 +59,7 @@ class Compositor3:
 
         config = kwargs.get('config', "default")
         padding = config["padding"]
+        invertMask = config["invertMask"]
         width = config["width"]
         height = config["height"]
         config_node_id = config["node_id"]

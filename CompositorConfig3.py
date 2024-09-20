@@ -38,6 +38,7 @@ class CompositorConfig3:
                 "padding": ("INT", {"default": 100, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
                 "normalizeHeight": ("BOOLEAN", {"default": False}),
                 "onConfigChanged": ("BOOLEAN", {"label_off": "stop", "label_on": "Grab and Continue", "default": False}),
+                "invertMask": ("BOOLEAN", {"default": False}),
                 "initialized": ("STRING", {"default": ""}),
             },
             "optional": {
@@ -106,6 +107,7 @@ The compositor node
         padding = kwargs.pop('padding', 100)
         width = kwargs.pop('width', 512)
         height = kwargs.pop('height', 512)
+        invertMask = kwargs.pop('invertMask', False)
         normalizeHeight = kwargs.pop('normalizeHeight', 512)
         # grabAndContinue, stop
         onConfigChanged = kwargs.pop('onConfigChanged', False)
@@ -138,7 +140,8 @@ The compositor node
                         mask = processor.scale_image(mask, height)
 
                     # apply the mask and return
-                    masked = self.apply_mask(img, mask)
+                    # apply the mask and return
+                    masked = self.apply_mask(img, mask, invertMask)
                     # self.masked = masked[0]
 
                     i = tensor2pil(masked[0])
@@ -161,16 +164,21 @@ The compositor node
             "names": input_images,
             "onConfigChanged": onConfigChanged,
             "normalizeHeight": normalizeHeight,
+            "invertMask": invertMask,
         }
         # print(f"compositor config {node_id} executed")
         # return (res, self.masked, )
         return (res,)
 
-    def apply_mask(self, image: torch.Tensor, alpha: torch.Tensor):
+    def apply_mask(self, image: torch.Tensor, alpha: torch.Tensor, invertMask=False):
         batch_size = min(len(image), len(alpha))
         out_images = []
 
-        alpha = 1.0 - resize_mask(alpha, image.shape[1:])
+        if invertMask:
+            alpha = 1.0 - resize_mask(alpha, image.shape[1:])
+        else:
+            alpha = resize_mask(alpha, image.shape[1:])
+
         for i in range(batch_size):
             out_images.append(torch.cat((image[i][:, :, :3], alpha[i].unsqueeze(2)), dim=2))
 

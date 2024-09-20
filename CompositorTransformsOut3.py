@@ -27,8 +27,8 @@ class CompositorTransformsOutV3:
             },
         }
 
-    RETURN_TYPES = ("INT", "INT", "INT", "INT", "FLOAT")
-    RETURN_NAMES = ("x", "y", "width", "height", "angle")
+    RETURN_TYPES = ("INT", "INT", "INT", "INT", "INT", "INT", "INT", "INT", "INT")
+    RETURN_NAMES = ("x", "y", "width", "height", "angle", "bbox x", "bbox y", "bbox width", "bbox height")
 
     FUNCTION = "run"
     CATEGORY = "image"
@@ -41,19 +41,25 @@ class CompositorTransformsOutV3:
         # print(transforms)
         data = json.loads(transforms)
         padding = data["padding"]
-
         # extract transforms
-        # remap as it's 0 based, scale size as the area is final
         t = data["transforms"]
         width = t[channel - 1]["xwidth"] * t[channel - 1]["scaleX"]
         height = t[channel - 1]["xheight"] * t[channel - 1]["scaleY"]
-        angle = t[channel - 1]["angle"]
         # remove the padding as transforms are padding based
         x = t[channel - 1]["left"] - padding
         y = t[channel - 1]["top"] - padding
+        #angle
+        angle = t[channel - 1]["angle"]
+
+        # bounding box out
+        b = data["bboxes"]
+        bwidth = b[channel - 1]["xwidth"]
+        bheight = b[channel - 1]["xheight"]
+        # remove the padding as transforms are padding based
+        bx = b[channel - 1]["left"] - padding
+        by = b[channel - 1]["top"] - padding
 
         if forceInt:
-            return (int(x), int(y), int(width), int(height), int(angle))
+            return (int(x), int(y), int(width), int(height), int(angle), int(bx), int(by), int(bwidth), int(bheight))
         else:
-
-            return (x, y, width, height, angle)
+            return (x, y, width, height, angle, bx, by, bwidth, bheight)

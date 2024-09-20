@@ -16,6 +16,41 @@ function getCompositorWidget(node, widgetName) {
     return node.widgets.find((w) => w.name === widgetName);
 }
 
+function handleTogglePreciseSelection(e, currentNode) {
+    const optionValue = e.data.value;
+    currentNode.compositorInstance.preciseSelection = optionValue;
+    const c = currentNode.compositorInstance.fcanvas;
+    c.getObjects().map(function (i) {
+        return i.set('perPixelTargetFind', optionValue);
+    });
+}
+
+function handleResetOldTransform(e, currentNode) {
+    const optionValue = e.data.value;
+    const instance = currentNode.compositorInstance;
+
+    const c = instance.fcanvas;
+    c.getObjects().forEach(function (image, index) {
+        instance.resetOldTransform(index);
+    });
+}
+
+function centerSelected(e, currentNode) {
+    const optionValue = e.data.value;
+    const instance = currentNode.compositorInstance;
+
+    const c = instance.fcanvas;
+    // get the selected and set the
+    instance.needsUpload = true;
+    c.getActiveObjects().forEach((o)=>o.center());
+    c.renderAll();
+    instance.uploadIfNeeded(instance);
+    // c.getObjects().forEach(function (image, index) {
+    //     instance.resetOldTransform(index);
+    //
+    // });
+}
+
 /**
  * registering an extension gives the possibility to tap into lifecycle methods
  * here is the sequence from the docs:
@@ -107,10 +142,10 @@ app.registerExtension({
 
 
         /** example of arbitrary messages
-        PromptServer.instance.send_sync("my.custom.message", {"node": node_id, "other_things": etc})
-        in api.ts search for "case 'executing'": for all events emitted or "new CustomEvent('executing'"
-        example of built-in, this should be when a node is about to start processing (in the back?)
-        */
+         PromptServer.instance.send_sync("my.custom.message", {"node": node_id, "other_things": etc})
+         in api.ts search for "case 'executing'": for all events emitted or "new CustomEvent('executing'"
+         example of built-in, this should be when a node is about to start processing (in the back?)
+         */
         function executingMessageHandler(event) {
             //console.log("executingMessageHandler", event, arguments);
             const current = app.graph.getNodeById(event.detail);
@@ -152,10 +187,10 @@ app.registerExtension({
             const nodeId = event.detail.node;
             const node = Editor.hook(nodeId);
             if (node.type != "Compositor3") {
-                console.log(node.type);
+                // console.log(node.type);
                 return;
             }
-
+            const instance = node.compositorInstance;
             // console.log("hasResult,awaitedResult", e.hasResult[0], e.awaited[0]);
 
             node.compositorInstance.w.value = e.width[0];
@@ -169,7 +204,13 @@ app.registerExtension({
             const images = [...e.names];
 
             const restore = Editor.deserializeStuff(node.fabricDataWidget.value);
-            const shouldRestore = Editor.getConfigWidgetValue(node, 3);
+            const shouldRestore = true; // Editor.getConfigWidgetValue(node, 3);
+            const normalizeHeight = Editor.getConfigWidgetValue(node, 3);
+            const onConfigChanged = Editor.getConfigWidgetValue(node, 4);
+
+            instance.normalizeHeigh = normalizeHeight;
+            instance.onConfigChanged = onConfigChanged;
+            instance.configChanged = e.configChanged[0];
 
             images.map((b64, index) => {
                 function fromUrlCallback(oImg) {
@@ -181,22 +222,68 @@ app.registerExtension({
                  * http://fabricjs.com/docs/fabric.Image.html
                  */
                 fabric.Image.fromURL(b64, fromUrlCallback);
+
             });
+
+            if(instance.configChanged) {
+
+                instance.needsUpload = true;
+
+                // true: grab and continue
+                if(onConfigChanged){
+                    console.log("upload and continue")
+
+                    const reEnqueue = () => {
+                        console.log("upload and continue")
+                        interrupt();
+                        instance.continue();
+                    }
+
+                    instance.uploadIfNeeded(instance, reEnqueue);
+
+
+                }else{
+                    // False, stop
+                    instance.uploadIfNeeded(instance)
+                    console.log("stopped, just upload")
+                }
+
+            }
+
+            //     console.log("configChanged",instance.configChanged);
+            //     // if(instance.onConfigChanged == "grabAndContinue"){
+            //     //     console.log("grabAndContinue")
+            //     //     instance.needsUpload = true;
+            //     //     console.log("set instance needs upload to ", instance.needsUpload)
+            //     //     const reEneuque = () => {
+            //     //         app.queuePrompt(0, 1);
+            //     //     }
+            //     //     instance.uploadIfNeeded(instance,reEneuque);
+            //     // }else{
+            //
+            //         console.log("stop:config")
+            //         instance.needsUpload = true;
+            //         console.log("set instance needs upload to ", instance.needsUpload)
+            //
+            // }else{
+            //     instance.needsUpload = false;
+            //     console.log("config did not hcange, needs upload set to ", instance.needsUpload)
+            // }
 
         }
 
         /** important messaging considerations  https://docs.comfy.org/essentials/comms_messages */
 
         function configureHandler() {
-            console.log("configurehanlder", arguments);
+            //console.log("configurehanlder", arguments);
         }
 
         function executionStartHandler() {
-            console.log("executionStartHandler", arguments);
+            //console.log("executionStartHandler", arguments);
         }
 
         function executionCachedHandler() {
-            console.log("executionCachedHandler", arguments);
+            //console.log("executionCachedHandler", arguments);
         }
 
         function graphChangedHandler() {
@@ -204,7 +291,7 @@ app.registerExtension({
         }
 
         function changeWorkflowHandler() {
-            console.log("changeWorkflowHandler", arguments);
+            //console.log("changeWorkflowHandler", arguments);
         }
 
 
@@ -324,19 +411,49 @@ app.registerExtension({
         // console.log("afterConfigureGraph", args);
 
 
+        // reset the config timestamp, to ensure re-triggering
         const configs = app.graph.findNodesByType("CompositorConfig3");
         configs.forEach((c) => {
             const initialized = getCompositorWidget(c, "initialized");
             initialized.value = Date.now();
         })
 
+        // enable nodes to talk to each other without running the frontend through a dedicated
+        // broadcast channel
+        //
+        // setup broadcast channel, also needs to be done on node created or connection change...
         const nodes = app.graph.findNodesByType("Compositor3");
         // probably too late here as it's already running in the back
-        // nodes.forEach((current) => {
-        //     const config = current.getInputNode(0);
-        //     //  console.log("looping afterconfiguregraph compostior node", current);
-        //     //  console.log("looping afterconfiguregraph compostior node configs", config);
-        // })
+        nodes.forEach((currentNode) => {
+            const tools = currentNode.getInputNode(1);
+            //const tools = Editor.getToolWidget(this);
+            const CHANNELNAME = `Tools${tools.id}`;
+            //console.log(CHANNELNAME)
+            const channel = new BroadcastChannel(CHANNELNAME);
+            channel.addEventListener("message", (e) => {
+                switch (e.data.action) {
+                    case "togglePreciseSelection":
+                        handleTogglePreciseSelection(e, currentNode);
+                        break;
+                    case "resetTransforms":
+                        handleResetOldTransform(e, currentNode);
+                        break;
+                    case "centerSelected":
+                        centerSelected(e, currentNode);
+                        break;
+                    default:
+                        console.log("unknown broadcast event", e);
+                }
+
+
+            });
+
+            currentNode.channel = channel;
+
+
+            //  console.log("looping afterconfiguregraph compostior node", current);
+            //  console.log("looping afterconfiguregraph compostior node configs", config);
+        })
         app.graph.setDirtyCanvas(true, true);
     },
     /**
@@ -357,8 +474,8 @@ app.registerExtension({
         node.imageNameWidget = getCompositorWidget(node, "imageName");
         const originalCallback = node.imageNameWidget.callback;
         node.imageNameWidget.callback = () => {
-            debugger;
-            console.log("callback of imageNameWidget with ", arguments);
+            //debugger;
+            //console.log("callback of imageNameWidget with ", arguments);
             originalCallback(arguments);
         }
         node.imageNameWidget.computeSize = () => [0, 0];
@@ -395,7 +512,7 @@ app.registerExtension({
         node.continue = node.addWidget("button", "continue", "continue", compositorInstance.continue.bind(compositorInstance));
 
         node.onMouseOut = function (e, pos, canvas) {
-            console.log("mouseout")
+            // console.log("mouseout")
             const original_onMouseDown = node.onMouseOut;
             return original_onMouseDown?.apply(this, arguments);
         }
@@ -455,6 +572,7 @@ class Editor {
 
     compositionArea;
     compositionBorder;
+    preciseSelection = false;
 
     /** (widget) references / config params*/
     p;
@@ -483,7 +601,7 @@ class Editor {
      * this is currently called on capture (regardless of the flag)
      */
     static serializeStuff(node) {
-        // console.log("serializeStuff");
+        console.log("serializeStuff");
         const instance = node.compositorInstance;
         const result = {
             // or the widget ? boh
@@ -500,8 +618,18 @@ class Editor {
                 return undefined;
             }
         });
-
         result.transforms = res;
+
+        const bboxes = [0, 1, 2, 3, 4, 5, 6, 7].map((i) => {
+            try {
+                let t = instance.getBoundingBox(i);
+                return t;
+            } catch (e) {
+                return undefined;
+            }
+        });
+
+        result.bboxes = bboxes;
 
         return JSON.stringify(result);
     }
@@ -517,6 +645,13 @@ class Editor {
         const connected = node.getInputNode(0);
         return connected.widgets[slot].value;
     }
+
+    static getToolWidget(instance) {
+        // console.log(node, slot);
+        return instance.node.getInputNode(1);
+
+    }
+
 
     /**
      * in CompositorConfig
@@ -618,6 +753,7 @@ class Editor {
 
     static createCanvasElement() {
         const canvas = document.createElement("canvas");
+
         canvas.id = Editor.getRandomCompositorUniqueId();
         return canvas;
     }
@@ -663,22 +799,63 @@ class Editor {
     }
 
     getOldTransform(index) {
+        const ref = this.inputImages[this.imageNameAt(index)];
         return {
-            left: this.inputImages[this.imageNameAt(index)].left,
-            top: this.inputImages[this.imageNameAt(index)].top,
-            scaleX: this.inputImages[this.imageNameAt(index)].scaleX,
-            scaleY: this.inputImages[this.imageNameAt(index)].scaleY,
-            angle: this.inputImages[this.imageNameAt(index)].angle,
-            flipX: this.inputImages[this.imageNameAt(index)].flipX,
-            flipY: this.inputImages[this.imageNameAt(index)].flipY,
-            originX: this.inputImages[this.imageNameAt(index)].originX,
-            originY: this.inputImages[this.imageNameAt(index)].originY,
-            xwidth: this.inputImages[this.imageNameAt(index)].width,
-            xheight: this.inputImages[this.imageNameAt(index)].height,
-            skewY: this.inputImages[this.imageNameAt(index)].skewY,
-            skewX: this.inputImages[this.imageNameAt(index)].skewX,
+            left: ref.left,
+            top: ref.top,
+            scaleX: ref.scaleX,
+            scaleY: ref.scaleY,
+            angle: ref.angle,
+            flipX: ref.flipX,
+            flipY: ref.flipY,
+            originX: ref.originX,
+            originY: ref.originY,
+            xwidth: ref.width,
+            xheight: ref.height,
+            skewY: ref.skewY,
+            skewX: ref.skewX,
         };
     }
+
+    getBoundingBox(index) {
+        const ref = this.inputImages[this.imageNameAt(index)].getBoundingRect();
+        return {
+            left: ref.left,
+            top: ref.top,
+            scaleX: ref.scaleX,
+            scaleY: ref.scaleY,
+            angle: ref.angle,
+            flipX: ref.flipX,
+            flipY: ref.flipY,
+            originX: ref.originX,
+            originY: ref.originY,
+            xwidth: ref.height,
+            xheight: ref.width,
+            skewY: ref.skewY,
+            skewX: ref.skewX,
+        };
+    }
+
+    resetOldTransform(index) {
+        this.inputImages[this.imageNameAt(index)].left = 0;
+        this.inputImages[this.imageNameAt(index)].top = 0;
+        this.inputImages[this.imageNameAt(index)].scaleX = 1;
+        this.inputImages[this.imageNameAt(index)].scaleY = 1;
+        this.inputImages[this.imageNameAt(index)].angle = 0;
+        this.inputImages[this.imageNameAt(index)].flipX = false;
+        this.inputImages[this.imageNameAt(index)].flipY = false;
+        this.inputImages[this.imageNameAt(index)].originX = "top";
+        this.inputImages[this.imageNameAt(index)].originY = "left";
+        // this.inputImages[this.imageNameAt(index)].height;
+        // this.inputImages[this.imageNameAt(index)].width;
+        this.inputImages[this.imageNameAt(index)].skewY = 0;
+        this.inputImages[this.imageNameAt(index)].skewX = 0;
+        this.inputImages[this.imageNameAt(index)].perPixelTargetFind = this.preciseSelection;
+        this.fcanvas.renderAll();
+    }
+
+
+
 
     /**
      * checks if the reference at index for an image is not null
@@ -707,6 +884,7 @@ class Editor {
         const oldTransform = this.getOldTransform(index);
         // Remove the old image from the canvas
         this.fcanvas.remove(this.inputImages[this.imageNameAt(index)]);
+        // this breaks if we have width and height so renamed to xwidth and xheight
         theImage.set(oldTransform);
         this.fcanvas.add(theImage);
         this.inputImages[this.imageNameAt(index)] = theImage;
@@ -768,6 +946,7 @@ class Editor {
             altSelectionKey: "ctrlKey",
             altActionKey: "ctrlKey",
             centeredKey: "altKey",
+            // uniScaleTransform: false,
             // selectable:true,
             // evented:true,
             // centeredRotation: true,
@@ -827,6 +1006,7 @@ class Editor {
 
             node.setDirtyCanvas(true, true);
             if (callback) callback()
+            // deprecated, not really needed anymore
             if (setDone) api.fetchApi("/compositor/done", {method: "POST", body});
 
         }, () => {
@@ -839,9 +1019,12 @@ class Editor {
         return this.cblob == undefined
     }
 
-    /** this can't be async so resort to promise resolving and callbacks */
-    grabUploadAndSetOutput(setDone, callback) {
-        console.log("capture");
+    /** this can't be async so resort to promise resolving and callbacks
+     * @params setDone  **deprecated** when setDone is true, it will raise a /compositor/done event for the backend
+     * @params callback  will be passed to uploadImage and called when the upload has finished
+     * */
+    grabUploadAndSetOutput(instance, setDone, callback) {
+        // console.log("capture");
         // console.log("grap upload and set output")
         // prepare the image
         const img = new Image();
@@ -893,16 +1076,7 @@ class Editor {
     }
 
     continue(setDone) {
-        // console.log("continue");
-        // const body = new FormData();
-        // const node_id = this.node.id;
-        // body.append('node_id', node_id);
-        // body.append('filename', this.node.imageNameWidget.value);
-        // body.append('overwrite', "true");
-        // if (setDone) api.fetchApi("/compositor/done", {method: "POST", body});
-        // return;
-        app.queuePrompt(0,1);
-
+        app.queuePrompt(0, 1);
     }
 
 
@@ -986,16 +1160,16 @@ class Editor {
         });
 
         this.fcanvas.on('mouse:out', function (opt) {
-            console.log("mouseout")
+            // console.log("mouseout")
             // moving outside editor, this might fail to be intercepted depending on how full the
             // canvas is
-            if (opt.target === null || opt.target === undefined || opt.target && opt.nextTarget===undefined) {
+            if (opt.target === null || opt.target === undefined || opt.target && opt.nextTarget === undefined) {
                 compositorInstance.uploadIfNeeded(compositorInstance);
             }
         });
 
         this.fcanvas.on('object:modified', function (opt) {
-            console.log(this, compositorInstance);
+            // console.log(this, compositorInstance);
             // mark as needing upload so when we mouse out we doit then reset
             // mouse out is flimsy, sometimes it's not triggering
             compositorInstance.needsUpload = true;
@@ -1039,15 +1213,15 @@ class Editor {
         }.bind(this));
     }
 
-    uploadIfNeeded(compositorInstance) {
+    uploadIfNeeded(compositorInstance,callback = ()=>{console.log("upload if needed")}) {
 
         if (compositorInstance.needsUpload) {
             compositorInstance.needsUpload = false;
             const serialized = Editor.serializeStuff(compositorInstance.node);
             compositorInstance.node.fabricDataWidget.value = serialized;
-            const callback = () => {
-                alert("done");
-            }
+            // const callback = () => {
+            //
+            // }
             compositorInstance.grabUploadAndSetOutput(compositorInstance, false, callback)
         } else {
             console.log("no upload needed to be done");
@@ -1133,7 +1307,9 @@ class Editor {
         //this.canvasEl.id = 'test'; // ditor.getRandomCompositorUniqueId();
         this.canvasEl.id = Editor.getRandomCompositorUniqueId();
         this.containerDiv.appendChild(this.canvasEl);
-        this.containerDiv.style.overflow ="hidden";
+
+
+        this.containerDiv.style.overflow = "hidden";
         this.canvasEl.width = this.w.value + 2 * this.p.value;
         this.canvasEl.height = this.h.value + 2 * this.p.value;
 
@@ -1182,3 +1358,13 @@ class Editor {
 }
 
 
+async function interrupt() {
+    const response = await fetch('/interrupt', {
+        method: 'POST',
+        cache: 'no-cache',
+        headers: {
+            'Content-Type': 'text/html'
+        },
+    });
+    return await response.json();
+}

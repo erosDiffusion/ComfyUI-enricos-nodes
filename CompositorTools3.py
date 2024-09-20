@@ -1,4 +1,4 @@
-class Alignment:
+class CompositorTools3:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -8,12 +8,12 @@ class Alignment:
         }
 
     RETURN_TYPES = ("BOOLEAN",)
-    RETURN_NAMES = ("composite",)
+    RETURN_NAMES = ("tools",)
     FUNCTION = "run"
     CATEGORY = "image"
 
     DESCRIPTION = """
-frontend communication only with feature flag
+experimental node: frontend communication only with feature flag, needs page reload to fill controls
 """
 
     def run(self, **kwargs):

@@ -20,11 +20,12 @@ async def receivedDone(request):
 class Compositor3:
     file = "new.png"
     result = None
+    configCache = None
 
     @classmethod
     def IS_CHANGED(cls, **kwargs):
         fabricData = kwargs.get("fabricData")
-        print(fabricData)
+        # print(fabricData)
         return fabricData
 
     @classmethod
@@ -34,6 +35,9 @@ class Compositor3:
                 "config": ("COMPOSITOR_CONFIG", {"forceInput": True}),
                 "fabricData": ("STRING", {"default": "{}"}),
                 "imageName": ("STRING", {"default": "new.png"}),
+            },
+            "optional": {
+                "tools": ("BOOLEAN", {"forceInput": True, "default": True}),
             },
             "hidden": {
                 "extra_pnginfo": "EXTRA_PNGINFO",
@@ -50,6 +54,7 @@ class Compositor3:
         # https://blog.miguelgrinberg.com/post/how-to-make-python-wait
         node_id = kwargs.pop('node_id', None)
 
+
         imageName = kwargs.get('imageName', "new.png")
 
         config = kwargs.get('config', "default")
@@ -58,9 +63,17 @@ class Compositor3:
         width = config["width"]
         height = config["height"]
         config_node_id = config["node_id"]
+        onConfigChanged = config["onConfigChanged"]
         names = config["names"]
         fabricData = kwargs.get("fabricData")
 
+        configChanged = self.configCache != config
+        # print(configChanged)
+        # print(config)
+        # print(self.configCache)
+
+
+        self.configCache = config
         ui = {
             "test": ("value",),
             "padding": [padding],
@@ -71,6 +84,8 @@ class Compositor3:
             "names": names,
             "fabricData": [fabricData],
             "awaited": [self.result],
+            "configChanged": [configChanged],
+            "onConfigChanged": [onConfigChanged],
         }
 
         # break and send a message to the gui as if it was "executed" below
@@ -78,7 +93,8 @@ class Compositor3:
         PromptServer.instance.send_sync("compositor_init", detail)
 
         imageExists = folder_paths.exists_annotated_filepath(imageName)
-        if imageName == "new.png" or not imageExists:
+        # block when config changed
+        if imageName == "new.png" or not imageExists or configChanged:
             return {
                 "ui": ui,
                 "result": (ExecutionBlocker(None), ExecutionBlocker(None))
@@ -91,7 +107,7 @@ class Compositor3:
             i = i.point(lambda i: i * (1 / 255))
         image = i.convert("RGB")
         image = np.array(image).astype(np.float32) / 255.0
-        image = torch.from_numpy(image)[None,]
+        image = torch.from_numpy(image)[None, ]
 
         return {
             "ui": ui,

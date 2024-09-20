@@ -204,7 +204,6 @@ app.registerExtension({
             const images = [...e.names];
 
             const restore = Editor.deserializeStuff(node.fabricDataWidget.value);
-            const shouldRestore = Editor.getConfigWidgetValue(node, 3);
             const shouldRestore = true; // Editor.getConfigWidgetValue(node, 3);
             const normalizeHeight = Editor.getConfigWidgetValue(node, 3);
             const onConfigChanged = Editor.getConfigWidgetValue(node, 4);

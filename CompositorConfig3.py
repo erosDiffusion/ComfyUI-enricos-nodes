@@ -38,6 +38,7 @@ class CompositorConfig3:
                 "height": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
                 "padding": ("INT", {"default": 100, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
                 "normalizeHeight": ("BOOLEAN", {"default": False}),
+                "onConfigChanged": ("BOOLEAN", {"label_off": "stop", "label_on": "Grab and Continue", "default": False}),
                 "initialized": ("STRING", {"default": ""}),
             },
             "optional": {
@@ -107,6 +108,8 @@ The compositor node
         width = kwargs.pop('width', 512)
         height = kwargs.pop('height', 512)
         normalizeHeight = kwargs.pop('normalizeHeight', 512)
+        # grabAndContinue, stop
+        onConfigChanged = kwargs.pop('onConfigChanged', False)
         node_id = kwargs.pop('node_id', None)
 
         images = [image1, image2, image3, image4, image5, image6, image7, image8, ]
@@ -120,7 +123,7 @@ The compositor node
             if img is not None:
 
                 if normalizeHeight:
-                    print(counter)
+                    # print(counter)
                     counter = counter+1
                     #img = self.upscale(img, "lanczos", height, "height", "disabled")
                     processor = ImageProcessor()
@@ -131,7 +134,7 @@ The compositor node
 
                 if mask is not None:
                     if normalizeHeight:
-                        print(mask)
+                        # print(mask)
                         #mask = self.upscale(img, "lanczos", height, "height", "disabled")
                         mask = processor.scale_image(mask, height)
 
@@ -157,8 +160,10 @@ The compositor node
             "height": height,
             "padding": padding,
             "names": input_images,
+            "onConfigChanged": onConfigChanged,
+            "normalizeHeight": normalizeHeight,
         }
-        print(f"compositor config {node_id} executed")
+        # print(f"compositor config {node_id} executed")
         # return (res, self.masked, )
         return (res,)
 
@@ -177,7 +182,7 @@ The compositor node
     def ensureEmpty(self):
         image = "test_empty.png"
         if not folder_paths.exists_annotated_filepath(image):
-            print("it does not exist")
+            # print("it does not exist")
             img = Image.new('RGB', (512, 512), 'white')
             img.save(folder_paths.get_annotated_filepath(image))
 

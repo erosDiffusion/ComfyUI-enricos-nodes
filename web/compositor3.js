@@ -190,7 +190,7 @@ app.registerExtension({
                 // console.log(node.type);
                 return;
             }
-
+            const instance = node.compositorInstance;
             // console.log("hasResult,awaitedResult", e.hasResult[0], e.awaited[0]);
 
             node.compositorInstance.w.value = e.width[0];
@@ -205,6 +205,13 @@ app.registerExtension({
 
             const restore = Editor.deserializeStuff(node.fabricDataWidget.value);
             const shouldRestore = Editor.getConfigWidgetValue(node, 3);
+            const shouldRestore = true; // Editor.getConfigWidgetValue(node, 3);
+            const normalizeHeight = Editor.getConfigWidgetValue(node, 3);
+            const onConfigChanged = Editor.getConfigWidgetValue(node, 4);
+
+           instance.normalizeHeigh = normalizeHeight;
+           instance.onConfigChanged = onConfigChanged;
+           instance.configChanged = e.configChanged[0];
 
             images.map((b64, index) => {
                 function fromUrlCallback(oImg) {
@@ -216,7 +223,53 @@ app.registerExtension({
                  * http://fabricjs.com/docs/fabric.Image.html
                  */
                 fabric.Image.fromURL(b64, fromUrlCallback);
+
             });
+
+            if(instance.configChanged) {
+
+                instance.needsUpload = true;
+
+                // true: grab and continue
+                if(onConfigChanged){
+                    console.log("upload and continue")
+
+                    const reEnqueue = () => {
+                        console.log("upload and continue")
+                        interrupt();
+                        instance.continue();
+                    }
+
+                    instance.uploadIfNeeded(instance, reEnqueue);
+
+
+                }else{
+                    // False, stop
+                    instance.uploadIfNeeded(instance)
+                    console.log("stopped, just upload")
+                }
+
+            }
+
+            //     console.log("configChanged",instance.configChanged);
+            //     // if(instance.onConfigChanged == "grabAndContinue"){
+            //     //     console.log("grabAndContinue")
+            //     //     instance.needsUpload = true;
+            //     //     console.log("set instance needs upload to ", instance.needsUpload)
+            //     //     const reEneuque = () => {
+            //     //         app.queuePrompt(0, 1);
+            //     //     }
+            //     //     instance.uploadIfNeeded(instance,reEneuque);
+            //     // }else{
+            //
+            //         console.log("stop:config")
+            //         instance.needsUpload = true;
+            //         console.log("set instance needs upload to ", instance.needsUpload)
+            //
+            // }else{
+            //     instance.needsUpload = false;
+            //     console.log("config did not hcange, needs upload set to ", instance.needsUpload)
+            // }
 
         }
 
@@ -366,6 +419,9 @@ app.registerExtension({
             initialized.value = Date.now();
         })
 
+        // enable nodes to talk to each other without running the frontend through a dedicated
+        // broadcast channel
+        //
         // setup broadcast channel, also needs to be done on node created or connection change...
         const nodes = app.graph.findNodesByType("Compositor3");
         // probably too late here as it's already running in the back
@@ -951,6 +1007,7 @@ class Editor {
 
             node.setDirtyCanvas(true, true);
             if (callback) callback()
+            // deprecated, not really needed anymore
             if (setDone) api.fetchApi("/compositor/done", {method: "POST", body});
 
         }, () => {
@@ -963,8 +1020,11 @@ class Editor {
         return this.cblob == undefined
     }
 
-    /** this can't be async so resort to promise resolving and callbacks */
-    grabUploadAndSetOutput(setDone, callback) {
+    /** this can't be async so resort to promise resolving and callbacks
+     * @params setDone  **deprecated** when setDone is true, it will raise a /compositor/done event for the backend
+     * @params callback  will be passed to uploadImage and called when the upload has finished
+     * */
+    grabUploadAndSetOutput(instance, setDone, callback) {
         // console.log("capture");
         // console.log("grap upload and set output")
         // prepare the image
@@ -1017,16 +1077,7 @@ class Editor {
     }
 
     continue(setDone) {
-        // console.log("continue");
-        // const body = new FormData();
-        // const node_id = this.node.id;
-        // body.append('node_id', node_id);
-        // body.append('filename', this.node.imageNameWidget.value);
-        // body.append('overwrite', "true");
-        // if (setDone) api.fetchApi("/compositor/done", {method: "POST", body});
-        // return;
         app.queuePrompt(0, 1);
-
     }
 
 
@@ -1163,15 +1214,15 @@ class Editor {
         }.bind(this));
     }
 
-    uploadIfNeeded(compositorInstance) {
+    uploadIfNeeded(compositorInstance,callback = ()=>{console.log("upload if needed")}) {
 
         if (compositorInstance.needsUpload) {
             compositorInstance.needsUpload = false;
             const serialized = Editor.serializeStuff(compositorInstance.node);
             compositorInstance.node.fabricDataWidget.value = serialized;
-            const callback = () => {
-                alert("done");
-            }
+            // const callback = () => {
+            //
+            // }
             compositorInstance.grabUploadAndSetOutput(compositorInstance, false, callback)
         } else {
             console.log("no upload needed to be done");
@@ -1308,3 +1359,13 @@ class Editor {
 }
 
 
+async function interrupt() {
+    const response = await fetch('/interrupt', {
+        method: 'POST',
+        cache: 'no-cache',
+        headers: {
+            'Content-Type': 'text/html'
+        },
+    });
+    return await response.json();
+}

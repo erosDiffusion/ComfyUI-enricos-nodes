@@ -134,10 +134,11 @@ The compositor node
                 # tensor
 
                 if mask is not None:
-                    if normalizeHeight:
-                        # print(mask)
-                        #mask = self.upscale(img, "lanczos", height, "height", "disabled")
-                        mask = processor.scale_image(mask, height)
+                    # if normalizeHeight:
+                    #     # print(mask)
+                    #     #mask = self.upscale(img, "lanczos", height, "height", "disabled")
+                    #     mask = prepare_mask(mask, foo_is_batch=True)
+                    #     mask = processor.scale_image(mask, height)
 
                     # apply the mask and return
                     # apply the mask and return
@@ -273,3 +274,21 @@ class ImageProcessor:
         resized_images = resized_images.permute(0, 2, 3, 1)  # [batch_size, height, width, channels]
 
         return resized_images
+
+
+def prepare_mask(mask, foo_is_batch):
+    """
+    Prepares the mask tensor to have shape [batch_size, height, width, channels].
+
+    Arguments:
+    mask: Tensor of shape [foo, width, height]
+    foo_is_batch: Bool, True if `foo` represents the batch size, False if it represents the channel.
+    """
+    if foo_is_batch:
+        # Case where `foo` is the batch size, reshape to [batch_size, height, width, channels=1]
+        mask = mask.unsqueeze(3)  # Add a channel dimension [batch_size, width, height] -> [batch_size, width, height, 1]
+    else:
+        # Case where `foo` is the channel dimension, reshape to [1, height, width, channels]
+        mask = mask.unsqueeze(0).permute(0, 2, 3, 1)  # Add batch dim and permute to [1, height, width, channels]
+
+    return mask

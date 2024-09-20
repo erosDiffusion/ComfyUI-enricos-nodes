@@ -68,9 +68,9 @@ class Compositor3:
         fabricData = kwargs.get("fabricData")
 
         configChanged = self.configCache != config
-        print(configChanged)
-        print(config)
-        print(self.configCache)
+        # print(configChanged)
+        # print(config)
+        # print(self.configCache)
 
 
         self.configCache = config

@@ -144,7 +144,8 @@ and set the security to weak (at your risk)
 - anything in the dark gray area is rendered
 - use up till 8 images, optionally pass masks
 - background will be at first slot on top
-- in v 1.0.9 and later the z-index is fixed, reconnect an input or move stuff around. it should be simpler to handle depth stacking
+- in v 1.0.9 and later the z-index is fixed, reconnect an input or move stuff around.  
+  it should be simpler to handle depth stacking
 
 ### Advanced
 
@@ -154,7 +155,8 @@ and set the security to weak (at your risk)
 - drag selected to move (can also rescale the group)
 - shift click to select multiple
 - shift click to unselect selected in a group select
-- click "capture" to see what is the real order in memory before running (after the first run where images are generated/associated to the editor)
+- if you choose to stop on config change, hit continue to re-enqueue. capture happens on mouse out from the composition or
+- if you choose grabAndContinue then it will be automatic
 - scroll up or down to scale a single image selection
 
 ### Aupporting nodes I use with this one
@@ -170,12 +172,13 @@ Just throw the worst possible images you find on the internet or that you can ge
 and you will get:
 
 ![v3.PNG](assets%2Fv3.PNG)
-with the [V3 workflow in json format](assets%2Fv3.json) you are in pixel perfect positioning control of your scene and content !
-images to replicate are in the assets folder. after composition is set move the images a bit and continue.
+with the [V3 workflow in json format](assets%2Fv3.1.json) you are in pixel perfect positioning control of your scene and content !
+images to replicate are in the assets folder.
 
 ### Final words and limitations
 
 - **limitation** you need to run the flow once for the compositor to show images
+- **tools** new tools only show up on load, so if you add them, reload page with browser reload
 - **known issue**: the compositing is not scaled, so if you want a 5k image well... I hope you have a big enough monitor, but it's not (yet) the goal of this node...
 - upcoming **known issue** the new tooling will require graph changed events to setup frontend only widgets. so reload the wf. if the gui is not coming up in the tool node
 

@@ -1,4 +1,4 @@
-class Alignment:
+class CompositorTools3:
     @classmethod
     def INPUT_TYPES(cls):
         return {
@@ -13,7 +13,7 @@ class Alignment:
     CATEGORY = "image"
 
     DESCRIPTION = """
-frontend communication only with feature flag
+experimental node: frontend communication only with feature flag, needs page reload to fill controls
 """
 
     def run(self, **kwargs):

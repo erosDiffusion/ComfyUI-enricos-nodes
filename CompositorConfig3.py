@@ -3,7 +3,6 @@ import numpy as np
 import base64
 from io import BytesIO
 from PIL import Image
-import torch
 import folder_paths
 import torch
 import torch.nn.functional as F

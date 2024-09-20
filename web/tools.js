@@ -11,7 +11,7 @@ function getWidget(node, widgetName) {
 }
 
 app.registerExtension({
-    name: "Comfy.Alignment",
+    name: "Comfy.CompositorTools3",
     async getCustomWidgets(app) {
     },
     async setup(app) {
@@ -30,7 +30,7 @@ app.registerExtension({
         // console.log("afterConfigureGraph", args);
 
 
-        const tools = app.graph.findNodesByType("Alignment");
+        const tools = app.graph.findNodesByType("CompositorTools3");
         tools.forEach((node) => {
             const CHANNELNAME = `Tools${node.id}`;
             console.log(CHANNELNAME)
@@ -59,8 +59,8 @@ app.registerExtension({
         })
     },
     async nodeCreated(node) {
-        if (!isType("Alignment", node)) return;
-        console.log("better log it");
+        if (!isType("CompositorTools3", node)) return;
+        // console.log("better log it");
         node.serialize_widgets = false;
         node.isVirtualNode = true;
     },

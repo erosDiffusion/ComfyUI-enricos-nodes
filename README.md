@@ -185,6 +185,7 @@ Images to replicate are in the assets folder.
 ### Final words and limitations
 
 - **limitation** you need to run the flow once for the compositor to show images
+- **limitation** careful on random values on the left of the node, the node stops the execution on config change to be able to grab a capture and re-enqueues the flow. if the cache is invalidated you not be able to go next see here https://github.com/erosDiffusion/ComfyUI-enricos-nodes/issues/63 
 - **tools** new tools only show up on load, so if you add them, reload page with browser reload
 - **known issue**: the compositing is not scaled, so if you want a 5k image well... I hope you have a big enough monitor, but it's not (yet) the goal of this node...
 - upcoming **known issue** the new tooling will require graph changed events to setup frontend only widgets. so reload the wf. if the gui is not coming up in the tool node

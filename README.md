@@ -193,4 +193,5 @@ Images to replicate are in the assets folder.
 
 yours, ErosDiffusion 💜
 
-![v3.2.PNG](assets%2Fv3.2.PNG)
+
+![v3.PNG](assets%2Fv3.0.2.PNG)

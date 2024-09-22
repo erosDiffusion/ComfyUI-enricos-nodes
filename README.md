@@ -189,7 +189,6 @@ Images to replicate are in the assets folder.
   when I tried implementing threading pause it was not reliable, so I resorted to stop / restart. another option would be a while loop...but that feels not right.
 - **tools** new tools only show up on load, so if you add them, reload page with browser reload
 - **known issue**: the compositing is not scaled, so if you want a 5k image well... I hope you have a big enough monitor, but it's not (yet) the goal of this node...
-- upcoming **known issue** the new tooling will require graph changed events to setup frontend only widgets. so reload the wf. if the gui is not coming up in the tool node
 
 **Now go put a fairy in a forest!**
 

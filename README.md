@@ -26,7 +26,7 @@ With the Compositor Node you can:
   - _new configuration feature_: **onConfigChange action toggle** when you change the configuration (or any of the attached nodes) you can now choose if:
     - you want to **stop** the flow to allow edits
     - or you want to **grab a capture and continue** the flow  
-      $${\color{red}Important}$$! this option stops, loads and re-enqueues your prompt (there is no real pausing) so careful with random seeds on the left of the node!
+      $${\color{red}Important}$$! this option stops, uploads the composition and re-enqueues your prompt (**there is no real pause**) so careful with random seeds on the left of the node or it will loop!
 
   - _new configuration feature_: **normalize height** when this is activated your images will all be the same height of the canvas (this can lower image quality)
   - _transforms enhancement_: output transforms now give you back the angle and **bounding box coordinates**

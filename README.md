@@ -130,8 +130,9 @@ and set the security to weak (at your risk)
 
 - the painter node is great and works better and does a million things more, but it misses some of these features.
 - continue compositing your image like caveman using pixel coordinates
-- well...photoshop and import via million clicks
-- use Krita or photoshop integrations with comfy (inversion of control)
+- well...photoshop ** if you have it** and import via million clicks or with a plugin
+- finally use **Krita** which is good powerful and free
+- oh and Blender also has a great plugin **but you need to know/learn blender**
 
 ### How to use
 

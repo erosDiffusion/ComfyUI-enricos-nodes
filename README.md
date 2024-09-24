@@ -21,6 +21,7 @@ With the Compositor Node you can:
 - Use the information about transforms in other nodes (like conditioning set area)
 
 ## Changelog
+- head over to the [wiki](https://github.com/erosDiffusion/ComfyUI-enricos-nodes/wiki) tab for more workflows and information!
 - v **3.1.0** - 20.09.2024
   - _new configuration feature_: **onConfigChange action toggle** when you change the configuration (or any of the attached nodes) you can now choose if:
     - you want to **stop** the flow to allow edits

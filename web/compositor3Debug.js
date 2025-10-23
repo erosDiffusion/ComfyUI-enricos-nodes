@@ -583,25 +583,16 @@ const Editor = (node, fabric) => {
 
       const activeObject = fabricInstance.getActiveObject();
       if (activeObject) {
-        // Store original origin settings
-        const originalOriginX = activeObject.originX;
-        const originalOriginY = activeObject.originY;
-
-        // Temporarily set origin to center for proper rotation
-        activeObject.set({
-          originX: "center",
-          originY: "center",
-        });
-
-        // Set the rotation angle
+        // Get the center point to maintain position during rotation
+        const center = activeObject.getCenterPoint();
+        
+        // Set the rotation angle with center as origin
         activeObject.set({
           angle: angle,
-        });
-
-        // Restore original origin settings
-        activeObject.set({
-          originX: originalOriginX,
-          originY: originalOriginY,
+          originX: "center",
+          originY: "center",
+          left: center.x,
+          top: center.y
         });
 
         activeObject.setCoords();

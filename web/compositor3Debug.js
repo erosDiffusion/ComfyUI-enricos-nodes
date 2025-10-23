@@ -15,7 +15,6 @@ const LITEGRAPH_NODE_PADDING = 10;
 const QUALITY = 0.8;
 const UPLOAD_ENDPOINT = "/upload/image";
 const STORE_FOLDER = "compositor";
-const TOOLBAR_HEIGHT = 30;
 const INDICATOR_RADIUS = 8;
 const GRID_SIZE = 1; // pixels for snap to grid
 const SNAP_ENABLED = true; // toggle snap to grid on/off
@@ -211,6 +210,7 @@ const Editor = (node, fabric) => {
   let compositionBorder = null;
   let compositionArea = null;
   let savingIndicator = null;
+  let toolbarEl = null;
   let snapEnabled = SNAP_ENABLED; // Editor property for snap to grid
   let images = [null, null, null, null, null, null, null, null, null];
 
@@ -231,28 +231,29 @@ const Editor = (node, fabric) => {
   };
 
   const createToolbar = () => {
-    const toolbar = document.createElement("div");
-    toolbar.style.width = "100%";
-    toolbar.style.height = TOOLBAR_HEIGHT + "px";
-    toolbar.style.backgroundColor = "rgba(50, 50, 50, 0.9)";
-    toolbar.style.display = "flex";
-    toolbar.style.alignItems = "center";
-    toolbar.style.padding = "0 10px";
-    toolbar.style.boxSizing = "border-box";
-    toolbar.style.gap = "5px";
-    containerEl.appendChild(toolbar);
+    toolbarEl = document.createElement("div");
+    toolbarEl.style.width = "100%";
+    toolbarEl.style.minHeight = "auto";
+    toolbarEl.style.backgroundColor = "rgba(50, 50, 50, 0.9)";
+    toolbarEl.style.display = "flex";
+    toolbarEl.style.alignItems = "center";
+    toolbarEl.style.padding = "5px 10px";
+    toolbarEl.style.boxSizing = "border-box";
+    toolbarEl.style.gap = "5px";
+    toolbarEl.style.position = "relative";
+    containerEl.appendChild(toolbarEl);
 
     // Create and append Save button
     const saveBtn = createToolbarButton("Save", (event) =>
       updateWidgetValues(event, node)
     );
-    toolbar.appendChild(saveBtn);
+    toolbarEl.appendChild(saveBtn);
 
     // Create and append Reset button
     const resetBtn = createToolbarButton("Reset", (event) =>
       resetImagePositions(event, node)
     );
-    toolbar.appendChild(resetBtn);
+    toolbarEl.appendChild(resetBtn);
 
     // Create and append Snap button with special toggle behavior
     const snapBtn = createToolbarButton(
@@ -285,7 +286,73 @@ const Editor = (node, fabric) => {
         : "rgba(100, 100, 100, 0.7)";
     };
 
-    toolbar.appendChild(snapBtn);
+    toolbarEl.appendChild(snapBtn);
+
+    // Add spacing separator
+    const separator = document.createElement("div");
+    separator.style.width = "1px";
+    separator.style.height = "20px";
+    separator.style.backgroundColor = "rgba(100, 100, 100, 0.5)";
+    separator.style.margin = "0 5px";
+    toolbarEl.appendChild(separator);
+
+    // Create alignment buttons grid (3x3)
+    const alignments = [
+      { label: "↖", align: "top-left", title: "Align Top-Left" },
+      { label: "↑", align: "top", title: "Align Top" },
+      { label: "↗", align: "top-right", title: "Align Top-Right" },
+      { label: "←", align: "left", title: "Align Left" },
+      { label: "●", align: "center", title: "Align Center" },
+      { label: "→", align: "right", title: "Align Right" },
+      { label: "↙", align: "bottom-left", title: "Align Bottom-Left" },
+      { label: "↓", align: "bottom", title: "Align Bottom" },
+      { label: "↘", align: "bottom-right", title: "Align Bottom-Right" },
+    ];
+
+    const alignmentGrid = document.createElement("div");
+    alignmentGrid.style.display = "grid";
+    alignmentGrid.style.gridTemplateColumns = "repeat(3, 1fr)";
+    alignmentGrid.style.gap = "2px";
+    alignmentGrid.style.width = "72px";
+
+    alignments.forEach(({ label, align, title }) => {
+      const btn = createToolbarButton(label, () => alignSelected(align));
+      btn.style.padding = "2px 4px";
+      btn.style.fontSize = "14px";
+      btn.style.minWidth = "22px";
+      btn.title = title;
+      alignmentGrid.appendChild(btn);
+    });
+
+    toolbarEl.appendChild(alignmentGrid);
+
+    // Add spacer to push saving indicator to the right
+    const spacer = document.createElement("div");
+    spacer.style.flex = "1";
+    toolbarEl.appendChild(spacer);
+
+    // Create HTML saving indicator
+    savingIndicator = document.createElement("div");
+    savingIndicator.style.width = INDICATOR_RADIUS * 2 + "px";
+    savingIndicator.style.height = INDICATOR_RADIUS * 2 + "px";
+    savingIndicator.style.borderRadius = "50%";
+    savingIndicator.style.backgroundColor = "red";
+    savingIndicator.style.display = "none";
+    savingIndicator.style.animation = "pulse 1s infinite";
+    toolbarEl.appendChild(savingIndicator);
+
+    // Add CSS animation for pulsing effect
+    if (!document.getElementById("saving-indicator-style")) {
+      const style = document.createElement("style");
+      style.id = "saving-indicator-style";
+      style.textContent = `
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.5; }
+        }
+      `;
+      document.head.appendChild(style);
+    }
   };
 
   const createCanvasElement = () => {
@@ -322,7 +389,7 @@ const Editor = (node, fabric) => {
     //p, w, h, node
     compositionArea = new fabric.Rect({
       left: PADDING + COMPOSITION_BORDER_SIZE,
-      top: PADDING + COMPOSITION_BORDER_SIZE + TOOLBAR_HEIGHT,
+      top: PADDING + COMPOSITION_BORDER_SIZE,
       fill: COMPOSITION_BACKGROUND_COLOR,
       width: WIDTH,
       height: HEIGHT,
@@ -336,7 +403,7 @@ const Editor = (node, fabric) => {
 
     compositionBorder = new fabric.Rect({
       left: PADDING - COMPOSITION_BORDER_SIZE,
-      top: PADDING - COMPOSITION_BORDER_SIZE + TOOLBAR_HEIGHT,
+      top: PADDING - COMPOSITION_BORDER_SIZE,
       fill: "transparent",
       width: WIDTH + COMPOSITION_BORDER_SIZE * 2,
       height: HEIGHT + COMPOSITION_BORDER_SIZE * 2,
@@ -350,11 +417,9 @@ const Editor = (node, fabric) => {
     compositionBorder.set("evented", false);
   };
 
-  const setCanvasSize = (width, height, padding, borderSize, toolbarHeight) => {
+  const setCanvasSize = (width, height, padding, borderSize) => {
     fabricInstance.setWidth(width + padding * 2 + borderSize * 2);
-    fabricInstance.setHeight(
-      toolbarHeight + height + padding * 2 + borderSize * 2
-    );
+    fabricInstance.setHeight(height + padding * 2 + borderSize * 2);
     fabricInstance.renderAll();
   };
 
@@ -404,13 +469,7 @@ const Editor = (node, fabric) => {
     appendCanvasToContainer();
     initializeFabricCanvas();
 
-    setCanvasSize(
-      WIDTH,
-      HEIGHT,
-      PADDING,
-      COMPOSITION_BORDER_SIZE,
-      TOOLBAR_HEIGHT
-    );
+    setCanvasSize(WIDTH, HEIGHT, PADDING, COMPOSITION_BORDER_SIZE);
 
     createCompositionArea();
     fabricInstance.add(compositionArea);
@@ -419,8 +478,6 @@ const Editor = (node, fabric) => {
     createCompositionBorder();
     fabricInstance.add(compositionBorder);
     fabricInstance.bringToFront(compositionBorder);
-
-    createSavingIndicator();
 
     addCanvasEventListeners();
 
@@ -437,7 +494,7 @@ const Editor = (node, fabric) => {
       format: "png",
       quality: QUALITY,
       left: PADDING + COMPOSITION_BORDER_SIZE,
-      top: PADDING + TOOLBAR_HEIGHT + COMPOSITION_BORDER_SIZE,
+      top: PADDING + COMPOSITION_BORDER_SIZE,
       width: WIDTH,
       height: HEIGHT,
     });
@@ -488,7 +545,7 @@ const Editor = (node, fabric) => {
     // callback when loading image from url, appends to fabric canvas
     img.set({
       left: PADDING + COMPOSITION_BORDER_SIZE,
-      top: PADDING + COMPOSITION_BORDER_SIZE + TOOLBAR_HEIGHT,
+      top: PADDING + COMPOSITION_BORDER_SIZE,
       selectable: true,
       evented: true,
     });
@@ -574,7 +631,7 @@ const Editor = (node, fabric) => {
 
   const resetTransforms = (index) => {
     images[index].left = PADDING + COMPOSITION_BORDER_SIZE;
-    images[index].top = PADDING + COMPOSITION_BORDER_SIZE + TOOLBAR_HEIGHT;
+    images[index].top = PADDING + COMPOSITION_BORDER_SIZE;
     images[index].scaleX = 1;
     images[index].scaleY = 1;
     images[index].angle = 0;
@@ -624,29 +681,15 @@ const Editor = (node, fabric) => {
     });
   };
 
-  const createSavingIndicator = () => {
-    // the saving indicator is a pulsating red circle
-    savingIndicator = new fabric.Circle({
-      left: WIDTH + PADDING - 2 * INDICATOR_RADIUS,
-      top: 0,
-      radius: INDICATOR_RADIUS,
-      fill: "red",
-      selectable: false,
-      evented: false,
-    });
-  };
-
   const showSavingIndicator = () => {
-    // make the indicator visibile and start the pulsating effect, make sure it can be stopped later
-    fabricInstance.add(savingIndicator);
-    fabricInstance.renderAll();
+    if (savingIndicator) {
+      savingIndicator.style.display = "block";
+    }
   };
 
   const hideSavingIndicator = () => {
-    // hide the saving indicator and stop the pulsating effect
     if (savingIndicator) {
-      fabricInstance.remove(savingIndicator);
-      fabricInstance.renderAll();
+      savingIndicator.style.display = "none";
     }
   };
 
@@ -656,6 +699,86 @@ const Editor = (node, fabric) => {
 
   const snapToGrid = (value) => {
     return Math.round(value / GRID_SIZE) * GRID_SIZE;
+  };
+
+  const alignSelected = (alignment) => {
+    const activeObject = fabricInstance.getActiveObject();
+    if (!activeObject) {
+      console.log("No object selected for alignment");
+      return;
+    }
+
+    const objBounds = activeObject.getBoundingRect();
+    const compLeft = PADDING + COMPOSITION_BORDER_SIZE;
+    const compTop = PADDING + COMPOSITION_BORDER_SIZE;
+    const compRight = compLeft + WIDTH;
+    const compBottom = compTop + HEIGHT;
+    const compCenterX = compLeft + WIDTH / 2;
+    const compCenterY = compTop + HEIGHT / 2;
+
+    // Calculate offset from object's origin to its bounds
+    const offsetX = objBounds.left - activeObject.left;
+    const offsetY = objBounds.top - activeObject.top;
+
+    switch (alignment) {
+      case "top-left":
+        activeObject.set({
+          left: compLeft - offsetX,
+          top: compTop - offsetY,
+        });
+        break;
+      case "top":
+        activeObject.set({
+          left: compCenterX - objBounds.width / 2 - offsetX,
+          top: compTop - offsetY,
+        });
+        break;
+      case "top-right":
+        activeObject.set({
+          left: compRight - objBounds.width - offsetX,
+          top: compTop - offsetY,
+        });
+        break;
+      case "left":
+        activeObject.set({
+          left: compLeft - offsetX,
+          top: compCenterY - objBounds.height / 2 - offsetY,
+        });
+        break;
+      case "center":
+        activeObject.set({
+          left: compCenterX - objBounds.width / 2 - offsetX,
+          top: compCenterY - objBounds.height / 2 - offsetY,
+        });
+        break;
+      case "right":
+        activeObject.set({
+          left: compRight - objBounds.width - offsetX,
+          top: compCenterY - objBounds.height / 2 - offsetY,
+        });
+        break;
+      case "bottom-left":
+        activeObject.set({
+          left: compLeft - offsetX,
+          top: compBottom - objBounds.height - offsetY,
+        });
+        break;
+      case "bottom":
+        activeObject.set({
+          left: compCenterX - objBounds.width / 2 - offsetX,
+          top: compBottom - objBounds.height - offsetY,
+        });
+        break;
+      case "bottom-right":
+        activeObject.set({
+          left: compRight - objBounds.width - offsetX,
+          top: compBottom - objBounds.height - offsetY,
+        });
+        break;
+    }
+
+    activeObject.setCoords();
+    fabricInstance.renderAll();
   };
 
   // public interface of the Editor

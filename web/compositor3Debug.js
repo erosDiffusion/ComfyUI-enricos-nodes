@@ -31,6 +31,7 @@ const COLOR_BUTTON_TEXT = "white";
 const COLOR_SEPARATOR = "rgba(100, 100, 100, 0.5)";
 const COLOR_CONTAINER_BG = "rgba(172, 95, 224, 0)";
 const COLOR_INDICATOR_SAVING = "red";
+const COLOR_BUTTON_ACTIVE = "rgba(152, 251, 152, 0.7)"; // Pastel green for active state
 const COLOR_CANVAS_BG = "transparent";
 const COLOR_CANVAS_SELECTION = "transparent";
 
@@ -494,7 +495,7 @@ const Editor = (node, fabric) => {
         snapEnabled = !snapEnabled;
         snapBtn.textContent = snapEnabled ? "Snap: ON" : "Snap: OFF";
         snapBtn.style.backgroundColor = snapEnabled
-          ? COLOR_BUTTON_BG
+          ? COLOR_BUTTON_ACTIVE
           : COLOR_BUTTON_DISABLED;
         console.log("Snap to grid:", snapEnabled);
       },
@@ -503,7 +504,7 @@ const Editor = (node, fabric) => {
 
     // Override default styling for snap button based on initial state
     snapBtn.style.backgroundColor = snapEnabled
-      ? COLOR_BUTTON_BG
+      ? COLOR_BUTTON_ACTIVE
       : COLOR_BUTTON_DISABLED;
 
     // Override hover behavior for snap button
@@ -515,7 +516,7 @@ const Editor = (node, fabric) => {
 
     snapBtn.onmouseout = () => {
       snapBtn.style.backgroundColor = snapEnabled
-        ? COLOR_BUTTON_BG
+        ? COLOR_BUTTON_ACTIVE
         : COLOR_BUTTON_DISABLED;
     };
 
@@ -1028,7 +1029,7 @@ const Editor = (node, fabric) => {
   const snapToGrid = (value) => {
     // Calculate the offset of the composition area
     const offset = PADDING + COMPOSITION_BORDER_SIZE;
-    
+
     // Snap relative to the composition area's top-left corner
     return Math.round((value - offset) / gridSize) * gridSize + offset;
   };

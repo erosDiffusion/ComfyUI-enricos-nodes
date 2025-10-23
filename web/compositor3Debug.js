@@ -920,10 +920,32 @@ const Editor = (node, fabric) => {
     fabricInstance.on("object:scaling", function (opt) {
       if (snapEnabled) {
         const target = opt.target;
+
+        // Snap position to grid
         target.set({
           left: snapToGrid(target.left),
           top: snapToGrid(target.top),
         });
+
+        // Snap scaled dimensions to grid multiples
+        const scaledWidth = target.getScaledWidth();
+        const scaledHeight = target.getScaledHeight();
+
+        // Calculate target dimensions as multiples of grid
+        const snappedWidth = Math.round(scaledWidth / gridSize) * gridSize;
+        const snappedHeight = Math.round(scaledHeight / gridSize) * gridSize;
+
+        // Calculate new scale factors to achieve snapped dimensions
+        // Avoid division by zero
+        if (target.width > 0 && target.height > 0) {
+          const newScaleX = snappedWidth / target.width;
+          const newScaleY = snappedHeight / target.height;
+
+          target.set({
+            scaleX: newScaleX,
+            scaleY: newScaleY,
+          });
+        }
       }
     });
 

@@ -585,14 +585,14 @@ const Editor = (node, fabric) => {
       if (activeObject) {
         // Get the center point to maintain position during rotation
         const center = activeObject.getCenterPoint();
-        
+
         // Set the rotation angle with center as origin
         activeObject.set({
           angle: angle,
           originX: "center",
           originY: "center",
           left: center.x,
-          top: center.y
+          top: center.y,
         });
 
         activeObject.setCoords();

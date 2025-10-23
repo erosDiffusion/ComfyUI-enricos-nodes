@@ -355,10 +355,12 @@ const Editor = (node, fabric) => {
     toolbarEl.style.backgroundColor = COLOR_TOOLBAR_BG;
     toolbarEl.style.display = "flex";
     toolbarEl.style.alignItems = "center";
+    toolbarEl.style.borderRadius = "8px";
     toolbarEl.style.padding = "5px 10px";
     toolbarEl.style.boxSizing = "border-box";
     toolbarEl.style.gap = "5px";
     toolbarEl.style.position = "relative";
+    toolbarEl.style.boxShadow = "inset 0 0 5px rgba(0, 0, 0, 0.2)";
     containerEl.appendChild(toolbarEl);
 
     // Create vertical group for Save and Reset buttons
@@ -823,21 +825,24 @@ const Editor = (node, fabric) => {
     contentWrapper.style.flexDirection = "row";
     contentWrapper.style.gap = "10px";
     contentWrapper.style.width = "100%";
+
     containerEl.appendChild(contentWrapper);
 
     // Create layers panel
     layersPanelEl = document.createElement("div");
     layersPanelEl.style.width = "150px";
     layersPanelEl.style.height =
-      HEIGHT + PADDING * 2 + COMPOSITION_BORDER_SIZE * 2 + "px";
+      HEIGHT - 8 + PADDING * 2 + COMPOSITION_BORDER_SIZE * 2 + "px";
     layersPanelEl.style.backgroundColor = COLOR_TOOLBAR_BG;
-    layersPanelEl.style.borderRadius = "4px";
+    layersPanelEl.style.borderRadius = "8px";
     layersPanelEl.style.padding = "4px";
     layersPanelEl.style.boxSizing = "border-box";
     layersPanelEl.style.overflowY = "auto";
     layersPanelEl.style.display = "flex";
     layersPanelEl.style.flexDirection = "column";
+    layersPanelEl.style.marginTop = "8px";
     layersPanelEl.style.gap = "4px";
+    layersPanelEl.style.boxShadow = "inset 0 0 5px rgba(0, 0, 0, 0.2)";
 
     // Add title
     const title = createLayersPanelTitle();

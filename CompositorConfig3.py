@@ -28,13 +28,15 @@ def toBase64ImgUrl(img):
 
 
 # Save image to temp/compositor folder and return filename
-def saveImageToCompositorFolder(img, config_node_id, index):
+def saveImageToCompositorFolder(img, config_node_id, index, save_format):
     """
     Saves a PIL image to the temp/compositor folder with a persistent filename.
-    Format: cfg{config_node_id}-in{index}.png
+    Format: cfg{config_node_id}-in{index}.{ext}
     This ensures the same filename is used across workflow loads.
     The filename is based on the config node ID and input index, making it persistent.
     Returns the filename (not full path) so frontend can load it.
+    
+    Supports multiple lossless formats with different speed/size tradeoffs.
     """
     # Get the temp directory
     temp_dir = folder_paths.get_temp_directory()
@@ -43,13 +45,51 @@ def saveImageToCompositorFolder(img, config_node_id, index):
     # Ensure the compositor directory exists
     os.makedirs(compositor_dir, exist_ok=True)
     
-    # Generate persistent filename based on config node ID and input index
-    # This ensures the same filename is reused when the workflow is loaded
-    filename = f"cfg{config_node_id}-in{index}.png"
+    # Determine format and extension based on user selection
+    if save_format == "PNG Level 0 (fastest)":
+        ext = "png"
+        format_name = "PNG"
+        save_kwargs = {"compress_level": 0}
+    elif save_format == "PNG Level 1":
+        ext = "png"
+        format_name = "PNG"
+        save_kwargs = {"compress_level": 1}
+    elif save_format == "PNG Level 9 (smallest)":
+        ext = "png"
+        format_name = "PNG"
+        save_kwargs = {"compress_level": 9}
+    elif save_format == "JPEG (quality 100)":
+        ext = "jpg"
+        format_name = "JPEG"
+        # Convert RGBA to RGB if necessary (JPEG doesn't support alpha)
+        if img.mode == 'RGBA':
+            # Create white background
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            background.paste(img, mask=img.split()[3])  # Use alpha channel as mask
+            img = background
+        elif img.mode != 'RGB':
+            img = img.convert('RGB')
+        save_kwargs = {"quality": 100, "subsampling": 0}
+    elif save_format == "WebP Lossless":
+        ext = "webp"
+        format_name = "WebP"
+        save_kwargs = {"lossless": True, "quality": 100}
+    elif save_format == "BMP (uncompressed)":
+        ext = "bmp"
+        format_name = "BMP"
+        save_kwargs = {}
+    else:
+        # Default to PNG Level 0
+        ext = "png"
+        format_name = "PNG"
+        save_kwargs = {"compress_level": 0}
+    
+    # Generate persistent filename
+    filename = f"cfg{config_node_id}-in{index}.{ext}"
     filepath = os.path.join(compositor_dir, filename)
     
-    # Save the image (overwrite if exists to update the image)
-    img.save(filepath, format="PNG")
+    # Save the image with the specified format
+    img.save(filepath, format=format_name, **save_kwargs)
     
     return filename
 
@@ -67,6 +107,7 @@ class CompositorConfig3:
                 "normalizeHeight": ("BOOLEAN", {"default": False}),
                 "onConfigChanged": ("BOOLEAN", {"label_off": "stop", "label_on": "Grab and Continue", "default": False}),
                 "invertMask": ("BOOLEAN", {"default": False}),
+                "saveFormat": (["PNG Level 0 (fastest)", "PNG Level 1", "PNG Level 9 (smallest)", "JPEG (quality 100)", "WebP Lossless", "BMP (uncompressed)"], {"default": "PNG Level 0 (fastest)"}),
                 "initialized": ("STRING", {"default": ""}),
             },
             "optional": {
@@ -139,6 +180,7 @@ The compositor node
         height = kwargs.pop('height', 512)
         invertMask = kwargs.pop('invertMask', False)
         normalizeHeight = kwargs.pop('normalizeHeight', 512)
+        saveFormat = kwargs.pop('saveFormat', 'PNG Level 0 (fastest)')
         # grabAndContinue, stop
         onConfigChanged = kwargs.pop('onConfigChanged', False)
         node_id = kwargs.pop('node_id', None)
@@ -176,14 +218,14 @@ The compositor node
                     i = tensor2pil(masked[0])
                     # Save image to disk and return filename instead of base64
                     # Use index (0-7) for the input slot number
-                    filename = saveImageToCompositorFolder(i, node_id, index)
+                    filename = saveImageToCompositorFolder(i, node_id, index, saveFormat)
                     input_images.append(filename)
                 else:
                     # no need to apply the mask
                     i = tensor2pil(img)
                     # Save image to disk and return filename instead of base64
                     # Use index (0-7) for the input slot number
-                    filename = saveImageToCompositorFolder(i, node_id, index)
+                    filename = saveImageToCompositorFolder(i, node_id, index, saveFormat)
                     input_images.append(filename)
             else:
                 # input is None, forward

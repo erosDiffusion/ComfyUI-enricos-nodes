@@ -605,6 +605,124 @@ const Editor = (node, fabric) => {
     rotationContainer.appendChild(rotationSlider);
   };
 
+  const createLayerThumbnail = (index) => {
+    const thumbnail = document.createElement("div");
+    thumbnail.id = `layer-thumbnail-${index}`;
+    thumbnail.style.width = "30px";
+    thumbnail.style.height = "30px";
+    thumbnail.style.backgroundColor = "rgba(0, 0, 0, 0.3)";
+    thumbnail.style.borderRadius = "2px";
+    thumbnail.style.backgroundSize = "contain";
+    thumbnail.style.backgroundPosition = "center";
+    thumbnail.style.backgroundRepeat = "no-repeat";
+    thumbnail.style.display = "flex";
+    thumbnail.style.alignItems = "center";
+    thumbnail.style.justifyContent = "center";
+    thumbnail.style.color = COLOR_BUTTON_TEXT;
+    thumbnail.style.fontSize = "9px";
+    thumbnail.style.cursor = "pointer";
+    thumbnail.style.flexShrink = "0";
+
+    thumbnail.onclick = () => selectImageByIndex(index);
+
+    return thumbnail;
+  };
+
+  const createLayerLabel = (index) => {
+    const label = document.createElement("div");
+    label.textContent = `Layer ${index}`;
+    label.style.color = COLOR_BUTTON_TEXT;
+    label.style.fontSize = "10px";
+    label.style.fontWeight = "bold";
+    return label;
+  };
+
+  const createVisibilityButton = (index) => {
+    const visibilityBtn = document.createElement("button");
+    visibilityBtn.id = `layer-visibility-${index}`;
+    visibilityBtn.textContent = "👁";
+    visibilityBtn.style.width = "20px";
+    visibilityBtn.style.height = "20px";
+    visibilityBtn.style.padding = "0";
+    visibilityBtn.style.backgroundColor = COLOR_BUTTON_BG;
+    visibilityBtn.style.color = COLOR_BUTTON_TEXT;
+    visibilityBtn.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
+    visibilityBtn.style.borderRadius = "3px";
+    visibilityBtn.style.cursor = "pointer";
+    visibilityBtn.style.fontSize = "12px";
+    visibilityBtn.style.display = "flex";
+    visibilityBtn.style.alignItems = "center";
+    visibilityBtn.style.justifyContent = "center";
+
+    visibilityBtn.onclick = (e) => {
+      e.stopPropagation();
+      toggleImageVisibility(index);
+    };
+
+    visibilityBtn.onmouseover = () => {
+      visibilityBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
+    };
+
+    visibilityBtn.onmouseout = () => {
+      const isVisible = images[index] && images[index].visible !== false;
+      visibilityBtn.style.backgroundColor = isVisible
+        ? COLOR_BUTTON_BG
+        : COLOR_BUTTON_DISABLED;
+    };
+
+    return visibilityBtn;
+  };
+
+  const createLayerItem = (index) => {
+    const layerItem = document.createElement("div");
+    layerItem.id = `layer-${index}`;
+    layerItem.style.width = "100%";
+    layerItem.style.height = "40px";
+    layerItem.style.backgroundColor = COLOR_BUTTON_BG;
+    layerItem.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
+    layerItem.style.borderRadius = "4px";
+    layerItem.style.display = "flex";
+    layerItem.style.flexDirection = "row";
+    layerItem.style.alignItems = "center";
+    layerItem.style.gap = "5px";
+    layerItem.style.padding = "5px";
+    layerItem.style.boxSizing = "border-box";
+    layerItem.style.position = "relative";
+
+    // Add thumbnail
+    const thumbnail = createLayerThumbnail(index);
+    layerItem.appendChild(thumbnail);
+
+    // Create info and controls container
+    const infoContainer = document.createElement("div");
+    infoContainer.style.display = "flex";
+    infoContainer.style.flexDirection = "row";
+    infoContainer.style.alignItems = "center";
+    infoContainer.style.flex = "1";
+    infoContainer.style.gap = "3px";
+
+    // Add label and visibility button
+    const label = createLayerLabel(index);
+    const visibilityBtn = createVisibilityButton(index);
+
+    infoContainer.appendChild(label);
+    infoContainer.appendChild(visibilityBtn);
+    layerItem.appendChild(infoContainer);
+
+    return layerItem;
+  };
+
+  const createLayersPanelTitle = () => {
+    const title = document.createElement("div");
+    title.textContent = "Layers";
+    title.style.color = COLOR_BUTTON_TEXT;
+    title.style.fontSize = "14px";
+    title.style.fontWeight = "bold";
+    title.style.marginBottom = "5px";
+    title.style.textAlign = "center";
+    return title;
+  };
+
   const createLayersPanel = () => {
     // Create main content wrapper (canvas + layers side by side)
     const contentWrapper = document.createElement("div");
@@ -628,108 +746,13 @@ const Editor = (node, fabric) => {
     layersPanelEl.style.flexDirection = "column";
     layersPanelEl.style.gap = "4px";
 
-    // Create title
-    const title = document.createElement("div");
-    title.textContent = "Layers";
-    title.style.color = COLOR_BUTTON_TEXT;
-    title.style.fontSize = "14px";
-    title.style.fontWeight = "bold";
-    title.style.marginBottom = "5px";
-    title.style.textAlign = "center";
+    // Add title
+    const title = createLayersPanelTitle();
     layersPanelEl.appendChild(title);
 
     // Create layer items (0-8 for 9 images)
     for (let i = 0; i < 9; i++) {
-      const layerItem = document.createElement("div");
-      layerItem.id = `layer-${i}`;
-      layerItem.style.width = "100%";
-      layerItem.style.height = "40px"; // Half of original 120px
-      layerItem.style.backgroundColor = COLOR_BUTTON_BG;
-      layerItem.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
-      layerItem.style.borderRadius = "4px";
-      layerItem.style.display = "flex";
-      layerItem.style.flexDirection = "row";
-      layerItem.style.alignItems = "center";
-      layerItem.style.gap = "5px";
-      layerItem.style.padding = "5px";
-      layerItem.style.boxSizing = "border-box";
-      layerItem.style.position = "relative";
-
-      // Thumbnail container (clickable to select)
-      const thumbnail = document.createElement("div");
-      thumbnail.id = `layer-thumbnail-${i}`;
-      thumbnail.style.width = "30px";
-      thumbnail.style.height = "30px";
-      thumbnail.style.backgroundColor = "rgba(0, 0, 0, 0.3)";
-      thumbnail.style.borderRadius = "2px";
-      thumbnail.style.backgroundSize = "contain";
-      thumbnail.style.backgroundPosition = "center";
-      thumbnail.style.backgroundRepeat = "no-repeat";
-      thumbnail.style.display = "flex";
-      thumbnail.style.alignItems = "center";
-      thumbnail.style.justifyContent = "center";
-      thumbnail.style.color = COLOR_BUTTON_TEXT;
-      thumbnail.style.fontSize = "9px";
-      thumbnail.style.cursor = "pointer";
-      thumbnail.style.flexShrink = "0";
-      thumbnail.textContent = "Empty";
-      layerItem.appendChild(thumbnail);
-
-      // Click handler for thumbnail
-      thumbnail.onclick = () => selectImageByIndex(i);
-
-      // Info and controls container
-      const infoContainer = document.createElement("div");
-      infoContainer.style.display = "flex";
-      infoContainer.style.flexDirection = "row";
-      infoContainer.style.alignItems = "center";
-      infoContainer.style.flex = "1";
-      infoContainer.style.gap = "3px";
-      layerItem.appendChild(infoContainer);
-
-      // Layer label
-      const label = document.createElement("div");
-      label.textContent = `Layer ${i}`;
-      label.style.color = COLOR_BUTTON_TEXT;
-      label.style.fontSize = "10px";
-      label.style.fontWeight = "bold";
-      infoContainer.appendChild(label);
-
-      // Visibility toggle button
-      const visibilityBtn = document.createElement("button");
-      visibilityBtn.id = `layer-visibility-${i}`;
-      visibilityBtn.textContent = "👁";
-      visibilityBtn.style.width = "20px";
-      visibilityBtn.style.height = "20px";
-      visibilityBtn.style.padding = "0";
-      visibilityBtn.style.backgroundColor = COLOR_BUTTON_BG;
-      visibilityBtn.style.color = COLOR_BUTTON_TEXT;
-      visibilityBtn.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
-      visibilityBtn.style.borderRadius = "3px";
-      visibilityBtn.style.cursor = "pointer";
-      visibilityBtn.style.fontSize = "12px";
-      visibilityBtn.style.display = "flex";
-      visibilityBtn.style.alignItems = "center";
-      visibilityBtn.style.justifyContent = "center";
-
-      visibilityBtn.onclick = (e) => {
-        e.stopPropagation(); // Prevent layer selection
-        toggleImageVisibility(i);
-      };
-
-      visibilityBtn.onmouseover = () => {
-        visibilityBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
-      };
-
-      visibilityBtn.onmouseout = () => {
-        const isVisible = images[i] && images[i].visible !== false;
-        visibilityBtn.style.backgroundColor = isVisible
-          ? COLOR_BUTTON_BG
-          : COLOR_BUTTON_DISABLED;
-      };
-
-      infoContainer.appendChild(visibilityBtn);
-
+      const layerItem = createLayerItem(i);
       layersPanelEl.appendChild(layerItem);
     }
 
@@ -751,7 +774,7 @@ const Editor = (node, fabric) => {
       }
     } else {
       thumbnail.style.backgroundImage = "none";
-      thumbnail.textContent = "Empty";
+      thumbnail.textContent = "";
     }
   };
 
@@ -799,6 +822,14 @@ const Editor = (node, fabric) => {
     }
 
     fabricInstance.renderAll();
+
+    // Save the changes (same as object:modified event)
+    const dataUrl = grabSnapshot();
+    showSavingIndicator();
+    uploadSnapshot(dataUrl, imageNameWidget.value).then(() => {
+      hideSavingIndicator();
+      updateSeedValue();
+    });
   };
 
   const createCanvasElement = () => {
@@ -1020,6 +1051,13 @@ const Editor = (node, fabric) => {
     // Update layer thumbnail
     updateLayerThumbnail(index);
 
+    // Update visibility button state if image is hidden
+    const visibilityBtn = document.getElementById(`layer-visibility-${index}`);
+    if (visibilityBtn && img.visible === false) {
+      visibilityBtn.textContent = "👁‍🗨";
+      visibilityBtn.style.backgroundColor = COLOR_BUTTON_DISABLED;
+    }
+
     fabricInstance.renderAll();
   };
 
@@ -1061,6 +1099,10 @@ const Editor = (node, fabric) => {
       xheight: ref.height,
       skewY: ref.skewY,
       skewX: ref.skewX,
+      opacity: ref.opacity,
+      visible: ref.visible,
+      selectable: ref.selectable,
+      evented: ref.evented,
     };
   };
 

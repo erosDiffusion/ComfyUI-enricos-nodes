@@ -309,6 +309,9 @@ const Editor = (node, fabric) => {
   let rotationSlider = null;
   let rotationLabel = null;
   let layersPanelEl = null;
+  let snapBtn = null; // Reference to snap button for UI updates
+  let gridSizeLabel = null; // Reference to grid size label
+  let gridSizeSlider = null; // Reference to grid size slider
   let isUpdatingRotationSlider = false; // Flag to prevent circular updates
   let snapEnabled = SNAP_ENABLED; // Editor property for snap to grid
   let gridSize = GRID_SIZE; // Editor property for grid size
@@ -493,7 +496,7 @@ const Editor = (node, fabric) => {
     const gridControlGroup = createVerticalButtonGroup(toolbarEl);
 
     // Create and append Snap button with special toggle behavior
-    const snapBtn = createToolbarButton(
+    snapBtn = createToolbarButton(
       snapEnabled ? "Snap: ON" : "Snap: OFF",
       () => {
         snapEnabled = !snapEnabled;
@@ -532,14 +535,14 @@ const Editor = (node, fabric) => {
     gridSizeContainer.style.minWidth = "80px";
     gridControlGroup.appendChild(gridSizeContainer);
 
-    const gridSizeLabel = document.createElement("label");
+    gridSizeLabel = document.createElement("label");
     gridSizeLabel.textContent = `Grid: ${gridSize}px`;
     gridSizeLabel.style.color = COLOR_BUTTON_TEXT;
     gridSizeLabel.style.fontSize = "10px";
     gridSizeLabel.style.textAlign = "center";
     gridSizeContainer.appendChild(gridSizeLabel);
 
-    const gridSizeSlider = document.createElement("input");
+    gridSizeSlider = document.createElement("input");
     gridSizeSlider.type = "range";
     gridSizeSlider.min = "1";
     gridSizeSlider.max = "50";
@@ -1106,12 +1109,9 @@ const Editor = (node, fabric) => {
     const imageName = buildImageName(app.graph.id, node.id, "png", false);
     imageNameWidget.value = imageName;
 
-    // Store both fabric data and imagePositions
-    const widgetData = {
-      fabricData: JSON.stringify(fabricInstance),
-      imagePositions: imagePositions,
-    };
-    fabricDataWidget.value = JSON.stringify(widgetData);
+    // Store custom compositor data instead of full fabric JSON
+    const compositorData = serializeCompositorData();
+    fabricDataWidget.value = JSON.stringify(compositorData);
 
     const dataUrl = grabSnapshot();
     await uploadSnapshot(dataUrl, imageNameWidget.value, true);
@@ -1130,11 +1130,15 @@ const Editor = (node, fabric) => {
   };
 
   const initialize = () => {
-    // Try to restore imagePositions from saved data
+    // Try to restore compositor data from saved state
     restoreImagePositions();
 
     createContainer();
     createToolbar();
+    
+    // Update UI elements to reflect restored state
+    updateUIAfterRestore();
+    
     createCanvasElement();
     const contentWrapper = createLayersPanel();
     appendCanvasToContainer(contentWrapper);
@@ -1156,25 +1160,36 @@ const Editor = (node, fabric) => {
     node.setDirtyCanvas(true, true);
   };
 
+  const updateUIAfterRestore = () => {
+    // Update snap button to reflect restored state
+    if (snapBtn) {
+      snapBtn.textContent = snapEnabled ? "Snap: ON" : "Snap: OFF";
+      snapBtn.style.backgroundColor = snapEnabled
+        ? COLOR_BUTTON_ACTIVE
+        : COLOR_BUTTON_DISABLED;
+    }
+
+    // Update grid size slider and label
+    if (gridSizeSlider) {
+      gridSizeSlider.value = gridSize;
+    }
+    if (gridSizeLabel) {
+      gridSizeLabel.textContent = `Grid: ${gridSize}px`;
+    }
+  };
+
   const restoreImagePositions = () => {
     try {
       const widgetValue = fabricDataWidget.value;
       if (widgetValue && typeof widgetValue === "string") {
-        const widgetData = JSON.parse(widgetValue);
-        if (
-          widgetData &&
-          widgetData.imagePositions &&
-          Array.isArray(widgetData.imagePositions)
-        ) {
-          imagePositions = widgetData.imagePositions;
-          console.log(
-            "Compositor3Debug: restored imagePositions",
-            imagePositions
-          );
+        const data = deserializeCompositorData(widgetValue);
+        if (data) {
+          // imagePositions, snapEnabled, and gridSize are restored in deserializeCompositorData
+          console.log("Compositor3Debug: restored compositor data");
         }
       }
     } catch (e) {
-      console.log("Compositor3Debug: could not restore imagePositions", e);
+      console.log("Compositor3Debug: could not restore compositor data", e);
     }
   };
 
@@ -1296,8 +1311,75 @@ const Editor = (node, fabric) => {
     return images[index] != null;
   };
 
-  const appendImage = (b64, index) => {
-    fabric.Image.fromURL(b64, (img) => fromUrlCallback(img, index));
+  const createPlaceholderImage = (index, callback) => {
+    // Create a simple placeholder image using a canvas
+    const canvas = document.createElement('canvas');
+    canvas.width = 200;
+    canvas.height = 200;
+    const ctx = canvas.getContext('2d');
+    
+    // Draw a gray rectangle with "Missing" text
+    ctx.fillStyle = '#444444';
+    ctx.fillRect(0, 0, 200, 200);
+    
+    ctx.strokeStyle = '#888888';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(5, 5, 190, 190);
+    
+    ctx.fillStyle = '#CCCCCC';
+    ctx.font = 'bold 24px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Missing', 100, 85);
+    ctx.font = '16px Arial';
+    ctx.fillText(`Image ${index + 1}`, 100, 115);
+    
+    // Convert canvas to data URL and load as Fabric image
+    const dataUrl = canvas.toDataURL();
+    fabric.Image.fromURL(dataUrl, callback);
+  };
+
+  const appendImage = (imageSource, index) => {
+    // imageSource can be either:
+    // 1. A base64 data URL (starts with "data:image/")
+    // 2. A filename from temp/compositor folder
+    // 3. null/undefined
+    
+    if (!imageSource) {
+      console.log(`Compositor3Debug: No image source for index ${index}`);
+      return;
+    }
+    
+    let imageUrl;
+    if (imageSource.startsWith('data:image/')) {
+      // It's a base64 data URL, use directly
+      imageUrl = imageSource;
+    } else {
+      // It's a filename, construct the URL to temp/compositor folder
+      imageUrl = `/view?filename=${encodeURIComponent(imageSource)}&type=temp&subfolder=compositor`;
+    }
+    
+    console.log(`Compositor3Debug: Loading image ${index} from ${imageUrl.substring(0, 100)}...`);
+    
+    // Add a timestamp to force cache busting for file-based URLs
+    // This helps when the workflow is loaded from localStorage and files might be stale
+    const cacheBustUrl = imageSource.startsWith('data:image/') 
+      ? imageUrl 
+      : `${imageUrl}&t=${Date.now()}`;
+    
+    fabric.Image.fromURL(cacheBustUrl, 
+      (img) => {
+        // Check if image loaded successfully
+        if (!img || !img.getElement() || img.getElement().naturalWidth === 0) {
+          console.warn(`Compositor3Debug: Failed to load image ${index} (file may not exist yet), using placeholder`);
+          createPlaceholderImage(index, (placeholderImg) => fromUrlCallback(placeholderImg, index));
+        } else {
+          console.log(`Compositor3Debug: Successfully loaded image ${index}`);
+          fromUrlCallback(img, index);
+        }
+      },
+      { crossOrigin: 'anonymous' }
+    );
   };
 
   const getCurrentTransforms = (index) => {
@@ -1340,6 +1422,104 @@ const Editor = (node, fabric) => {
       skewY: ref.skewY,
       skewX: ref.skewX,
     };
+  };
+
+  const serializeCompositorData = () => {
+    // Serialize all necessary data to restore the compositor state
+    // Note: width, height, padding come from config, so we don't store them
+    const transforms = [];
+    const bboxes = [];
+    const imageNames = [];
+
+    for (let i = 0; i < images.length; i++) {
+      if (images[i]) {
+        try {
+          transforms.push(getCurrentTransforms(i));
+          bboxes.push(getBoundingBox(i));
+          // Store image name/source if available
+          const imgElement = images[i].getElement();
+          if (imgElement && imgElement.src) {
+            const src = imgElement.src;
+            // Extract filename from URL or keep base64 as-is
+            if (src.startsWith('data:image/')) {
+              // Keep base64 data URLs as-is for backward compatibility
+              imageNames.push(src);
+            } else {
+              // Extract filename from URL like /view?filename=config_123_image1.png&type=temp&subfolder=compositor
+              try {
+                const url = new URL(src, window.location.origin);
+                const filename = url.searchParams.get('filename');
+                imageNames.push(filename || src);
+              } catch (e) {
+                // If URL parsing fails, keep original
+                imageNames.push(src);
+              }
+            }
+          } else {
+            imageNames.push(null);
+          }
+        } catch (e) {
+          transforms.push(null);
+          bboxes.push(null);
+          imageNames.push(null);
+        }
+      } else {
+        transforms.push(null);
+        bboxes.push(null);
+        imageNames.push(null);
+      }
+    }
+
+    return {
+      transforms: transforms,
+      bboxes: bboxes,
+      imageNames: imageNames,
+      imagePositions: imagePositions,
+      snapEnabled: snapEnabled,
+      gridSize: gridSize,
+    };
+  };
+
+  const deserializeCompositorData = (dataString) => {
+    try {
+      const data = JSON.parse(dataString);
+      
+      // Restore imagePositions if available
+      if (data.imagePositions && Array.isArray(data.imagePositions)) {
+        imagePositions = data.imagePositions;
+        console.log("Compositor3Debug: restored imagePositions", imagePositions);
+      }
+
+      // Restore snap settings if available
+      if (data.snapEnabled !== undefined) {
+        snapEnabled = data.snapEnabled;
+        console.log("Compositor3Debug: restored snapEnabled", snapEnabled);
+      }
+
+      if (data.gridSize !== undefined) {
+        gridSize = data.gridSize;
+        console.log("Compositor3Debug: restored gridSize", gridSize);
+      }
+
+      // Restore images from imageNames if available
+      if (data.imageNames && Array.isArray(data.imageNames)) {
+        console.log("Compositor3Debug: restoring images from imageNames", data.imageNames);
+        data.imageNames.forEach((imageName, index) => {
+          if (imageName) {
+            // Use appendImage which already handles filename vs base64 and placeholders
+            // NOTE: When workflow is loaded from localStorage before backend runs,
+            // image files may not exist yet, so placeholders will be shown initially.
+            // They will be replaced with actual images once the backend runs.
+            appendImage(imageName, index);
+          }
+        });
+      }
+
+      return data;
+    } catch (e) {
+      console.log("Compositor3Debug: could not deserialize compositor data", e);
+      return null;
+    }
   };
 
   const resetTransforms = (index) => {
@@ -1443,12 +1623,10 @@ const Editor = (node, fabric) => {
   };
 
   const updateSeedValue = () => {
-    // Store imagePositions along with a random seed to trigger update
-    const widgetData = {
-      seed: Math.random(),
-      imagePositions: imagePositions,
-    };
-    fabricDataWidget.value = JSON.stringify(widgetData);
+    // Store custom compositor data with a random seed to trigger update
+    const compositorData = serializeCompositorData();
+    compositorData.seed = Math.random(); // Add seed to trigger change detection
+    fabricDataWidget.value = JSON.stringify(compositorData);
   };
 
   const updateRotationSlider = () => {

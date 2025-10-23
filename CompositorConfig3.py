@@ -7,6 +7,7 @@ import folder_paths
 import torch
 import torch.nn.functional as F
 import math
+import os
 from comfy.utils import common_upscale
 
 MAX_RESOLUTION = nodes.MAX_RESOLUTION
@@ -24,6 +25,33 @@ def toBase64ImgUrl(img):
     img_types = bytesIO.getvalue()
     img_base64 = base64.b64encode(img_types)
     return f"data:image/png;base64,{img_base64.decode('utf-8')}"
+
+
+# Save image to temp/compositor folder and return filename
+def saveImageToCompositorFolder(img, config_node_id, index):
+    """
+    Saves a PIL image to the temp/compositor folder with a persistent filename.
+    Format: cfg{config_node_id}-in{index}.png
+    This ensures the same filename is used across workflow loads.
+    The filename is based on the config node ID and input index, making it persistent.
+    Returns the filename (not full path) so frontend can load it.
+    """
+    # Get the temp directory
+    temp_dir = folder_paths.get_temp_directory()
+    compositor_dir = os.path.join(temp_dir, "compositor")
+    
+    # Ensure the compositor directory exists
+    os.makedirs(compositor_dir, exist_ok=True)
+    
+    # Generate persistent filename based on config node ID and input index
+    # This ensures the same filename is reused when the workflow is loaded
+    filename = f"cfg{config_node_id}-in{index}.png"
+    filepath = os.path.join(compositor_dir, filename)
+    
+    # Save the image (overwrite if exists to update the image)
+    img.save(filepath, format="PNG")
+    
+    return filename
 
 
 class CompositorConfig3:
@@ -121,13 +149,11 @@ The compositor node
 
         # apply the masks to the images if any so that we get a rgba
         # then pass the rgba in the return value
-        counter = 0
-        for (img, mask) in zip(images, masks):
+        for index, (img, mask) in enumerate(zip(images, masks)):
             if img is not None:
 
                 if normalizeHeight:
-                    # print(counter)
-                    counter = counter+1
+                    # print(index)
                     #img = self.upscale(img, "lanczos", height, "height", "disabled")
                     processor = ImageProcessor()
                     oldimg = img
@@ -148,11 +174,17 @@ The compositor node
                     # self.masked = masked[0]
 
                     i = tensor2pil(masked[0])
-                    input_images.append(toBase64ImgUrl(i))
+                    # Save image to disk and return filename instead of base64
+                    # Use index (0-7) for the input slot number
+                    filename = saveImageToCompositorFolder(i, node_id, index)
+                    input_images.append(filename)
                 else:
                     # no need to apply the mask
                     i = tensor2pil(img)
-                    input_images.append(toBase64ImgUrl(i))
+                    # Save image to disk and return filename instead of base64
+                    # Use index (0-7) for the input slot number
+                    filename = saveImageToCompositorFolder(i, node_id, index)
+                    input_images.append(filename)
             else:
                 # input is None, forward
                 input_images.append(img)

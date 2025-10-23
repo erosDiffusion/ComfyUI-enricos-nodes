@@ -6,6 +6,7 @@ from .CompositorTransformsOut3 import CompositorTransformsOutV3
 from .CompositorMasksOutputV3 import CompositorMasksOutputV3
 from .CompositorColorPicker import CompositorColorPicker
 from .ImageColorSampler import ImageColorSampler
+from .Compositor3Debug import Compositor3Debug
 
 NODE_CLASS_MAPPINGS = {
     "Compositor3": Compositor3,
@@ -15,6 +16,7 @@ NODE_CLASS_MAPPINGS = {
     "CompositorMasksOutputV3": CompositorMasksOutputV3,
     "CompositorColorPicker": CompositorColorPicker,
     "ImageColorSampler": ImageColorSampler,
+    "Compositor3Debug": Compositor3Debug,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -25,6 +27,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CompositorMasksOutputV3": "💜 Compositor Masks Output (V3)",
     "CompositorColorPicker": "💜 Compositor Color Picker",
     "ImageColorSampler": "💜 Image Color Sampler",
+    "Compositor3Debug": "💜 Compositor Debug",
 }
 
 EXTENSION_NAME = "Enrico"

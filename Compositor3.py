@@ -2,6 +2,7 @@ import folder_paths
 from PIL import Image, ImageOps
 import numpy as np
 import torch
+import os  # Added import for file validation
 from comfy_execution.graph import ExecutionBlocker
 import threading
 from server import PromptServer
@@ -193,7 +194,7 @@ class Compositor3:
     @classmethod
     def IS_CHANGED(cls, **kwargs):
         fabricData = kwargs.get("fabricData")
-        # print(fabricData)
+        print(fabricData)
         return fabricData
 
     @classmethod
@@ -289,6 +290,10 @@ class Compositor3:
             canvas_height = 512  # Default canvas height
             
             try:
+                # Ensure fabricData is not None before parsing
+                if fabricData is None:
+                    print("fabricData is None, defaulting to empty JSON")
+                    fabricData = "{}"
                 fabric_data_parsed = json.loads(fabricData)
                 # Get canvas dimensions from fabric data if available
                 canvas_width = int(fabric_data_parsed.get("width", 512))

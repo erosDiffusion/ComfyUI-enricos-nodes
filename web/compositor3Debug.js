@@ -621,12 +621,12 @@ const Editor = (node, fabric) => {
       HEIGHT + PADDING * 2 + COMPOSITION_BORDER_SIZE * 2 + "px";
     layersPanelEl.style.backgroundColor = COLOR_TOOLBAR_BG;
     layersPanelEl.style.borderRadius = "4px";
-    layersPanelEl.style.padding = "10px";
+    layersPanelEl.style.padding = "4px";
     layersPanelEl.style.boxSizing = "border-box";
     layersPanelEl.style.overflowY = "auto";
     layersPanelEl.style.display = "flex";
     layersPanelEl.style.flexDirection = "column";
-    layersPanelEl.style.gap = "8px";
+    layersPanelEl.style.gap = "4px";
 
     // Create title
     const title = document.createElement("div");
@@ -643,32 +643,23 @@ const Editor = (node, fabric) => {
       const layerItem = document.createElement("div");
       layerItem.id = `layer-${i}`;
       layerItem.style.width = "100%";
-      layerItem.style.height = "120px";
+      layerItem.style.height = "40px"; // Half of original 120px
       layerItem.style.backgroundColor = COLOR_BUTTON_BG;
       layerItem.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
       layerItem.style.borderRadius = "4px";
-      layerItem.style.cursor = "pointer";
       layerItem.style.display = "flex";
-      layerItem.style.flexDirection = "column";
+      layerItem.style.flexDirection = "row";
       layerItem.style.alignItems = "center";
-      layerItem.style.justifyContent = "center";
+      layerItem.style.gap = "5px";
       layerItem.style.padding = "5px";
       layerItem.style.boxSizing = "border-box";
       layerItem.style.position = "relative";
 
-      // Layer label
-      const label = document.createElement("div");
-      label.textContent = `Layer ${i}`;
-      label.style.color = COLOR_BUTTON_TEXT;
-      label.style.fontSize = "10px";
-      label.style.marginBottom = "5px";
-      layerItem.appendChild(label);
-
-      // Thumbnail container
+      // Thumbnail container (clickable to select)
       const thumbnail = document.createElement("div");
       thumbnail.id = `layer-thumbnail-${i}`;
-      thumbnail.style.width = "100px";
-      thumbnail.style.height = "100px";
+      thumbnail.style.width = "30px";
+      thumbnail.style.height = "30px";
       thumbnail.style.backgroundColor = "rgba(0, 0, 0, 0.3)";
       thumbnail.style.borderRadius = "2px";
       thumbnail.style.backgroundSize = "contain";
@@ -678,23 +669,66 @@ const Editor = (node, fabric) => {
       thumbnail.style.alignItems = "center";
       thumbnail.style.justifyContent = "center";
       thumbnail.style.color = COLOR_BUTTON_TEXT;
-      thumbnail.style.fontSize = "10px";
+      thumbnail.style.fontSize = "9px";
+      thumbnail.style.cursor = "pointer";
+      thumbnail.style.flexShrink = "0";
       thumbnail.textContent = "Empty";
       layerItem.appendChild(thumbnail);
 
-      // Click handler
-      layerItem.onclick = () => selectImageByIndex(i);
+      // Click handler for thumbnail
+      thumbnail.onclick = () => selectImageByIndex(i);
 
-      // Hover effect
-      layerItem.onmouseover = () => {
-        if (images[i]) {
-          layerItem.style.backgroundColor = COLOR_BUTTON_HOVER;
-        }
+      // Info and controls container
+      const infoContainer = document.createElement("div");
+      infoContainer.style.display = "flex";
+      infoContainer.style.flexDirection = "row";
+      infoContainer.style.alignItems = "center";
+      infoContainer.style.flex = "1";
+      infoContainer.style.gap = "3px";
+      layerItem.appendChild(infoContainer);
+
+      // Layer label
+      const label = document.createElement("div");
+      label.textContent = `Layer ${i}`;
+      label.style.color = COLOR_BUTTON_TEXT;
+      label.style.fontSize = "10px";
+      label.style.fontWeight = "bold";
+      infoContainer.appendChild(label);
+
+      // Visibility toggle button
+      const visibilityBtn = document.createElement("button");
+      visibilityBtn.id = `layer-visibility-${i}`;
+      visibilityBtn.textContent = "👁";
+      visibilityBtn.style.width = "20px";
+      visibilityBtn.style.height = "20px";
+      visibilityBtn.style.padding = "0";
+      visibilityBtn.style.backgroundColor = COLOR_BUTTON_BG;
+      visibilityBtn.style.color = COLOR_BUTTON_TEXT;
+      visibilityBtn.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
+      visibilityBtn.style.borderRadius = "3px";
+      visibilityBtn.style.cursor = "pointer";
+      visibilityBtn.style.fontSize = "12px";
+      visibilityBtn.style.display = "flex";
+      visibilityBtn.style.alignItems = "center";
+      visibilityBtn.style.justifyContent = "center";
+
+      visibilityBtn.onclick = (e) => {
+        e.stopPropagation(); // Prevent layer selection
+        toggleImageVisibility(i);
       };
 
-      layerItem.onmouseout = () => {
-        layerItem.style.backgroundColor = COLOR_BUTTON_BG;
+      visibilityBtn.onmouseover = () => {
+        visibilityBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
       };
+
+      visibilityBtn.onmouseout = () => {
+        const isVisible = images[i] && images[i].visible !== false;
+        visibilityBtn.style.backgroundColor = isVisible
+          ? COLOR_BUTTON_BG
+          : COLOR_BUTTON_DISABLED;
+      };
+
+      infoContainer.appendChild(visibilityBtn);
 
       layersPanelEl.appendChild(layerItem);
     }
@@ -722,12 +756,49 @@ const Editor = (node, fabric) => {
   };
 
   const selectImageByIndex = (index) => {
-    if (images[index]) {
+    if (images[index] && images[index].visible !== false) {
       fabricInstance.setActiveObject(images[index]);
       fabricInstance.renderAll();
     } else {
-      console.log(`Layer ${index} is empty`);
+      console.log(`Layer ${index} is empty or hidden`);
     }
+  };
+
+  const toggleImageVisibility = (index) => {
+    if (!images[index]) {
+      console.log(`Layer ${index} is empty`);
+      return;
+    }
+
+    const img = images[index];
+    const isCurrentlyVisible = img.visible !== false;
+
+    // Toggle visibility
+    img.set({
+      opacity: isCurrentlyVisible ? 0 : 1,
+      selectable: !isCurrentlyVisible,
+      evented: !isCurrentlyVisible,
+      visible: !isCurrentlyVisible,
+    });
+
+    // Update visibility button appearance
+    const visibilityBtn = document.getElementById(`layer-visibility-${index}`);
+    if (visibilityBtn) {
+      visibilityBtn.textContent = isCurrentlyVisible ? "👁‍🗨" : "👁";
+      visibilityBtn.style.backgroundColor = isCurrentlyVisible
+        ? COLOR_BUTTON_DISABLED
+        : COLOR_BUTTON_BG;
+    }
+
+    // Deselect if hiding the currently selected object
+    if (isCurrentlyVisible) {
+      const activeObject = fabricInstance.getActiveObject();
+      if (activeObject === img) {
+        fabricInstance.discardActiveObject();
+      }
+    }
+
+    fabricInstance.renderAll();
   };
 
   const createCanvasElement = () => {

@@ -313,6 +313,8 @@ const Editor = (node, fabric) => {
   let snapEnabled = SNAP_ENABLED; // Editor property for snap to grid
   let gridSize = GRID_SIZE; // Editor property for grid size
   let images = [null, null, null, null, null, null, null, null, null];
+  let imagePositions = [0, 1, 2, 3, 4, 5, 6, 7, 8]; // Z-index stacking order (0=bottom, 8=top)
+  let draggedLayerIndex = null; // Track which layer is being dragged
 
   const imageNameWidget = getImageNameWidget(node);
   const fabricDataWidget = getFabricDataWidget(node);
@@ -673,6 +675,54 @@ const Editor = (node, fabric) => {
     return visibilityBtn;
   };
 
+  const createDragHandleButton = (index) => {
+    const dragBtn = document.createElement("button");
+    dragBtn.id = `layer-drag-${index}`;
+    dragBtn.textContent = "☰";
+    dragBtn.style.width = "20px";
+    dragBtn.style.height = "20px";
+    dragBtn.style.padding = "0";
+    dragBtn.style.backgroundColor = COLOR_BUTTON_BG;
+    dragBtn.style.color = COLOR_BUTTON_TEXT;
+    dragBtn.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
+    dragBtn.style.borderRadius = "3px";
+    dragBtn.style.cursor = "grab";
+    dragBtn.style.fontSize = "14px";
+    dragBtn.style.display = "flex";
+    dragBtn.style.alignItems = "center";
+    dragBtn.style.justifyContent = "center";
+    dragBtn.draggable = true;
+
+    dragBtn.ondragstart = (e) => {
+      draggedLayerIndex = index;
+      dragBtn.style.cursor = "grabbing";
+      const layerItem = document.getElementById(`layer-${index}`);
+      if (layerItem) {
+        layerItem.style.opacity = "0.5";
+      }
+      e.dataTransfer.effectAllowed = "move";
+    };
+
+    dragBtn.ondragend = (e) => {
+      dragBtn.style.cursor = "grab";
+      const layerItem = document.getElementById(`layer-${index}`);
+      if (layerItem) {
+        layerItem.style.opacity = "1";
+      }
+      draggedLayerIndex = null;
+    };
+
+    dragBtn.onmouseover = () => {
+      dragBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
+    };
+
+    dragBtn.onmouseout = () => {
+      dragBtn.style.backgroundColor = COLOR_BUTTON_BG;
+    };
+
+    return dragBtn;
+  };
+
   const createLayerItem = (index) => {
     const layerItem = document.createElement("div");
     layerItem.id = `layer-${index}`;
@@ -688,6 +738,35 @@ const Editor = (node, fabric) => {
     layerItem.style.padding = "5px";
     layerItem.style.boxSizing = "border-box";
     layerItem.style.position = "relative";
+
+    // Add drag and drop event handlers to the layer item
+    layerItem.ondragover = (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = "move";
+      if (draggedLayerIndex !== null && draggedLayerIndex !== index) {
+        layerItem.style.borderColor = COLOR_BUTTON_ACTIVE;
+        layerItem.style.borderWidth = "2px";
+      }
+    };
+
+    layerItem.ondragleave = (e) => {
+      layerItem.style.borderColor = COLOR_BUTTON_BORDER;
+      layerItem.style.borderWidth = "1px";
+    };
+
+    layerItem.ondrop = (e) => {
+      e.preventDefault();
+      layerItem.style.borderColor = COLOR_BUTTON_BORDER;
+      layerItem.style.borderWidth = "1px";
+
+      if (draggedLayerIndex !== null && draggedLayerIndex !== index) {
+        swapLayerPositions(draggedLayerIndex, index);
+      }
+    };
+
+    // Add drag handle button
+    const dragHandle = createDragHandleButton(index);
+    layerItem.appendChild(dragHandle);
 
     // Add thumbnail
     const thumbnail = createLayerThumbnail(index);
@@ -750,11 +829,19 @@ const Editor = (node, fabric) => {
     const title = createLayersPanelTitle();
     layersPanelEl.appendChild(title);
 
-    // Create layer items (0-8 for 9 images)
-    for (let i = 0; i < 9; i++) {
-      const layerItem = createLayerItem(i);
+    // Create layer items in order based on imagePositions (highest position first)
+    const indexPositionPairs = imagePositions.map((position, index) => ({
+      index,
+      position,
+    }));
+
+    // Sort by position (higher position = higher in UI list)
+    indexPositionPairs.sort((a, b) => b.position - a.position);
+
+    indexPositionPairs.forEach(({ index }) => {
+      const layerItem = createLayerItem(index);
       layersPanelEl.appendChild(layerItem);
-    }
+    });
 
     contentWrapper.appendChild(layersPanelEl);
 
@@ -830,6 +917,102 @@ const Editor = (node, fabric) => {
       hideSavingIndicator();
       updateSeedValue();
     });
+  };
+
+  const swapLayerPositions = (fromIndex, toIndex) => {
+    // Swap the positions in the imagePositions array
+    const fromPosition = imagePositions[fromIndex];
+    const toPosition = imagePositions[toIndex];
+
+    imagePositions[fromIndex] = toPosition;
+    imagePositions[toIndex] = fromPosition;
+
+    // Update the layer panel UI to reflect new order
+    updateLayerPanelOrder();
+
+    // Update the canvas z-order based on new positions
+    updateCanvasZOrder();
+
+    // Save the changes
+    const dataUrl = grabSnapshot();
+    showSavingIndicator();
+    uploadSnapshot(dataUrl, imageNameWidget.value).then(() => {
+      hideSavingIndicator();
+      updateSeedValue();
+    });
+  };
+
+  const updateLayerPanelOrder = () => {
+    // Create array of [index, position] pairs and sort by position (highest first for UI)
+    const indexPositionPairs = imagePositions.map((position, index) => ({
+      index,
+      position,
+    }));
+
+    // Sort by position (higher position = higher in UI list, since higher = more forward)
+    indexPositionPairs.sort((a, b) => b.position - a.position);
+
+    // Get the title element (first child)
+    const title = layersPanelEl.firstChild;
+
+    // Remove all layer items but keep the title
+    while (layersPanelEl.children.length > 1) {
+      layersPanelEl.removeChild(layersPanelEl.lastChild);
+    }
+
+    // Re-append layer items in the new order
+    indexPositionPairs.forEach(({ index }) => {
+      const layerItem = createLayerItem(index);
+      layersPanelEl.appendChild(layerItem);
+
+      // Update thumbnail in case it was already loaded
+      updateLayerThumbnail(index);
+
+      // Update visibility button state
+      if (images[index]) {
+        const visibilityBtn = document.getElementById(
+          `layer-visibility-${index}`
+        );
+        if (visibilityBtn && images[index].visible === false) {
+          visibilityBtn.textContent = "👁‍🗨";
+          visibilityBtn.style.backgroundColor = COLOR_BUTTON_DISABLED;
+        }
+      }
+    });
+  };
+
+  const updateCanvasZOrder = () => {
+    // Create array of [index, position] pairs
+    const indexPositionPairs = imagePositions.map((position, index) => ({
+      index,
+      position,
+    }));
+
+    // Sort by position (lower position = further back)
+    indexPositionPairs.sort((a, b) => a.position - b.position);
+
+    // Reorder objects on canvas
+    // First, move composition area and border to back
+    if (compositionArea) {
+      fabricInstance.sendToBack(compositionArea);
+    }
+    if (compositionBorder) {
+      fabricInstance.bringToFront(compositionBorder);
+    }
+
+    // Then arrange images according to their positions
+    indexPositionPairs.forEach(({ index }) => {
+      if (images[index]) {
+        fabricInstance.bringToFront(images[index]);
+      }
+    });
+
+    // Finally bring border to front
+    if (compositionBorder) {
+      fabricInstance.bringToFront(compositionBorder);
+    }
+
+    fabricInstance.renderAll();
   };
 
   const createCanvasElement = () => {
@@ -922,7 +1105,13 @@ const Editor = (node, fabric) => {
   const updateWidgetValues = async (event, node) => {
     const imageName = buildImageName(app.graph.id, node.id, "png", false);
     imageNameWidget.value = imageName;
-    fabricDataWidget.value = JSON.stringify(fabricInstance);
+
+    // Store both fabric data and imagePositions
+    const widgetData = {
+      fabricData: JSON.stringify(fabricInstance),
+      imagePositions: imagePositions,
+    };
+    fabricDataWidget.value = JSON.stringify(widgetData);
 
     const dataUrl = grabSnapshot();
     await uploadSnapshot(dataUrl, imageNameWidget.value, true);
@@ -941,6 +1130,9 @@ const Editor = (node, fabric) => {
   };
 
   const initialize = () => {
+    // Try to restore imagePositions from saved data
+    restoreImagePositions();
+
     createContainer();
     createToolbar();
     createCanvasElement();
@@ -962,6 +1154,28 @@ const Editor = (node, fabric) => {
 
     fabricInstance.renderAll();
     node.setDirtyCanvas(true, true);
+  };
+
+  const restoreImagePositions = () => {
+    try {
+      const widgetValue = fabricDataWidget.value;
+      if (widgetValue && typeof widgetValue === "string") {
+        const widgetData = JSON.parse(widgetValue);
+        if (
+          widgetData &&
+          widgetData.imagePositions &&
+          Array.isArray(widgetData.imagePositions)
+        ) {
+          imagePositions = widgetData.imagePositions;
+          console.log(
+            "Compositor3Debug: restored imagePositions",
+            imagePositions
+          );
+        }
+      }
+    } catch (e) {
+      console.log("Compositor3Debug: could not restore imagePositions", e);
+    }
   };
 
   const getContainer = () => {
@@ -1047,6 +1261,9 @@ const Editor = (node, fabric) => {
     setImageAtIndex(index, img);
 
     fabricInstance.add(img);
+
+    // Update canvas z-order based on imagePositions
+    updateCanvasZOrder();
 
     // Update layer thumbnail
     updateLayerThumbnail(index);
@@ -1226,7 +1443,12 @@ const Editor = (node, fabric) => {
   };
 
   const updateSeedValue = () => {
-    fabricDataWidget.value = Math.random();
+    // Store imagePositions along with a random seed to trigger update
+    const widgetData = {
+      seed: Math.random(),
+      imagePositions: imagePositions,
+    };
+    fabricDataWidget.value = JSON.stringify(widgetData);
   };
 
   const updateRotationSlider = () => {

@@ -173,6 +173,31 @@ const getNodeById = (nodeId) => {
   return app.graph.getNodeById(nodeId);
 };
 
+// Utility function to create styled toolbar buttons
+const createToolbarButton = (text, onClick) => {
+  const button = document.createElement("button");
+  button.textContent = text;
+  button.style.padding = "4px 12px";
+  button.style.backgroundColor = "rgba(70, 70, 70, 0.9)";
+  button.style.color = "white";
+  button.style.border = "1px solid rgba(100, 100, 100, 0.5)";
+  button.style.borderRadius = "4px";
+  button.style.cursor = "pointer";
+  button.style.fontSize = "12px";
+
+  button.onmouseover = () => {
+    button.style.backgroundColor = "rgba(90, 90, 90, 0.9)";
+  };
+
+  button.onmouseout = () => {
+    button.style.backgroundColor = "rgba(70, 70, 70, 0.9)";
+  };
+
+  button.onclick = onClick;
+
+  return button;
+};
+
 // Editor Component
 
 const Editor = (node, fabric) => {
@@ -187,7 +212,6 @@ const Editor = (node, fabric) => {
   let compositionArea = null;
   let savingIndicator = null;
   let snapEnabled = SNAP_ENABLED; // Editor property for snap to grid
-  let snapButton = null;
   let images = [null, null, null, null, null, null, null, null, null];
 
   const imageNameWidget = getImageNameWidget(node);
@@ -207,25 +231,61 @@ const Editor = (node, fabric) => {
   };
 
   const createToolbar = () => {
-    // create a toolbar area with a slider and 2 buttons. for now just use placeholder components
     const toolbar = document.createElement("div");
     toolbar.style.width = "100%";
     toolbar.style.height = TOOLBAR_HEIGHT + "px";
-    toolbar.style.backgroundColor = "rgba(50, 50, 50, 0.5)";
+    toolbar.style.backgroundColor = "rgba(50, 50, 50, 0.9)";
+    toolbar.style.display = "flex";
+    toolbar.style.alignItems = "center";
+    toolbar.style.padding = "0 10px";
+    toolbar.style.boxSizing = "border-box";
+    toolbar.style.gap = "5px";
     containerEl.appendChild(toolbar);
 
-    // create a slider
-    const slider = document.createElement("input");
-    slider.type = "range";
-    slider.min = 0;
-    slider.max = 100;
-    slider.value = 50;
-    toolbar.appendChild(slider);
+    // Create and append Save button
+    const saveBtn = createToolbarButton("Save", (event) =>
+      updateWidgetValues(event, node)
+    );
+    toolbar.appendChild(saveBtn);
 
-    // create a button to toggle snap to grid
-    const snapButton = document.createElement("button");
-    snapButton.textContent = "Snap: ON";
-    toolbar.appendChild(snapButton);
+    // Create and append Reset button
+    const resetBtn = createToolbarButton("Reset", (event) =>
+      resetImagePositions(event, node)
+    );
+    toolbar.appendChild(resetBtn);
+
+    // Create and append Snap button with special toggle behavior
+    const snapBtn = createToolbarButton(
+      snapEnabled ? "Snap: ON" : "Snap: OFF",
+      () => {
+        snapEnabled = !snapEnabled;
+        snapBtn.textContent = snapEnabled ? "Snap: ON" : "Snap: OFF";
+        snapBtn.style.backgroundColor = snapEnabled
+          ? "rgba(70, 70, 70, 0.9)"
+          : "rgba(100, 100, 100, 0.7)";
+        console.log("Snap to grid:", snapEnabled);
+      }
+    );
+
+    // Override default styling for snap button based on initial state
+    snapBtn.style.backgroundColor = snapEnabled
+      ? "rgba(70, 70, 70, 0.9)"
+      : "rgba(100, 100, 100, 0.7)";
+
+    // Override hover behavior for snap button
+    snapBtn.onmouseover = () => {
+      if (snapEnabled) {
+        snapBtn.style.backgroundColor = "rgba(90, 90, 90, 0.9)";
+      }
+    };
+
+    snapBtn.onmouseout = () => {
+      snapBtn.style.backgroundColor = snapEnabled
+        ? "rgba(70, 70, 70, 0.9)"
+        : "rgba(100, 100, 100, 0.7)";
+    };
+
+    toolbar.appendChild(snapBtn);
   };
 
   const createCanvasElement = () => {
@@ -360,31 +420,7 @@ const Editor = (node, fabric) => {
     fabricInstance.add(compositionBorder);
     fabricInstance.bringToFront(compositionBorder);
 
-    const saveButton = createButton(
-      0,
-      0,
-      60,
-      25,
-      (event) => updateWidgetValues(event, node),
-      "Save"
-    );
-
-    const resetButton = createButton(
-      65,
-      0,
-      60,
-      25,
-      (event) => resetImagePositions(event, node),
-      "Reset"
-    );
-
-    snapButton = createButton(130, 0, 80, 25, toggleSnapToGrid, "Snap: ON");
-
     createSavingIndicator();
-
-    fabricInstance.add(resetButton);
-    fabricInstance.add(saveButton);
-    fabricInstance.add(snapButton);
 
     addCanvasEventListeners();
 
@@ -553,54 +589,6 @@ const Editor = (node, fabric) => {
     //  canvasInstance.preciseSelection;
   };
 
-  const createButton = (left, top, width, height, onClick, label) => {
-    // Create button background
-    const buttonRect = new fabric.Rect({
-      left: left,
-      top: top,
-      fill: "rgba(80, 31, 93, 0.9)",
-      width: width,
-      height: height,
-      rx: 6, // rounded corners
-      ry: 6,
-      selectable: false,
-      evented: true,
-      hoverCursor: "pointer",
-    });
-
-    // Create button text
-    const buttonText = new fabric.Text(label, {
-      left: left + width / 2,
-      top: top + height / 2,
-      fill: "white",
-      fontSize: 14,
-      fontFamily: "Arial",
-      originX: "center",
-      originY: "center",
-      selectable: false,
-      evented: false,
-      //fontWeight: "bold",
-    });
-
-    // Group button elements together
-    const button = new fabric.Group([buttonRect, buttonText], {
-      left: left,
-      top: top,
-      selectable: false,
-      evented: true,
-      hoverCursor: "pointer",
-    });
-
-    // Add click handler
-    button.on("mouseup", (event) => {
-      if (onClick) {
-        onClick(event);
-      }
-    });
-
-    return button;
-  };
-
   const addCanvasEventListeners = () => {
     // Snap to grid on object movement
     fabricInstance.on("object:moving", function (opt) {
@@ -668,22 +656,6 @@ const Editor = (node, fabric) => {
 
   const snapToGrid = (value) => {
     return Math.round(value / GRID_SIZE) * GRID_SIZE;
-  };
-
-  const toggleSnapToGrid = () => {
-    snapEnabled = !snapEnabled;
-
-    // Update button appearance
-    if (snapButton) {
-      const buttonRect = snapButton._objects[0];
-
-      if (snapEnabled) {
-        buttonRect.set("fill", "rgba(50, 50, 50, 0.9)");
-      } else {
-        buttonRect.set("fill", "rgba(100, 100, 100, 0.7)");
-      }
-      fabricInstance.renderAll();
-    }
   };
 
   // public interface of the Editor

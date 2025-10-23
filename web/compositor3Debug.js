@@ -632,7 +632,7 @@ const Editor = (node, fabric) => {
 
   const createLayerLabel = (index) => {
     const label = document.createElement("div");
-    label.textContent = `Layer ${index}`;
+    label.textContent = `Image ${index + 1}`;
     label.style.color = COLOR_BUTTON_TEXT;
     label.style.fontSize = "10px";
     label.style.fontWeight = "bold";

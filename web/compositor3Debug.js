@@ -17,7 +17,7 @@ const UPLOAD_ENDPOINT = "/upload/image";
 const STORE_FOLDER = "compositor";
 const INDICATOR_RADIUS = 8;
 const GRID_SIZE = 1; // pixels for snap to grid
-const SNAP_ENABLED = true; // toggle snap to grid on/off
+const SNAP_ENABLED = false; // toggle snap to grid on/off
 // wether to overwrite existing images on upload
 const OVERWRITE = true;
 
@@ -305,7 +305,6 @@ const Editor = (node, fabric) => {
   let compositionArea = null;
   let toolbarEl = null;
   let saveBtn = null;
-  let isSaving = false;
   let rotationSlider = null;
   let rotationLabel = null;
   let isUpdatingRotationSlider = false; // Flag to prevent circular updates
@@ -325,7 +324,7 @@ const Editor = (node, fabric) => {
     containerEl.style.height =
       HEIGHT + PADDING * 2 + COMPOSITION_BORDER_SIZE * 2 + "px";
     containerEl.style.margin = "0px";
-    containerEl.style.overflow = "hidden";
+    containerEl.style.overflow = "visible";
     return containerEl;
   };
 
@@ -333,6 +332,7 @@ const Editor = (node, fabric) => {
     toolbarEl = document.createElement("div");
     toolbarEl.style.width = "100%";
     toolbarEl.style.minHeight = "auto";
+    toolbarEl.style.height = "118px";
     toolbarEl.style.backgroundColor = COLOR_TOOLBAR_BG;
     toolbarEl.style.display = "flex";
     toolbarEl.style.alignItems = "center";
@@ -792,9 +792,11 @@ const Editor = (node, fabric) => {
   };
 
   const calculateNodeSize = () => {
+    //const toolbarSize = toolbarEl.getBoundingClientRect();
+    //console.log("Compositor3Debug: toolbar size", toolbarSize);
     const ch = fabricInstance.getHeight();
     const cw = fabricInstance.getWidth();
-    return [cw + 21, ch + 111];
+    return [cw + 21, ch + 111 + 138];
   };
 
   const fromUrlCallback = (img, index) => {

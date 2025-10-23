@@ -308,6 +308,7 @@ const Editor = (node, fabric) => {
   let saveBtn = null;
   let rotationSlider = null;
   let rotationLabel = null;
+  let layersPanelEl = null;
   let isUpdatingRotationSlider = false; // Flag to prevent circular updates
   let snapEnabled = SNAP_ENABLED; // Editor property for snap to grid
   let gridSize = GRID_SIZE; // Editor property for grid size
@@ -319,9 +320,10 @@ const Editor = (node, fabric) => {
   const createContainer = () => {
     containerEl = document.createElement("div");
     containerEl.style.backgroundColor = COLOR_CONTAINER_BG;
-    containerEl.style.textAlign = "center";
+    containerEl.style.display = "flex";
+    containerEl.style.flexDirection = "column";
     containerEl.style.width =
-      WIDTH + PADDING * 2 + COMPOSITION_BORDER_SIZE * 2 + "px";
+      WIDTH + PADDING * 2 + COMPOSITION_BORDER_SIZE * 2 + 150 + "px"; // Added 150px for layers panel
     containerEl.style.height =
       HEIGHT + PADDING * 2 + COMPOSITION_BORDER_SIZE * 2 + "px";
     containerEl.style.margin = "0px";
@@ -603,6 +605,131 @@ const Editor = (node, fabric) => {
     rotationContainer.appendChild(rotationSlider);
   };
 
+  const createLayersPanel = () => {
+    // Create main content wrapper (canvas + layers side by side)
+    const contentWrapper = document.createElement("div");
+    contentWrapper.style.display = "flex";
+    contentWrapper.style.flexDirection = "row";
+    contentWrapper.style.gap = "10px";
+    contentWrapper.style.width = "100%";
+    containerEl.appendChild(contentWrapper);
+
+    // Create layers panel
+    layersPanelEl = document.createElement("div");
+    layersPanelEl.style.width = "150px";
+    layersPanelEl.style.height =
+      HEIGHT + PADDING * 2 + COMPOSITION_BORDER_SIZE * 2 + "px";
+    layersPanelEl.style.backgroundColor = COLOR_TOOLBAR_BG;
+    layersPanelEl.style.borderRadius = "4px";
+    layersPanelEl.style.padding = "10px";
+    layersPanelEl.style.boxSizing = "border-box";
+    layersPanelEl.style.overflowY = "auto";
+    layersPanelEl.style.display = "flex";
+    layersPanelEl.style.flexDirection = "column";
+    layersPanelEl.style.gap = "8px";
+
+    // Create title
+    const title = document.createElement("div");
+    title.textContent = "Layers";
+    title.style.color = COLOR_BUTTON_TEXT;
+    title.style.fontSize = "14px";
+    title.style.fontWeight = "bold";
+    title.style.marginBottom = "5px";
+    title.style.textAlign = "center";
+    layersPanelEl.appendChild(title);
+
+    // Create layer items (0-8 for 9 images)
+    for (let i = 0; i < 9; i++) {
+      const layerItem = document.createElement("div");
+      layerItem.id = `layer-${i}`;
+      layerItem.style.width = "100%";
+      layerItem.style.height = "120px";
+      layerItem.style.backgroundColor = COLOR_BUTTON_BG;
+      layerItem.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
+      layerItem.style.borderRadius = "4px";
+      layerItem.style.cursor = "pointer";
+      layerItem.style.display = "flex";
+      layerItem.style.flexDirection = "column";
+      layerItem.style.alignItems = "center";
+      layerItem.style.justifyContent = "center";
+      layerItem.style.padding = "5px";
+      layerItem.style.boxSizing = "border-box";
+      layerItem.style.position = "relative";
+
+      // Layer label
+      const label = document.createElement("div");
+      label.textContent = `Layer ${i}`;
+      label.style.color = COLOR_BUTTON_TEXT;
+      label.style.fontSize = "10px";
+      label.style.marginBottom = "5px";
+      layerItem.appendChild(label);
+
+      // Thumbnail container
+      const thumbnail = document.createElement("div");
+      thumbnail.id = `layer-thumbnail-${i}`;
+      thumbnail.style.width = "100px";
+      thumbnail.style.height = "100px";
+      thumbnail.style.backgroundColor = "rgba(0, 0, 0, 0.3)";
+      thumbnail.style.borderRadius = "2px";
+      thumbnail.style.backgroundSize = "contain";
+      thumbnail.style.backgroundPosition = "center";
+      thumbnail.style.backgroundRepeat = "no-repeat";
+      thumbnail.style.display = "flex";
+      thumbnail.style.alignItems = "center";
+      thumbnail.style.justifyContent = "center";
+      thumbnail.style.color = COLOR_BUTTON_TEXT;
+      thumbnail.style.fontSize = "10px";
+      thumbnail.textContent = "Empty";
+      layerItem.appendChild(thumbnail);
+
+      // Click handler
+      layerItem.onclick = () => selectImageByIndex(i);
+
+      // Hover effect
+      layerItem.onmouseover = () => {
+        if (images[i]) {
+          layerItem.style.backgroundColor = COLOR_BUTTON_HOVER;
+        }
+      };
+
+      layerItem.onmouseout = () => {
+        layerItem.style.backgroundColor = COLOR_BUTTON_BG;
+      };
+
+      layersPanelEl.appendChild(layerItem);
+    }
+
+    contentWrapper.appendChild(layersPanelEl);
+
+    return contentWrapper;
+  };
+
+  const updateLayerThumbnail = (index) => {
+    const thumbnail = document.getElementById(`layer-thumbnail-${index}`);
+    if (!thumbnail) return;
+
+    if (images[index]) {
+      // Get the image data URL
+      const imgElement = images[index].getElement();
+      if (imgElement && imgElement.src) {
+        thumbnail.style.backgroundImage = `url(${imgElement.src})`;
+        thumbnail.textContent = "";
+      }
+    } else {
+      thumbnail.style.backgroundImage = "none";
+      thumbnail.textContent = "Empty";
+    }
+  };
+
+  const selectImageByIndex = (index) => {
+    if (images[index]) {
+      fabricInstance.setActiveObject(images[index]);
+      fabricInstance.renderAll();
+    } else {
+      console.log(`Layer ${index} is empty`);
+    }
+  };
+
   const createCanvasElement = () => {
     canvasEl = document.createElement("canvas");
     canvasEl.id = getRandomCompositorUniqueId();
@@ -681,8 +808,9 @@ const Editor = (node, fabric) => {
   //   });
   // };
 
-  const appendCanvasToContainer = () => {
-    containerEl.appendChild(canvasEl);
+  const appendCanvasToContainer = (contentWrapper) => {
+    // Append canvas to the content wrapper (left side)
+    contentWrapper.insertBefore(canvasEl, layersPanelEl);
   };
 
   const buildImageName = (graphId, nodeId, format, isTemp) => {
@@ -714,7 +842,8 @@ const Editor = (node, fabric) => {
     createContainer();
     createToolbar();
     createCanvasElement();
-    appendCanvasToContainer();
+    const contentWrapper = createLayersPanel();
+    appendCanvasToContainer(contentWrapper);
     initializeFabricCanvas();
 
     setCanvasSize(WIDTH, HEIGHT, PADDING, COMPOSITION_BORDER_SIZE);
@@ -788,7 +917,8 @@ const Editor = (node, fabric) => {
     //console.log("Compositor3Debug: toolbar size", toolbarSize);
     const ch = fabricInstance.getHeight();
     const cw = fabricInstance.getWidth();
-    return [cw + 21, ch + 111 + 138];
+    // Added 150px for layers panel + 10px gap
+    return [cw + 21 + 160, ch + 111 + 138];
   };
 
   const fromUrlCallback = (img, index) => {
@@ -815,6 +945,9 @@ const Editor = (node, fabric) => {
     setImageAtIndex(index, img);
 
     fabricInstance.add(img);
+
+    // Update layer thumbnail
+    updateLayerThumbnail(index);
 
     fabricInstance.renderAll();
   };
@@ -1414,5 +1547,6 @@ const Editor = (node, fabric) => {
     getContainer,
     calculateNodeSize,
     appendImage,
+    selectImageByIndex,
   };
 };

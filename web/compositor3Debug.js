@@ -34,6 +34,12 @@ const COLOR_INDICATOR_SAVING = "red";
 const COLOR_CANVAS_BG = "transparent";
 const COLOR_CANVAS_SELECTION = "transparent";
 
+// UI Size Constants
+const BUTTON_HEIGHT = "24px";
+const ICON_BUTTON_SIZE = "24px";
+const BUTTON_FONT_SIZE = "12px";
+const ICON_FONT_SIZE = "14px";
+
 app.registerExtension({
   name: "Comfy.Compositor3Debug",
 
@@ -189,13 +195,55 @@ const getNodeById = (nodeId) => {
 const createToolbarButton = (text, onClick, parent) => {
   const button = document.createElement("button");
   button.textContent = text;
-  button.style.padding = "4px 12px";
+  button.style.height = BUTTON_HEIGHT;
+  button.style.padding = "0 12px";
   button.style.backgroundColor = COLOR_BUTTON_BG;
   button.style.color = COLOR_BUTTON_TEXT;
   button.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
   button.style.borderRadius = "4px";
   button.style.cursor = "pointer";
-  button.style.fontSize = "12px";
+  button.style.fontSize = BUTTON_FONT_SIZE;
+  button.style.display = "flex";
+  button.style.alignItems = "center";
+  button.style.justifyContent = "center";
+  button.style.whiteSpace = "nowrap";
+
+  button.onmouseover = () => {
+    button.style.backgroundColor = COLOR_BUTTON_HOVER;
+  };
+
+  button.onmouseout = () => {
+    button.style.backgroundColor = COLOR_BUTTON_BG;
+  };
+
+  button.onclick = onClick;
+
+  if (parent) {
+    parent.appendChild(button);
+  }
+
+  return button;
+};
+
+// Utility function to create square icon buttons
+const createIconButton = (icon, onClick, parent) => {
+  const button = document.createElement("button");
+  button.textContent = icon;
+  button.style.width = ICON_BUTTON_SIZE;
+  button.style.height = ICON_BUTTON_SIZE;
+  button.style.minWidth = ICON_BUTTON_SIZE;
+  button.style.minHeight = ICON_BUTTON_SIZE;
+  button.style.padding = "0";
+  button.style.backgroundColor = COLOR_BUTTON_BG;
+  button.style.color = COLOR_BUTTON_TEXT;
+  button.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
+  button.style.borderRadius = "4px";
+  button.style.cursor = "pointer";
+  button.style.fontSize = ICON_FONT_SIZE;
+  button.style.display = "flex";
+  button.style.alignItems = "center";
+  button.style.justifyContent = "center";
+  button.style.lineHeight = "1";
 
   button.onmouseover = () => {
     button.style.backgroundColor = COLOR_BUTTON_HOVER;
@@ -229,6 +277,20 @@ const createSeparator = (parent) => {
   return separator;
 };
 
+// Utility function to create vertical button group
+const createVerticalButtonGroup = (parent) => {
+  const group = document.createElement("div");
+  group.style.display = "flex";
+  group.style.flexDirection = "column";
+  group.style.gap = "2px";
+
+  if (parent) {
+    parent.appendChild(group);
+  }
+
+  return group;
+};
+
 // Editor Component
 
 const Editor = (node, fabric) => {
@@ -244,6 +306,7 @@ const Editor = (node, fabric) => {
   let savingIndicator = null;
   let toolbarEl = null;
   let snapEnabled = SNAP_ENABLED; // Editor property for snap to grid
+  let gridSize = GRID_SIZE; // Editor property for grid size
   let images = [null, null, null, null, null, null, null, null, null];
 
   const imageNameWidget = getImageNameWidget(node);
@@ -275,18 +338,21 @@ const Editor = (node, fabric) => {
     toolbarEl.style.position = "relative";
     containerEl.appendChild(toolbarEl);
 
+    // Create vertical group for Save, Reset, and Snap buttons
+    const mainButtonGroup = createVerticalButtonGroup(toolbarEl);
+
     // Create and append Save button
     createToolbarButton(
       "Save",
       (event) => updateWidgetValues(event, node),
-      toolbarEl
+      mainButtonGroup
     );
 
     // Create and append Reset button
     createToolbarButton(
       "Reset",
       (event) => resetImagePositions(event, node),
-      toolbarEl
+      mainButtonGroup
     );
 
     // Create and append Snap button with special toggle behavior
@@ -300,7 +366,7 @@ const Editor = (node, fabric) => {
           : COLOR_BUTTON_DISABLED;
         console.log("Snap to grid:", snapEnabled);
       },
-      toolbarEl
+      mainButtonGroup
     );
 
     // Override default styling for snap button based on initial state
@@ -320,6 +386,36 @@ const Editor = (node, fabric) => {
         ? COLOR_BUTTON_BG
         : COLOR_BUTTON_DISABLED;
     };
+
+    // Create grid size slider control
+    const gridSizeContainer = document.createElement("div");
+    gridSizeContainer.style.display = "flex";
+    gridSizeContainer.style.flexDirection = "column";
+    gridSizeContainer.style.gap = "2px";
+    gridSizeContainer.style.minWidth = "80px";
+    mainButtonGroup.appendChild(gridSizeContainer);
+
+    const gridSizeLabel = document.createElement("label");
+    gridSizeLabel.textContent = `Grid: ${gridSize}px`;
+    gridSizeLabel.style.color = COLOR_BUTTON_TEXT;
+    gridSizeLabel.style.fontSize = "10px";
+    gridSizeLabel.style.textAlign = "center";
+    gridSizeContainer.appendChild(gridSizeLabel);
+
+    const gridSizeSlider = document.createElement("input");
+    gridSizeSlider.type = "range";
+    gridSizeSlider.min = "1";
+    gridSizeSlider.max = "50";
+    gridSizeSlider.value = gridSize;
+    gridSizeSlider.style.width = "100%";
+    gridSizeSlider.style.cursor = "pointer";
+
+    gridSizeSlider.oninput = (e) => {
+      gridSize = parseInt(e.target.value);
+      gridSizeLabel.textContent = `Grid: ${gridSize}px`;
+    };
+
+    gridSizeContainer.appendChild(gridSizeSlider);
 
     // Add spacing separator
     createSeparator(toolbarEl);
@@ -341,13 +437,10 @@ const Editor = (node, fabric) => {
     alignmentGrid.style.display = "grid";
     alignmentGrid.style.gridTemplateColumns = "repeat(3, 1fr)";
     alignmentGrid.style.gap = "2px";
-    alignmentGrid.style.width = "72px";
+    alignmentGrid.style.width = "78px"; // 3 × 24px + 2 × 2px gaps
 
     alignments.forEach(({ label, align, title }) => {
-      const btn = createToolbarButton(label, () => alignSelected(align));
-      btn.style.padding = "2px 4px";
-      btn.style.fontSize = "14px";
-      btn.style.minWidth = "22px";
+      const btn = createIconButton(label, () => alignSelected(align));
       btn.title = title;
       alignmentGrid.appendChild(btn);
     });
@@ -357,54 +450,72 @@ const Editor = (node, fabric) => {
     // Add another separator
     createSeparator(toolbarEl);
 
-    // Add stretch buttons (↔ ↕ symbols)
-    const stretchHBtn = createToolbarButton(
+    // Create vertical group for transformation buttons (3 rows: stretch, equalize, distribute)
+    const transformButtonGroup = createVerticalButtonGroup(toolbarEl);
+
+    // Row 1: Stretch buttons (↔ ↕ symbols)
+    const stretchRow = document.createElement("div");
+    stretchRow.style.display = "flex";
+    stretchRow.style.gap = "2px";
+    transformButtonGroup.appendChild(stretchRow);
+
+    const stretchHBtn = createIconButton(
       "↔",
       () => stretchHorizontally(),
-      toolbarEl
+      stretchRow
     );
     stretchHBtn.title =
       "Stretch selected image horizontally (keeping proportions)";
 
-    const stretchVBtn = createToolbarButton(
+    const stretchVBtn = createIconButton(
       "↕",
       () => stretchVertically(),
-      toolbarEl
+      stretchRow
     );
     stretchVBtn.title =
       "Stretch selected image vertically (keeping proportions)";
 
-    // Add equalize buttons (= symbol for equalize)
-    const equalizeHeightBtn = createToolbarButton(
-      "=H",
-      () => equalizeHeight(),
-      toolbarEl
-    );
-    equalizeHeightBtn.title =
-      "Equalize height of all selected images (keeping proportions)";
+    // Row 2: Equalize buttons (= symbol for equalize)
+    const equalizeRow = document.createElement("div");
+    equalizeRow.style.display = "flex";
+    equalizeRow.style.gap = "2px";
+    transformButtonGroup.appendChild(equalizeRow);
 
-    const equalizeWidthBtn = createToolbarButton(
+    const equalizeWidthBtn = createIconButton(
       "=W",
       () => equalizeWidth(),
-      toolbarEl
+      equalizeRow
     );
     equalizeWidthBtn.title =
       "Equalize width of all selected images (keeping proportions)";
 
-    // Add distribute buttons (⋮ ⋯ symbols for distribute)
-    const distributeVBtn = createToolbarButton(
-      "⋮",
-      () => distributeVertically(),
-      toolbarEl
+    const equalizeHeightBtn = createIconButton(
+      "=H",
+      () => equalizeHeight(),
+      equalizeRow
     );
-    distributeVBtn.title = "Distribute selected images vertically";
+    equalizeHeightBtn.title =
+      "Equalize height of all selected images (keeping proportions)";
 
-    const distributeHBtn = createToolbarButton(
+    // Row 3: Distribute buttons (⋮ ⋯ symbols for distribute)
+    const distributeRow = document.createElement("div");
+    distributeRow.style.display = "flex";
+    distributeRow.style.gap = "2px";
+    transformButtonGroup.appendChild(distributeRow);
+
+    const distributeHBtn = createIconButton(
       "⋯",
       () => distributeHorizontally(),
-      toolbarEl
+      distributeRow
     );
     distributeHBtn.title = "Distribute selected images horizontally";
+
+    const distributeVBtn = createIconButton(
+      "⋮",
+      () => distributeVertically(),
+      distributeRow
+    );
+    distributeVBtn.title = "Distribute selected images vertically";
 
     // Add spacer to push saving indicator to the right
     const spacer = document.createElement("div");
@@ -778,7 +889,7 @@ const Editor = (node, fabric) => {
   };
 
   const snapToGrid = (value) => {
-    return Math.round(value / GRID_SIZE) * GRID_SIZE;
+    return Math.round(value / gridSize) * gridSize;
   };
 
   const alignSelected = (alignment) => {
@@ -873,14 +984,15 @@ const Editor = (node, fabric) => {
       return;
     }
 
-    // Calculate scale to make width equal to composition width
+    // Calculate scale to make scaled width equal to composition width
     const targetWidth = WIDTH;
-    const currentWidth = activeObject.width;
-    const scale = targetWidth / currentWidth;
+    const currentScaledWidth = activeObject.getScaledWidth();
+    const scaleFactor = targetWidth / currentScaledWidth;
 
+    // Apply the scale factor to both scaleX and scaleY to maintain proportions
     activeObject.set({
-      scaleX: scale,
-      scaleY: scale,
+      scaleX: activeObject.scaleX * scaleFactor,
+      scaleY: activeObject.scaleY * scaleFactor,
     });
 
     activeObject.setCoords();
@@ -894,14 +1006,15 @@ const Editor = (node, fabric) => {
       return;
     }
 
-    // Calculate scale to make height equal to composition height
+    // Calculate scale to make scaled height equal to composition height
     const targetHeight = HEIGHT;
-    const currentHeight = activeObject.height;
-    const scale = targetHeight / currentHeight;
+    const currentScaledHeight = activeObject.getScaledHeight();
+    const scaleFactor = targetHeight / currentScaledHeight;
 
+    // Apply the scale factor to both scaleX and scaleY to maintain proportions
     activeObject.set({
-      scaleX: scale,
-      scaleY: scale,
+      scaleX: activeObject.scaleX * scaleFactor,
+      scaleY: activeObject.scaleY * scaleFactor,
     });
 
     activeObject.setCoords();
@@ -1002,39 +1115,36 @@ const Editor = (node, fabric) => {
       return;
     }
 
-    // Sort objects by their top position
+    // Sort objects by their center Y position
     objects.sort((a, b) => {
-      const aTop = a.getBoundingRect().top;
-      const bTop = b.getBoundingRect().top;
-      return aTop - bTop;
+      const aCenterY = a.getCenterPoint().y;
+      const bCenterY = b.getCenterPoint().y;
+      return aCenterY - bCenterY;
     });
 
     const firstObj = objects[0];
     const lastObj = objects[objects.length - 1];
 
-    const firstTop = firstObj.getBoundingRect().top;
-    const lastBottom =
-      lastObj.getBoundingRect().top + lastObj.getBoundingRect().height;
+    // Get center Y positions of first and last objects
+    const firstCenterY = firstObj.getCenterPoint().y;
+    const lastCenterY = lastObj.getCenterPoint().y;
 
-    const totalSpace = lastBottom - firstTop;
-    const totalObjectsHeight = objects.reduce(
-      (sum, obj) => sum + obj.getBoundingRect().height,
-      0
-    );
-    const totalGap = totalSpace - totalObjectsHeight;
-    const gap = totalGap / (objects.length - 1);
+    // Calculate even spacing between centers
+    const totalSpace = lastCenterY - firstCenterY;
+    const spacing = totalSpace / (objects.length - 1);
 
-    let currentTop = firstTop;
-    objects.forEach((obj) => {
-      const objBounds = obj.getBoundingRect();
-      const offsetY = objBounds.top - obj.top;
+    // Distribute objects by their centers
+    objects.forEach((obj, index) => {
+      const newCenterY = firstCenterY + spacing * index;
+      const currentCenter = obj.getCenterPoint();
+
+      // Calculate the offset needed to move center to new position
+      const deltaY = newCenterY - currentCenter.y;
 
       obj.set({
-        top: snapToGrid(currentTop - offsetY),
+        top: snapToGrid(obj.top + deltaY),
       });
       obj.setCoords();
-
-      currentTop += objBounds.height + gap;
     });
 
     fabricInstance.renderAll();
@@ -1060,39 +1170,36 @@ const Editor = (node, fabric) => {
       return;
     }
 
-    // Sort objects by their left position
+    // Sort objects by their center X position
     objects.sort((a, b) => {
-      const aLeft = a.getBoundingRect().left;
-      const bLeft = b.getBoundingRect().left;
-      return aLeft - bLeft;
+      const aCenterX = a.getCenterPoint().x;
+      const bCenterX = b.getCenterPoint().x;
+      return aCenterX - bCenterX;
     });
 
     const firstObj = objects[0];
     const lastObj = objects[objects.length - 1];
 
-    const firstLeft = firstObj.getBoundingRect().left;
-    const lastRight =
-      lastObj.getBoundingRect().left + lastObj.getBoundingRect().width;
+    // Get center X positions of first and last objects
+    const firstCenterX = firstObj.getCenterPoint().x;
+    const lastCenterX = lastObj.getCenterPoint().x;
 
-    const totalSpace = lastRight - firstLeft;
-    const totalObjectsWidth = objects.reduce(
-      (sum, obj) => sum + obj.getBoundingRect().width,
-      0
-    );
-    const totalGap = totalSpace - totalObjectsWidth;
-    const gap = totalGap / (objects.length - 1);
+    // Calculate even spacing between centers
+    const totalSpace = lastCenterX - firstCenterX;
+    const spacing = totalSpace / (objects.length - 1);
 
-    let currentLeft = firstLeft;
-    objects.forEach((obj) => {
-      const objBounds = obj.getBoundingRect();
-      const offsetX = objBounds.left - obj.left;
+    // Distribute objects by their centers
+    objects.forEach((obj, index) => {
+      const newCenterX = firstCenterX + spacing * index;
+      const currentCenter = obj.getCenterPoint();
+
+      // Calculate the offset needed to move center to new position
+      const deltaX = newCenterX - currentCenter.x;
 
       obj.set({
-        left: snapToGrid(currentLeft - offsetX),
+        left: snapToGrid(obj.left + deltaX),
       });
       obj.setCoords();
-
-      currentLeft += objBounds.width + gap;
     });
 
     fabricInstance.renderAll();

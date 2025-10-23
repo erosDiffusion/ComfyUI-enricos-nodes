@@ -318,7 +318,17 @@ const Editor = (node, fabric) => {
   let images = [null, null, null, null, null, null, null, null, null];
   let imagePositions = [0, 1, 2, 3, 4, 5, 6, 7, 8]; // Z-index stacking order (0=bottom, 8=top)
   let draggedLayerIndex = null; // Track which layer is being dragged
-  let pendingTransforms = [null, null, null, null, null, null, null, null, null]; // Store transforms to apply during restoration
+  let pendingTransforms = [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+  ]; // Store transforms to apply during restoration
 
   const imageNameWidget = getImageNameWidget(node);
   const fabricDataWidget = getFabricDataWidget(node);
@@ -1263,17 +1273,24 @@ const Editor = (node, fabric) => {
     });
 
     let currentTransform = null;
-    
+
     // First, check if there's a pending transform (from deserialization)
     if (pendingTransforms[index]) {
       currentTransform = pendingTransforms[index];
-      console.log("Compositor3Debug: applying pending transform for index", index, currentTransform);
+      console.log(
+        "Compositor3Debug: applying pending transform for index",
+        index,
+        currentTransform
+      );
       pendingTransforms[index] = null; // Clear after use
     }
     // Otherwise, check if there's an existing image to preserve its transform
     else if (hasImageAtIndex(index)) {
       currentTransform = getCurrentTransforms(index);
-      console.log("Compositor3Debug: preserving existing transform", currentTransform);
+      console.log(
+        "Compositor3Debug: preserving existing transform",
+        currentTransform
+      );
     }
 
     fabricInstance.remove(getImageAtIndex(index));
@@ -1527,7 +1544,10 @@ const Editor = (node, fabric) => {
 
       // Store transforms for pending restoration
       if (data.transforms && Array.isArray(data.transforms)) {
-        console.log("Compositor3Debug: storing pending transforms", data.transforms);
+        console.log(
+          "Compositor3Debug: storing pending transforms",
+          data.transforms
+        );
         pendingTransforms = data.transforms.slice(); // Copy the array
       }
 

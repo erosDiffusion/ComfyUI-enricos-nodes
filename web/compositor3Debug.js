@@ -21,6 +21,19 @@ const SNAP_ENABLED = true; // toggle snap to grid on/off
 // wether to overwrite existing images on upload
 const OVERWRITE = true;
 
+// UI Color Constants
+const COLOR_TOOLBAR_BG = "rgba(50, 50, 50, 0.9)";
+const COLOR_BUTTON_BG = "rgba(70, 70, 70, 0.9)";
+const COLOR_BUTTON_HOVER = "rgba(90, 90, 90, 0.9)";
+const COLOR_BUTTON_DISABLED = "rgba(100, 100, 100, 0.7)";
+const COLOR_BUTTON_BORDER = "rgba(100, 100, 100, 0.5)";
+const COLOR_BUTTON_TEXT = "white";
+const COLOR_SEPARATOR = "rgba(100, 100, 100, 0.5)";
+const COLOR_CONTAINER_BG = "rgba(172, 95, 224, 0)";
+const COLOR_INDICATOR_SAVING = "red";
+const COLOR_CANVAS_BG = "transparent";
+const COLOR_CANVAS_SELECTION = "transparent";
+
 app.registerExtension({
   name: "Comfy.Compositor3Debug",
 
@@ -173,28 +186,47 @@ const getNodeById = (nodeId) => {
 };
 
 // Utility function to create styled toolbar buttons
-const createToolbarButton = (text, onClick) => {
+const createToolbarButton = (text, onClick, parent) => {
   const button = document.createElement("button");
   button.textContent = text;
   button.style.padding = "4px 12px";
-  button.style.backgroundColor = "rgba(70, 70, 70, 0.9)";
-  button.style.color = "white";
-  button.style.border = "1px solid rgba(100, 100, 100, 0.5)";
+  button.style.backgroundColor = COLOR_BUTTON_BG;
+  button.style.color = COLOR_BUTTON_TEXT;
+  button.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
   button.style.borderRadius = "4px";
   button.style.cursor = "pointer";
   button.style.fontSize = "12px";
 
   button.onmouseover = () => {
-    button.style.backgroundColor = "rgba(90, 90, 90, 0.9)";
+    button.style.backgroundColor = COLOR_BUTTON_HOVER;
   };
 
   button.onmouseout = () => {
-    button.style.backgroundColor = "rgba(70, 70, 70, 0.9)";
+    button.style.backgroundColor = COLOR_BUTTON_BG;
   };
 
   button.onclick = onClick;
 
+  if (parent) {
+    parent.appendChild(button);
+  }
+
   return button;
+};
+
+// Utility function to create toolbar separator
+const createSeparator = (parent) => {
+  const separator = document.createElement("div");
+  separator.style.width = "1px";
+  separator.style.height = "20px";
+  separator.style.backgroundColor = COLOR_SEPARATOR;
+  separator.style.margin = "0 5px";
+
+  if (parent) {
+    parent.appendChild(separator);
+  }
+
+  return separator;
 };
 
 // Editor Component
@@ -219,7 +251,7 @@ const Editor = (node, fabric) => {
 
   const createContainer = () => {
     containerEl = document.createElement("div");
-    containerEl.style.backgroundColor = "rgba(172, 95, 224, 0)";
+    containerEl.style.backgroundColor = COLOR_CONTAINER_BG;
     containerEl.style.textAlign = "center";
     containerEl.style.width =
       WIDTH + PADDING * 2 + COMPOSITION_BORDER_SIZE * 2 + "px";
@@ -234,7 +266,7 @@ const Editor = (node, fabric) => {
     toolbarEl = document.createElement("div");
     toolbarEl.style.width = "100%";
     toolbarEl.style.minHeight = "auto";
-    toolbarEl.style.backgroundColor = "rgba(50, 50, 50, 0.9)";
+    toolbarEl.style.backgroundColor = COLOR_TOOLBAR_BG;
     toolbarEl.style.display = "flex";
     toolbarEl.style.alignItems = "center";
     toolbarEl.style.padding = "5px 10px";
@@ -244,16 +276,18 @@ const Editor = (node, fabric) => {
     containerEl.appendChild(toolbarEl);
 
     // Create and append Save button
-    const saveBtn = createToolbarButton("Save", (event) =>
-      updateWidgetValues(event, node)
+    createToolbarButton(
+      "Save",
+      (event) => updateWidgetValues(event, node),
+      toolbarEl
     );
-    toolbarEl.appendChild(saveBtn);
 
     // Create and append Reset button
-    const resetBtn = createToolbarButton("Reset", (event) =>
-      resetImagePositions(event, node)
+    createToolbarButton(
+      "Reset",
+      (event) => resetImagePositions(event, node),
+      toolbarEl
     );
-    toolbarEl.appendChild(resetBtn);
 
     // Create and append Snap button with special toggle behavior
     const snapBtn = createToolbarButton(
@@ -262,39 +296,33 @@ const Editor = (node, fabric) => {
         snapEnabled = !snapEnabled;
         snapBtn.textContent = snapEnabled ? "Snap: ON" : "Snap: OFF";
         snapBtn.style.backgroundColor = snapEnabled
-          ? "rgba(70, 70, 70, 0.9)"
-          : "rgba(100, 100, 100, 0.7)";
+          ? COLOR_BUTTON_BG
+          : COLOR_BUTTON_DISABLED;
         console.log("Snap to grid:", snapEnabled);
-      }
+      },
+      toolbarEl
     );
 
     // Override default styling for snap button based on initial state
     snapBtn.style.backgroundColor = snapEnabled
-      ? "rgba(70, 70, 70, 0.9)"
-      : "rgba(100, 100, 100, 0.7)";
+      ? COLOR_BUTTON_BG
+      : COLOR_BUTTON_DISABLED;
 
     // Override hover behavior for snap button
     snapBtn.onmouseover = () => {
       if (snapEnabled) {
-        snapBtn.style.backgroundColor = "rgba(90, 90, 90, 0.9)";
+        snapBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
       }
     };
 
     snapBtn.onmouseout = () => {
       snapBtn.style.backgroundColor = snapEnabled
-        ? "rgba(70, 70, 70, 0.9)"
-        : "rgba(100, 100, 100, 0.7)";
+        ? COLOR_BUTTON_BG
+        : COLOR_BUTTON_DISABLED;
     };
 
-    toolbarEl.appendChild(snapBtn);
-
     // Add spacing separator
-    const separator = document.createElement("div");
-    separator.style.width = "1px";
-    separator.style.height = "20px";
-    separator.style.backgroundColor = "rgba(100, 100, 100, 0.5)";
-    separator.style.margin = "0 5px";
-    toolbarEl.appendChild(separator);
+    createSeparator(toolbarEl);
 
     // Create alignment buttons grid (3x3)
     const alignments = [
@@ -326,6 +354,58 @@ const Editor = (node, fabric) => {
 
     toolbarEl.appendChild(alignmentGrid);
 
+    // Add another separator
+    createSeparator(toolbarEl);
+
+    // Add stretch buttons (↔ ↕ symbols)
+    const stretchHBtn = createToolbarButton(
+      "↔",
+      () => stretchHorizontally(),
+      toolbarEl
+    );
+    stretchHBtn.title =
+      "Stretch selected image horizontally (keeping proportions)";
+
+    const stretchVBtn = createToolbarButton(
+      "↕",
+      () => stretchVertically(),
+      toolbarEl
+    );
+    stretchVBtn.title =
+      "Stretch selected image vertically (keeping proportions)";
+
+    // Add equalize buttons (= symbol for equalize)
+    const equalizeHeightBtn = createToolbarButton(
+      "=H",
+      () => equalizeHeight(),
+      toolbarEl
+    );
+    equalizeHeightBtn.title =
+      "Equalize height of all selected images (keeping proportions)";
+
+    const equalizeWidthBtn = createToolbarButton(
+      "=W",
+      () => equalizeWidth(),
+      toolbarEl
+    );
+    equalizeWidthBtn.title =
+      "Equalize width of all selected images (keeping proportions)";
+
+    // Add distribute buttons (⋮ ⋯ symbols for distribute)
+    const distributeVBtn = createToolbarButton(
+      "⋮",
+      () => distributeVertically(),
+      toolbarEl
+    );
+    distributeVBtn.title = "Distribute selected images vertically";
+
+    const distributeHBtn = createToolbarButton(
+      "⋯",
+      () => distributeHorizontally(),
+      toolbarEl
+    );
+    distributeHBtn.title = "Distribute selected images horizontally";
+
     // Add spacer to push saving indicator to the right
     const spacer = document.createElement("div");
     spacer.style.flex = "1";
@@ -336,7 +416,7 @@ const Editor = (node, fabric) => {
     savingIndicator.style.width = INDICATOR_RADIUS * 2 + "px";
     savingIndicator.style.height = INDICATOR_RADIUS * 2 + "px";
     savingIndicator.style.borderRadius = "50%";
-    savingIndicator.style.backgroundColor = "red";
+    savingIndicator.style.backgroundColor = COLOR_INDICATOR_SAVING;
     savingIndicator.style.display = "none";
     savingIndicator.style.animation = "pulse 1s infinite";
     toolbarEl.appendChild(savingIndicator);
@@ -374,8 +454,8 @@ const Editor = (node, fabric) => {
 
   const initializeFabricCanvas = () => {
     fabricInstance = new fabric.Canvas(canvasEl, {
-      backgroundColor: "transparent",
-      selectionColor: "transparent",
+      backgroundColor: COLOR_CANVAS_BG,
+      selectionColor: COLOR_CANVAS_SELECTION,
       selectionLineWidth: 1,
       preserveObjectStacking: true,
       altSelectionKey: "ctrlKey",
@@ -778,6 +858,243 @@ const Editor = (node, fabric) => {
     }
 
     activeObject.setCoords();
+    fabricInstance.renderAll();
+  };
+
+  const isImageObject = (obj) => {
+    // Check if object is one of our managed images
+    return images.includes(obj);
+  };
+
+  const stretchHorizontally = () => {
+    const activeObject = fabricInstance.getActiveObject();
+    if (!activeObject || !isImageObject(activeObject)) {
+      console.log("No image selected for stretching");
+      return;
+    }
+
+    // Calculate scale to make width equal to composition width
+    const targetWidth = WIDTH;
+    const currentWidth = activeObject.width;
+    const scale = targetWidth / currentWidth;
+
+    activeObject.set({
+      scaleX: scale,
+      scaleY: scale,
+    });
+
+    activeObject.setCoords();
+    fabricInstance.renderAll();
+  };
+
+  const stretchVertically = () => {
+    const activeObject = fabricInstance.getActiveObject();
+    if (!activeObject || !isImageObject(activeObject)) {
+      console.log("No image selected for stretching");
+      return;
+    }
+
+    // Calculate scale to make height equal to composition height
+    const targetHeight = HEIGHT;
+    const currentHeight = activeObject.height;
+    const scale = targetHeight / currentHeight;
+
+    activeObject.set({
+      scaleX: scale,
+      scaleY: scale,
+    });
+
+    activeObject.setCoords();
+    fabricInstance.renderAll();
+  };
+
+  const equalizeHeight = () => {
+    const activeObject = fabricInstance.getActiveObject();
+    if (!activeObject) {
+      console.log("No object selected for equalizing");
+      return;
+    }
+
+    // Check if it's a multi-selection (ActiveSelection in Fabric.js 4.6)
+    if (activeObject.type !== "activeSelection") {
+      console.log("Multiple objects must be selected for equalizing");
+      return;
+    }
+
+    const objects = activeObject._objects.filter((obj) => isImageObject(obj));
+
+    if (objects.length < 2) {
+      console.log("At least 2 images must be selected");
+      return;
+    }
+
+    // Use the first object's scaled height as reference
+    const referenceHeight = objects[0].getScaledHeight();
+
+    objects.forEach((obj, index) => {
+      if (index === 0) return; // Skip the reference object
+
+      const scale = referenceHeight / obj.height;
+      obj.set({
+        scaleX: scale,
+        scaleY: scale,
+      });
+      obj.setCoords();
+    });
+
+    fabricInstance.renderAll();
+  };
+
+  const equalizeWidth = () => {
+    const activeObject = fabricInstance.getActiveObject();
+    if (!activeObject) {
+      console.log("No object selected for equalizing");
+      return;
+    }
+
+    // Check if it's a multi-selection (ActiveSelection in Fabric.js 4.6)
+    if (activeObject.type !== "activeSelection") {
+      console.log("Multiple objects must be selected for equalizing");
+      return;
+    }
+
+    const objects = activeObject._objects.filter((obj) => isImageObject(obj));
+
+    if (objects.length < 2) {
+      console.log("At least 2 images must be selected");
+      return;
+    }
+
+    // Use the first object's scaled width as reference
+    const referenceWidth = objects[0].getScaledWidth();
+
+    objects.forEach((obj, index) => {
+      if (index === 0) return; // Skip the reference object
+
+      const scale = referenceWidth / obj.width;
+      obj.set({
+        scaleX: scale,
+        scaleY: scale,
+      });
+      obj.setCoords();
+    });
+
+    fabricInstance.renderAll();
+  };
+
+  const distributeVertically = () => {
+    const activeObject = fabricInstance.getActiveObject();
+    if (!activeObject) {
+      console.log("No object selected for distribution");
+      return;
+    }
+
+    // Check if it's a multi-selection (ActiveSelection in Fabric.js 4.6)
+    if (activeObject.type !== "activeSelection") {
+      console.log("Multiple objects must be selected for distribution");
+      return;
+    }
+
+    const objects = activeObject._objects.filter((obj) => isImageObject(obj));
+
+    if (objects.length < 2) {
+      console.log("At least 2 images must be selected");
+      return;
+    }
+
+    // Sort objects by their top position
+    objects.sort((a, b) => {
+      const aTop = a.getBoundingRect().top;
+      const bTop = b.getBoundingRect().top;
+      return aTop - bTop;
+    });
+
+    const firstObj = objects[0];
+    const lastObj = objects[objects.length - 1];
+
+    const firstTop = firstObj.getBoundingRect().top;
+    const lastBottom =
+      lastObj.getBoundingRect().top + lastObj.getBoundingRect().height;
+
+    const totalSpace = lastBottom - firstTop;
+    const totalObjectsHeight = objects.reduce(
+      (sum, obj) => sum + obj.getBoundingRect().height,
+      0
+    );
+    const totalGap = totalSpace - totalObjectsHeight;
+    const gap = totalGap / (objects.length - 1);
+
+    let currentTop = firstTop;
+    objects.forEach((obj) => {
+      const objBounds = obj.getBoundingRect();
+      const offsetY = objBounds.top - obj.top;
+
+      obj.set({
+        top: snapToGrid(currentTop - offsetY),
+      });
+      obj.setCoords();
+
+      currentTop += objBounds.height + gap;
+    });
+
+    fabricInstance.renderAll();
+  };
+
+  const distributeHorizontally = () => {
+    const activeObject = fabricInstance.getActiveObject();
+    if (!activeObject) {
+      console.log("No object selected for distribution");
+      return;
+    }
+
+    // Check if it's a multi-selection (ActiveSelection in Fabric.js 4.6)
+    if (activeObject.type !== "activeSelection") {
+      console.log("Multiple objects must be selected for distribution");
+      return;
+    }
+
+    const objects = activeObject._objects.filter((obj) => isImageObject(obj));
+
+    if (objects.length < 2) {
+      console.log("At least 2 images must be selected");
+      return;
+    }
+
+    // Sort objects by their left position
+    objects.sort((a, b) => {
+      const aLeft = a.getBoundingRect().left;
+      const bLeft = b.getBoundingRect().left;
+      return aLeft - bLeft;
+    });
+
+    const firstObj = objects[0];
+    const lastObj = objects[objects.length - 1];
+
+    const firstLeft = firstObj.getBoundingRect().left;
+    const lastRight =
+      lastObj.getBoundingRect().left + lastObj.getBoundingRect().width;
+
+    const totalSpace = lastRight - firstLeft;
+    const totalObjectsWidth = objects.reduce(
+      (sum, obj) => sum + obj.getBoundingRect().width,
+      0
+    );
+    const totalGap = totalSpace - totalObjectsWidth;
+    const gap = totalGap / (objects.length - 1);
+
+    let currentLeft = firstLeft;
+    objects.forEach((obj) => {
+      const objBounds = obj.getBoundingRect();
+      const offsetX = objBounds.left - obj.left;
+
+      obj.set({
+        left: snapToGrid(currentLeft - offsetX),
+      });
+      obj.setCoords();
+
+      currentLeft += objBounds.width + gap;
+    });
+
     fabricInstance.renderAll();
   };
 

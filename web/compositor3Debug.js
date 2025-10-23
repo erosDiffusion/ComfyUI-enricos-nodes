@@ -183,7 +183,16 @@ function executedMessageHandler(event, a, b) {
       node.editorWidget
     );
 
-    // e.names -> array of base64 images
+    // Update canvas dimensions from config if available
+    if (
+      e.width !== undefined &&
+      e.height !== undefined &&
+      e.padding !== undefined
+    ) {
+      editor.updateCanvasDimensions(e.width, e.height, e.padding);
+    }
+
+    // e.names -> array of image filenames or base64
     e.names.map((name, index) => editor.appendImage(name, index));
   }
 }
@@ -330,6 +339,11 @@ const Editor = (node, fabric) => {
     null,
   ]; // Store transforms to apply during restoration
 
+  // Canvas dimensions - can be updated from config
+  let canvasWidth = WIDTH;
+  let canvasHeight = HEIGHT;
+  let canvasPadding = PADDING;
+
   const imageNameWidget = getImageNameWidget(node);
   const fabricDataWidget = getFabricDataWidget(node);
 
@@ -339,9 +353,13 @@ const Editor = (node, fabric) => {
     containerEl.style.display = "flex";
     containerEl.style.flexDirection = "column";
     containerEl.style.width =
-      WIDTH + PADDING * 2 + COMPOSITION_BORDER_SIZE * 2 + 150 + "px"; // Added 150px for layers panel
+      canvasWidth +
+      canvasPadding * 2 +
+      COMPOSITION_BORDER_SIZE * 2 +
+      150 +
+      "px"; // Added 150px for layers panel
     containerEl.style.height =
-      HEIGHT + PADDING * 2 + COMPOSITION_BORDER_SIZE * 2 + "px";
+      canvasHeight + canvasPadding * 2 + COMPOSITION_BORDER_SIZE * 2 + "px";
     containerEl.style.margin = "0px";
     containerEl.style.overflow = "visible";
     return containerEl;
@@ -1064,14 +1082,14 @@ const Editor = (node, fabric) => {
   };
 
   const createCompositionArea = () => {
-    // a rectangle represengint the composition area
+    // a rectangle representing the composition area
     //p, w, h, node
     compositionArea = new fabric.Rect({
-      left: PADDING + COMPOSITION_BORDER_SIZE,
-      top: PADDING + COMPOSITION_BORDER_SIZE,
+      left: canvasPadding + COMPOSITION_BORDER_SIZE,
+      top: canvasPadding + COMPOSITION_BORDER_SIZE,
       fill: COMPOSITION_BACKGROUND_COLOR,
-      width: WIDTH,
-      height: HEIGHT,
+      width: canvasWidth,
+      height: canvasHeight,
       selectable: false,
     });
   };
@@ -1081,11 +1099,11 @@ const Editor = (node, fabric) => {
     // p, w, h, node
 
     compositionBorder = new fabric.Rect({
-      left: PADDING - COMPOSITION_BORDER_SIZE,
-      top: PADDING - COMPOSITION_BORDER_SIZE,
+      left: canvasPadding - COMPOSITION_BORDER_SIZE,
+      top: canvasPadding - COMPOSITION_BORDER_SIZE,
       fill: "transparent",
-      width: WIDTH + COMPOSITION_BORDER_SIZE * 2,
-      height: HEIGHT + COMPOSITION_BORDER_SIZE * 2,
+      width: canvasWidth + COMPOSITION_BORDER_SIZE * 2,
+      height: canvasHeight + COMPOSITION_BORDER_SIZE * 2,
       selectable: false,
       evented: false,
     });
@@ -1146,6 +1164,13 @@ const Editor = (node, fabric) => {
   };
 
   const initialize = () => {
+    // Initialize imageName widget with default value if not set
+    if (!imageNameWidget.value || imageNameWidget.value === "default") {
+      const imageName = buildImageName(app.graph.id, node.id, "png", false);
+      imageNameWidget.value = imageName;
+      console.log(`Compositor3Debug: initialized imageName to ${imageName}`);
+    }
+
     // Try to restore compositor data from saved state
     restoreImagePositions();
 
@@ -1160,7 +1185,12 @@ const Editor = (node, fabric) => {
     appendCanvasToContainer(contentWrapper);
     initializeFabricCanvas();
 
-    setCanvasSize(WIDTH, HEIGHT, PADDING, COMPOSITION_BORDER_SIZE);
+    setCanvasSize(
+      canvasWidth,
+      canvasHeight,
+      canvasPadding,
+      COMPOSITION_BORDER_SIZE
+    );
 
     createCompositionArea();
     fabricInstance.add(compositionArea);
@@ -1213,14 +1243,67 @@ const Editor = (node, fabric) => {
     return containerEl;
   };
 
+  const updateCanvasDimensions = (width, height, padding) => {
+    // Ensure numeric values to avoid string concatenation issues
+    const w = Number(width);
+    const h = Number(height);
+    const p = Number(padding);
+
+    console.log(
+      `Compositor3Debug: updating canvas dimensions to ${w}x${h}, padding: ${p}`
+    );
+
+    canvasWidth = w;
+    canvasHeight = h;
+    canvasPadding = p;
+
+    // Update fabric canvas size
+    if (fabricInstance) {
+      fabricInstance.setWidth(w + p * 2 + COMPOSITION_BORDER_SIZE * 2);
+      fabricInstance.setHeight(h + p * 2 + COMPOSITION_BORDER_SIZE * 2);
+      fabricInstance.renderAll();
+    }
+
+    // Update composition area
+    if (compositionArea) {
+      compositionArea.set({
+        left: p + COMPOSITION_BORDER_SIZE,
+        top: p + COMPOSITION_BORDER_SIZE,
+        width: w,
+        height: h,
+      });
+    }
+
+    // Update composition border
+    if (compositionBorder) {
+      compositionBorder.set({
+        left: p - COMPOSITION_BORDER_SIZE,
+        top: p - COMPOSITION_BORDER_SIZE,
+        width: w + COMPOSITION_BORDER_SIZE * 2,
+        height: h + COMPOSITION_BORDER_SIZE * 2,
+      });
+    }
+
+    // Update container size
+    if (containerEl) {
+      containerEl.style.width =
+        w + p * 2 + COMPOSITION_BORDER_SIZE * 2 + 150 + "px";
+      containerEl.style.height = h + p * 2 + COMPOSITION_BORDER_SIZE * 2 + "px";
+    }
+
+    // Update node size
+    const nodeSize = calculateNodeSize();
+    node.setSize(nodeSize);
+  };
+
   const grabSnapshot = () => {
     const data = fabricInstance.toDataURL({
       format: "png",
       quality: QUALITY,
-      left: PADDING + COMPOSITION_BORDER_SIZE,
-      top: PADDING + COMPOSITION_BORDER_SIZE,
-      width: WIDTH,
-      height: HEIGHT,
+      left: canvasPadding + COMPOSITION_BORDER_SIZE,
+      top: canvasPadding + COMPOSITION_BORDER_SIZE,
+      width: canvasWidth,
+      height: canvasHeight,
     });
     return data;
   };
@@ -1271,8 +1354,8 @@ const Editor = (node, fabric) => {
   const fromUrlCallback = (img, index) => {
     // callback when loading image from url, appends to fabric canvas
     img.set({
-      left: PADDING + COMPOSITION_BORDER_SIZE,
-      top: PADDING + COMPOSITION_BORDER_SIZE,
+      left: canvasPadding + COMPOSITION_BORDER_SIZE,
+      top: canvasPadding + COMPOSITION_BORDER_SIZE,
       selectable: true,
       evented: true,
     });
@@ -1469,7 +1552,6 @@ const Editor = (node, fabric) => {
 
   const serializeCompositorData = () => {
     // Serialize all necessary data to restore the compositor state
-    // Note: width, height, padding come from config, so we don't store them
     const transforms = [];
     const bboxes = [];
     const imageNames = [];
@@ -1520,12 +1602,31 @@ const Editor = (node, fabric) => {
       imagePositions: imagePositions,
       snapEnabled: snapEnabled,
       gridSize: gridSize,
+      width: canvasWidth,
+      height: canvasHeight,
+      padding: canvasPadding,
     };
   };
 
   const deserializeCompositorData = (dataString) => {
     try {
       const data = JSON.parse(dataString);
+
+      // Restore canvas dimensions if available
+      if (
+        data.width !== undefined &&
+        data.height !== undefined &&
+        data.padding !== undefined
+      ) {
+        console.log(
+          `Compositor3Debug: restoring canvas dimensions ${data.width}x${data.height}, padding: ${data.padding}`
+        );
+        // Just set the variables during restoration, don't call updateCanvasDimensions yet
+        // because fabric instance and elements don't exist yet during initialization
+        canvasWidth = Number(data.width);
+        canvasHeight = Number(data.height);
+        canvasPadding = Number(data.padding);
+      }
 
       // Restore imagePositions if available
       if (data.imagePositions && Array.isArray(data.imagePositions)) {
@@ -1582,8 +1683,8 @@ const Editor = (node, fabric) => {
   };
 
   const resetTransforms = (index) => {
-    images[index].left = PADDING + COMPOSITION_BORDER_SIZE;
-    images[index].top = PADDING + COMPOSITION_BORDER_SIZE;
+    images[index].left = canvasPadding + COMPOSITION_BORDER_SIZE;
+    images[index].top = canvasPadding + COMPOSITION_BORDER_SIZE;
     images[index].scaleX = 1;
     images[index].scaleY = 1;
     images[index].angle = 0;
@@ -1738,12 +1839,12 @@ const Editor = (node, fabric) => {
     }
 
     const objBounds = activeObject.getBoundingRect();
-    const compLeft = PADDING + COMPOSITION_BORDER_SIZE;
-    const compTop = PADDING + COMPOSITION_BORDER_SIZE;
-    const compRight = compLeft + WIDTH;
-    const compBottom = compTop + HEIGHT;
-    const compCenterX = compLeft + WIDTH / 2;
-    const compCenterY = compTop + HEIGHT / 2;
+    const compLeft = canvasPadding + COMPOSITION_BORDER_SIZE;
+    const compTop = canvasPadding + COMPOSITION_BORDER_SIZE;
+    const compRight = compLeft + canvasWidth;
+    const compBottom = compTop + canvasHeight;
+    const compCenterX = compLeft + canvasWidth / 2;
+    const compCenterY = compTop + canvasHeight / 2;
 
     // Calculate offset from object's origin to its bounds
     const offsetX = objBounds.left - activeObject.left;
@@ -1823,7 +1924,7 @@ const Editor = (node, fabric) => {
     }
 
     // Calculate scale to make scaled width equal to composition width
-    const targetWidth = WIDTH;
+    const targetWidth = canvasWidth;
     const currentScaledWidth = activeObject.getScaledWidth();
     const scaleFactor = targetWidth / currentScaledWidth;
 
@@ -1845,7 +1946,7 @@ const Editor = (node, fabric) => {
     }
 
     // Calculate scale to make scaled height equal to composition height
-    const targetHeight = HEIGHT;
+    const targetHeight = canvasHeight;
     const currentScaledHeight = activeObject.getScaledHeight();
     const scaleFactor = targetHeight / currentScaledHeight;
 
@@ -2120,5 +2221,6 @@ const Editor = (node, fabric) => {
     calculateNodeSize,
     appendImage,
     selectImageByIndex,
+    updateCanvasDimensions,
   };
 };

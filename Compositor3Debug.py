@@ -70,11 +70,18 @@ class Compositor3Debug:
         detail = {"output": ui, "node": node_id}
         PromptServer.instance.send_sync("compositor_init", detail)
 
-        
-        
+        # Check if imageName is valid (not default/empty)
+        if not imageName or imageName == "default" or imageName.strip() == "":
+            print(f"Compositor3Debug: No valid image name provided ('{imageName}'), returning execution blocker")
+            blocker_result = tuple([ExecutionBlocker(None)] * len(self.RETURN_TYPES))
+            return {
+                "ui": ui,
+                "result": blocker_result
+            }
         
         imageExists = folder_paths.exists_annotated_filepath("../temp/compositor/"+imageName)
         if not imageExists:
+            print(f"Compositor3Debug: Image does not exist: ../temp/compositor/{imageName}")
             # Return ExecutionBlocker for all outputs if blocked
             blocker_result = tuple([ExecutionBlocker(None)] * len(self.RETURN_TYPES))
             return {

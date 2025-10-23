@@ -1,6 +1,10 @@
+import folder_paths
 from server import PromptServer
 from comfy_execution.graph import ExecutionBlocker
-
+from PIL import Image, ImageOps
+import numpy as np
+import torch
+from comfy_execution.graph import ExecutionBlocker
 class Compositor3Debug:
     """
     Debug node to inspect fabricData and imageName values
@@ -10,7 +14,7 @@ class Compositor3Debug:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "config": ("COMPOSITOR_CONFIG", {"forceInput": True}),
+                
                 "fabricData": ("STRING", {
                     "multiline": False,
                     "default": ""
@@ -19,6 +23,8 @@ class Compositor3Debug:
                     "multiline": False,
                     "default": ""
                 }),
+                #is it possible that if we put config on top then the gui breaks ?
+                "config": ("COMPOSITOR_CONFIG", {"forceInput": True}),
             },
             "hidden": {
                 "extra_pnginfo": "EXTRA_PNGINFO",
@@ -27,14 +33,14 @@ class Compositor3Debug:
            
         }
 
-    RETURN_TYPES = ("STRING", "STRING")
-    RETURN_NAMES = ("fabricData_output", "imageName_output")
+    RETURN_TYPES = ("STRING", "STRING","IMAGE")
+    RETURN_NAMES = ("fabricData_output", "imageName_output","image")
     FUNCTION = "run"
     CATEGORY = "image/debug"
     OUTPUT_NODE = True
 
     def run(self, **kwargs):
-        node_id = kwargs.pop('node_id', None)
+        node_id = kwargs.get('node_id', None)
 
         config = kwargs.get('config', "default")
         fabricData = kwargs.get('fabricData', "default")
@@ -65,6 +71,25 @@ class Compositor3Debug:
         PromptServer.instance.send_sync("compositor_init", detail)
 
         
+        
+        
+        imageExists = folder_paths.exists_annotated_filepath("../temp/compositor/"+imageName)
+        if not imageExists:
+            # Return ExecutionBlocker for all outputs if blocked
+            blocker_result = tuple([ExecutionBlocker(None)] * len(self.RETURN_TYPES))
+            return {
+                "ui": ui,
+                "result": blocker_result
+            }
+        image_path = folder_paths.get_annotated_filepath("../temp/compositor/"+imageName)
+        i = Image.open(image_path)
+        i = ImageOps.exif_transpose(i)
+        if i.mode == 'I':
+            i = i.point(lambda i: i * (1 / 255))
+        image = i.convert("RGB")
+        image = np.array(image).astype(np.float32) / 255.0
+        image = torch.from_numpy(image)[None, ]
+
         """
         Dumps the input values to console and returns them
         """
@@ -89,4 +114,4 @@ class Compositor3Debug:
         print("=" * 80)
         print
         
-        return (fabricData, imageName)
+        return (fabricData, imageName,image)

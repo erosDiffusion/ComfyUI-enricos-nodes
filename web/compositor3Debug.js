@@ -15,6 +15,8 @@ const LITEGRAPH_NODE_PADDING = 10;
 const QUALITY = 0.8;
 const UPLOAD_ENDPOINT = "/upload/image";
 const STORE_FOLDER = "compositor";
+const TOOLBAR_HEIGHT = 30;
+const INDICATOR_RADIUS = 8;
 // wether to overwrite existing images on upload
 const OVERWRITE = true;
 
@@ -181,8 +183,7 @@ const Editor = (node, fabric) => {
   let fabricInstance = null;
   let compositionBorder = null;
   let compositionArea = null;
-  let clickableRect = null;
-
+  let savingIndicator = null;
   let images = [null, null, null, null, null, null, null, null, null];
 
   const imageNameWidget = getImageNameWidget(node);
@@ -235,7 +236,7 @@ const Editor = (node, fabric) => {
     //p, w, h, node
     compositionArea = new fabric.Rect({
       left: PADDING + COMPOSITION_BORDER_SIZE,
-      top: PADDING + COMPOSITION_BORDER_SIZE,
+      top: PADDING + COMPOSITION_BORDER_SIZE + TOOLBAR_HEIGHT,
       fill: COMPOSITION_BACKGROUND_COLOR,
       width: WIDTH,
       height: HEIGHT,
@@ -249,7 +250,7 @@ const Editor = (node, fabric) => {
 
     compositionBorder = new fabric.Rect({
       left: PADDING - COMPOSITION_BORDER_SIZE,
-      top: PADDING - COMPOSITION_BORDER_SIZE,
+      top: PADDING - COMPOSITION_BORDER_SIZE + TOOLBAR_HEIGHT,
       fill: "transparent",
       width: WIDTH + COMPOSITION_BORDER_SIZE * 2,
       height: HEIGHT + COMPOSITION_BORDER_SIZE * 2,
@@ -263,21 +264,23 @@ const Editor = (node, fabric) => {
     compositionBorder.set("evented", false);
   };
 
-  const setCanvasSize = (width, height, padding, borderSize) => {
+  const setCanvasSize = (width, height, padding, borderSize, toolbarHeight) => {
     fabricInstance.setWidth(width + padding * 2 + borderSize * 2);
-    fabricInstance.setHeight(height + padding * 2 + borderSize * 2);
+    fabricInstance.setHeight(
+      toolbarHeight + height + padding * 2 + borderSize * 2
+    );
     fabricInstance.renderAll();
   };
 
-  const createClickableRect = (left, top, width, height) => {
-    clickableRect = new fabric.Rect({
-      left: left,
-      top: top,
-      fill: "rgba(255,0,0,0.3)",
-      width: width,
-      height: height,
-    });
-  };
+  // const createClickableRect = (left, top, width, height) => {
+  //   clickableRect = new fabric.Rect({
+  //     left: left,
+  //     top: top,
+  //     fill: "rgba(255,0,0,0.3)",
+  //     width: width,
+  //     height: height,
+  //   });
+  // };
 
   const appendCanvasToContainer = () => {
     containerEl.appendChild(canvasEl);
@@ -288,17 +291,24 @@ const Editor = (node, fabric) => {
   };
 
   const updateWidgetValues = (event, node) => {
-    // debugger;
-
-    console.log("click event", event, node);
     const imageName = buildImageName(app.graph.id, node.id, "png", false);
     imageNameWidget.value = imageName;
     fabricDataWidget.value = JSON.stringify(fabricInstance);
 
     const dataUrl = grabSnapshot();
-    uploadSnapshot(dataUrl, imageNameWidget.value);
+    uploadSnapshot(dataUrl, imageNameWidget.value, true);
 
     node.setDirtyCanvas(true, true); // Force UI update
+  };
+
+  const resetImagePositions = (event, node) => {
+    images.forEach((img, index) => {
+      if (img) {
+        resetTransforms(index);
+      }
+    });
+    fabricInstance.discardActiveObject().renderAll();
+    // node.setDirtyCanvas(true, true); // Force UI update
   };
 
   const initialize = () => {
@@ -307,7 +317,13 @@ const Editor = (node, fabric) => {
     appendCanvasToContainer();
     initializeFabricCanvas();
 
-    setCanvasSize(WIDTH, HEIGHT, PADDING, COMPOSITION_BORDER_SIZE);
+    setCanvasSize(
+      WIDTH,
+      HEIGHT,
+      PADDING,
+      COMPOSITION_BORDER_SIZE,
+      TOOLBAR_HEIGHT
+    );
 
     createCompositionArea();
     fabricInstance.add(compositionArea);
@@ -317,11 +333,31 @@ const Editor = (node, fabric) => {
     fabricInstance.add(compositionBorder);
     fabricInstance.bringToFront(compositionBorder);
 
-    createClickableRect(100, 100, 200, 200);
+    const saveButton = createButton(
+      0,
+      0,
+      60,
+      25,
+      (event) => updateWidgetValues(event, node),
+      "Save"
+    );
 
-    clickableRect.on("mouseup", (event) => updateWidgetValues(event, node));
+    const resetButton = createButton(
+      65,
+      0,
+      60,
+      25,
+      (event) => resetImagePositions(event, node),
+      "Reset"
+    );
 
-    fabricInstance.add(clickableRect);
+    createSavingIndicator();
+
+    fabricInstance.add(resetButton);
+    fabricInstance.add(saveButton);
+
+    addCanvasEventListeners();
+
     fabricInstance.renderAll();
     node.setDirtyCanvas(true, true);
   };
@@ -331,21 +367,23 @@ const Editor = (node, fabric) => {
   };
 
   const grabSnapshot = () => {
-    // fabricInstance.discardActiveObject().renderAll();
     const data = fabricInstance.toDataURL({
       format: "png",
       quality: QUALITY,
-      left: PADDING,
-      top: PADDING,
+      left: PADDING + COMPOSITION_BORDER_SIZE,
+      top: PADDING + TOOLBAR_HEIGHT + COMPOSITION_BORDER_SIZE,
       width: WIDTH,
       height: HEIGHT,
     });
     return data;
   };
 
-  const uploadSnapshot = async (dataURL, imageName) => {
+  const uploadSnapshot = async (dataURL, imageName, queue = false) => {
     const b = dataURLToBlob(dataURL);
     const result = await uploadImage(b, imageName);
+    if (queue) {
+      app.queuePrompt(0, 1);
+    }
   };
 
   const dataURLToBlob = (dataURL) => {
@@ -384,14 +422,14 @@ const Editor = (node, fabric) => {
     // callback when loading image from url, appends to fabric canvas
     img.set({
       left: PADDING + COMPOSITION_BORDER_SIZE,
-      top: PADDING + COMPOSITION_BORDER_SIZE,
+      top: PADDING + COMPOSITION_BORDER_SIZE + TOOLBAR_HEIGHT,
       selectable: true,
       evented: true,
     });
 
     let currentTransform = null;
     if (hasImageAtIndex(index)) {
-      currentTransform = getCurrentTransform(index);
+      currentTransform = getCurrentTransforms(index);
       console.log("Compositor3Debug: currentTransform", currentTransform);
     }
 
@@ -430,7 +468,7 @@ const Editor = (node, fabric) => {
     fabric.Image.fromURL(b64, (img) => fromUrlCallback(img, index));
   };
 
-  const getCurrentTransform = (index) => {
+  const getCurrentTransforms = (index) => {
     const ref = images[index];
     return {
       left: ref.left,
@@ -467,6 +505,120 @@ const Editor = (node, fabric) => {
       skewX: ref.skewX,
     };
   };
+
+  const resetTransforms = (index) => {
+    images[index].left = PADDING + COMPOSITION_BORDER_SIZE;
+    images[index].top = PADDING + COMPOSITION_BORDER_SIZE + TOOLBAR_HEIGHT;
+    images[index].scaleX = 1;
+    images[index].scaleY = 1;
+    images[index].angle = 0;
+    images[index].flipX = false;
+    images[index].flipY = false;
+    //images[index].originX = "top";
+    //images[index].originY = "left";
+
+    images[index].skewY = 0;
+    images[index].skewX = 0;
+    // images[index].perPixelTargetFind = false;
+    //  canvasInstance.preciseSelection;
+  };
+
+  const createButton = (left, top, width, height, onClick, label) => {
+    // Create button background
+    const buttonRect = new fabric.Rect({
+      left: left,
+      top: top,
+      fill: "rgba(80, 31, 93, 0.9)",
+      width: width,
+      height: height,
+      rx: 6, // rounded corners
+      ry: 6,
+      selectable: false,
+      evented: true,
+      hoverCursor: "pointer",
+    });
+
+    // Create button text
+    const buttonText = new fabric.Text(label, {
+      left: left + width / 2,
+      top: top + height / 2,
+      fill: "white",
+      fontSize: 14,
+      fontFamily: "Arial",
+      originX: "center",
+      originY: "center",
+      selectable: false,
+      evented: false,
+      //fontWeight: "bold",
+    });
+
+    // Group button elements together
+    const button = new fabric.Group([buttonRect, buttonText], {
+      left: left,
+      top: top,
+      selectable: false,
+      evented: true,
+      hoverCursor: "pointer",
+    });
+
+    // Add click handler
+    button.on("mouseup", (event) => {
+      if (onClick) {
+        onClick(event);
+      }
+    });
+
+    return button;
+  };
+
+  const addCanvasEventListeners = () => {
+    //this.fcanvas.on("object:modified", async function (opt) {
+
+    fabricInstance.on("object:modified", function (opt) {
+      console.log("compositor3Debug: async object modified event");
+      // showSavingIndicator();
+      const dataUrl = grabSnapshot();
+      // await uploadSnapshot(dataURLToBlob, imageNameWidget.value);
+      showSavingIndicator();
+      uploadSnapshot(dataUrl, imageNameWidget.value).then(() => {
+        hideSavingIndicator();
+        updateSeedValue();
+      });
+      // hideSavingIndicator();
+    });
+  };
+
+  const createSavingIndicator = () => {
+    // the saving indicator is a pulsating red circle
+    savingIndicator = new fabric.Circle({
+      left: WIDTH + PADDING - 2 * INDICATOR_RADIUS,
+      top: 0,
+      radius: INDICATOR_RADIUS,
+      fill: "red",
+      selectable: false,
+      evented: false,
+    });
+  };
+
+  const showSavingIndicator = () => {
+    // make the indicator visibile and start the pulsating effect, make sure it can be stopped later
+    fabricInstance.add(savingIndicator);
+    fabricInstance.renderAll();
+  };
+
+  const hideSavingIndicator = () => {
+    // hide the saving indicator and stop the pulsating effect
+    if (savingIndicator) {
+      fabricInstance.remove(savingIndicator);
+      fabricInstance.renderAll();
+    }
+  };
+
+  const updateSeedValue = () => {
+    fabricDataWidget.value = Math.random();
+  };
+
+  const toggleSnapToGrid = (enable, gridSize) => {
 
   // public interface of the Editor
   return {

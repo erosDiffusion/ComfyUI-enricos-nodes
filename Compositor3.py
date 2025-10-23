@@ -264,7 +264,7 @@ class Compositor3:
         detail = {"output": ui, "node": node_id}
         PromptServer.instance.send_sync("compositor_init", detail)
 
-        imageExists = folder_paths.exists_annotated_filepath(imageName)
+       
         # block when config changed
         if imageName == "new.png" or not imageExists or configChanged:
             # Return ExecutionBlocker for all outputs if blocked

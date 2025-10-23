@@ -1026,7 +1026,11 @@ const Editor = (node, fabric) => {
   };
 
   const snapToGrid = (value) => {
-    return Math.round(value / gridSize) * gridSize;
+    // Calculate the offset of the composition area
+    const offset = PADDING + COMPOSITION_BORDER_SIZE;
+    
+    // Snap relative to the composition area's top-left corner
+    return Math.round((value - offset) / gridSize) * gridSize + offset;
   };
 
   const alignSelected = (alignment) => {

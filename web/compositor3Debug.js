@@ -303,8 +303,12 @@ const Editor = (node, fabric) => {
   let fabricInstance = null;
   let compositionBorder = null;
   let compositionArea = null;
-  let savingIndicator = null;
   let toolbarEl = null;
+  let saveBtn = null;
+  let isSaving = false;
+  let rotationSlider = null;
+  let rotationLabel = null;
+  let isUpdatingRotationSlider = false; // Flag to prevent circular updates
   let snapEnabled = SNAP_ENABLED; // Editor property for snap to grid
   let gridSize = GRID_SIZE; // Editor property for grid size
   let images = [null, null, null, null, null, null, null, null, null];
@@ -338,13 +342,17 @@ const Editor = (node, fabric) => {
     toolbarEl.style.position = "relative";
     containerEl.appendChild(toolbarEl);
 
-    // Create vertical group for Save, Reset, and Snap buttons
+    // Create vertical group for Save and Reset buttons
     const mainButtonGroup = createVerticalButtonGroup(toolbarEl);
 
-    // Create and append Save button
-    createToolbarButton(
+    // Create and append Save button with saving state tracking
+    saveBtn = createToolbarButton(
       "Save",
-      (event) => updateWidgetValues(event, node),
+      async (event) => {
+        showSavingIndicator();
+        await updateWidgetValues(event, node);
+        hideSavingIndicator();
+      },
       mainButtonGroup
     );
 
@@ -354,68 +362,6 @@ const Editor = (node, fabric) => {
       (event) => resetImagePositions(event, node),
       mainButtonGroup
     );
-
-    // Create and append Snap button with special toggle behavior
-    const snapBtn = createToolbarButton(
-      snapEnabled ? "Snap: ON" : "Snap: OFF",
-      () => {
-        snapEnabled = !snapEnabled;
-        snapBtn.textContent = snapEnabled ? "Snap: ON" : "Snap: OFF";
-        snapBtn.style.backgroundColor = snapEnabled
-          ? COLOR_BUTTON_BG
-          : COLOR_BUTTON_DISABLED;
-        console.log("Snap to grid:", snapEnabled);
-      },
-      mainButtonGroup
-    );
-
-    // Override default styling for snap button based on initial state
-    snapBtn.style.backgroundColor = snapEnabled
-      ? COLOR_BUTTON_BG
-      : COLOR_BUTTON_DISABLED;
-
-    // Override hover behavior for snap button
-    snapBtn.onmouseover = () => {
-      if (snapEnabled) {
-        snapBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
-      }
-    };
-
-    snapBtn.onmouseout = () => {
-      snapBtn.style.backgroundColor = snapEnabled
-        ? COLOR_BUTTON_BG
-        : COLOR_BUTTON_DISABLED;
-    };
-
-    // Create grid size slider control
-    const gridSizeContainer = document.createElement("div");
-    gridSizeContainer.style.display = "flex";
-    gridSizeContainer.style.flexDirection = "column";
-    gridSizeContainer.style.gap = "2px";
-    gridSizeContainer.style.minWidth = "80px";
-    mainButtonGroup.appendChild(gridSizeContainer);
-
-    const gridSizeLabel = document.createElement("label");
-    gridSizeLabel.textContent = `Grid: ${gridSize}px`;
-    gridSizeLabel.style.color = COLOR_BUTTON_TEXT;
-    gridSizeLabel.style.fontSize = "10px";
-    gridSizeLabel.style.textAlign = "center";
-    gridSizeContainer.appendChild(gridSizeLabel);
-
-    const gridSizeSlider = document.createElement("input");
-    gridSizeSlider.type = "range";
-    gridSizeSlider.min = "1";
-    gridSizeSlider.max = "50";
-    gridSizeSlider.value = gridSize;
-    gridSizeSlider.style.width = "100%";
-    gridSizeSlider.style.cursor = "pointer";
-
-    gridSizeSlider.oninput = (e) => {
-      gridSize = parseInt(e.target.value);
-      gridSizeLabel.textContent = `Grid: ${gridSize}px`;
-    };
-
-    gridSizeContainer.appendChild(gridSizeSlider);
 
     // Add spacing separator
     createSeparator(toolbarEl);
@@ -447,7 +393,25 @@ const Editor = (node, fabric) => {
 
     toolbarEl.appendChild(alignmentGrid);
 
-    // Add another separator
+    // Add separator before flip controls
+    createSeparator(toolbarEl);
+
+    // Create vertical group for flip buttons
+    const flipButtonGroup = createVerticalButtonGroup(toolbarEl);
+
+    // Create horizontal flip button
+    const flipHRow = document.createElement("div");
+    flipHRow.style.display = "flex";
+    flipHRow.style.gap = "2px";
+    flipButtonGroup.appendChild(flipHRow);
+
+    const flipHBtn = createIconButton("⇄", () => flipHorizontally(), flipHRow);
+    flipHBtn.title = "Flip selected object horizontally";
+
+    const flipVBtn = createIconButton("⇵", () => flipVertically(), flipHRow);
+    flipVBtn.title = "Flip selected object vertically";
+
+    // Add separator before transformation buttons
     createSeparator(toolbarEl);
 
     // Create vertical group for transformation buttons (3 rows: stretch, equalize, distribute)
@@ -517,33 +481,134 @@ const Editor = (node, fabric) => {
     );
     distributeVBtn.title = "Distribute selected images vertically";
 
-    // Add spacer to push saving indicator to the right
-    const spacer = document.createElement("div");
-    spacer.style.flex = "1";
-    toolbarEl.appendChild(spacer);
+    // Add separator before grid controls
+    createSeparator(toolbarEl);
 
-    // Create HTML saving indicator
-    savingIndicator = document.createElement("div");
-    savingIndicator.style.width = INDICATOR_RADIUS * 2 + "px";
-    savingIndicator.style.height = INDICATOR_RADIUS * 2 + "px";
-    savingIndicator.style.borderRadius = "50%";
-    savingIndicator.style.backgroundColor = COLOR_INDICATOR_SAVING;
-    savingIndicator.style.display = "none";
-    savingIndicator.style.animation = "pulse 1s infinite";
-    toolbarEl.appendChild(savingIndicator);
+    // Create vertical group for grid controls (Snap button and Grid slider)
+    const gridControlGroup = createVerticalButtonGroup(toolbarEl);
 
-    // Add CSS animation for pulsing effect
-    if (!document.getElementById("saving-indicator-style")) {
-      const style = document.createElement("style");
-      style.id = "saving-indicator-style";
-      style.textContent = `
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
-        }
-      `;
-      document.head.appendChild(style);
-    }
+    // Create and append Snap button with special toggle behavior
+    const snapBtn = createToolbarButton(
+      snapEnabled ? "Snap: ON" : "Snap: OFF",
+      () => {
+        snapEnabled = !snapEnabled;
+        snapBtn.textContent = snapEnabled ? "Snap: ON" : "Snap: OFF";
+        snapBtn.style.backgroundColor = snapEnabled
+          ? COLOR_BUTTON_BG
+          : COLOR_BUTTON_DISABLED;
+        console.log("Snap to grid:", snapEnabled);
+      },
+      gridControlGroup
+    );
+
+    // Override default styling for snap button based on initial state
+    snapBtn.style.backgroundColor = snapEnabled
+      ? COLOR_BUTTON_BG
+      : COLOR_BUTTON_DISABLED;
+
+    // Override hover behavior for snap button
+    snapBtn.onmouseover = () => {
+      if (snapEnabled) {
+        snapBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
+      }
+    };
+
+    snapBtn.onmouseout = () => {
+      snapBtn.style.backgroundColor = snapEnabled
+        ? COLOR_BUTTON_BG
+        : COLOR_BUTTON_DISABLED;
+    };
+
+    // Create grid size slider control
+    const gridSizeContainer = document.createElement("div");
+    gridSizeContainer.style.display = "flex";
+    gridSizeContainer.style.flexDirection = "column";
+    gridSizeContainer.style.gap = "2px";
+    gridSizeContainer.style.minWidth = "80px";
+    gridControlGroup.appendChild(gridSizeContainer);
+
+    const gridSizeLabel = document.createElement("label");
+    gridSizeLabel.textContent = `Grid: ${gridSize}px`;
+    gridSizeLabel.style.color = COLOR_BUTTON_TEXT;
+    gridSizeLabel.style.fontSize = "10px";
+    gridSizeLabel.style.textAlign = "center";
+    gridSizeContainer.appendChild(gridSizeLabel);
+
+    const gridSizeSlider = document.createElement("input");
+    gridSizeSlider.type = "range";
+    gridSizeSlider.min = "1";
+    gridSizeSlider.max = "50";
+    gridSizeSlider.value = gridSize;
+    gridSizeSlider.style.width = "100%";
+    gridSizeSlider.style.cursor = "pointer";
+
+    gridSizeSlider.oninput = (e) => {
+      gridSize = parseInt(e.target.value);
+      gridSizeLabel.textContent = `Grid: ${gridSize}px`;
+    };
+
+    gridSizeContainer.appendChild(gridSizeSlider);
+
+    // Create rotation slider control
+    const rotationContainer = document.createElement("div");
+    rotationContainer.style.display = "flex";
+    rotationContainer.style.flexDirection = "column";
+    rotationContainer.style.gap = "2px";
+    rotationContainer.style.minWidth = "80px";
+    rotationContainer.style.marginTop = "4px";
+    gridControlGroup.appendChild(rotationContainer);
+
+    rotationLabel = document.createElement("label");
+    rotationLabel.textContent = "Rotate: 0°";
+    rotationLabel.style.color = COLOR_BUTTON_TEXT;
+    rotationLabel.style.fontSize = "10px";
+    rotationLabel.style.textAlign = "center";
+    rotationContainer.appendChild(rotationLabel);
+
+    rotationSlider = document.createElement("input");
+    rotationSlider.type = "range";
+    rotationSlider.min = "0";
+    rotationSlider.max = "360";
+    rotationSlider.value = "0";
+    rotationSlider.style.width = "100%";
+    rotationSlider.style.cursor = "pointer";
+    rotationSlider.disabled = true; // Disabled until an object is selected
+
+    rotationSlider.oninput = (e) => {
+      if (isUpdatingRotationSlider) return; // Prevent circular updates
+
+      const angle = parseInt(e.target.value);
+      rotationLabel.textContent = `Rotate: ${angle}°`;
+
+      const activeObject = fabricInstance.getActiveObject();
+      if (activeObject) {
+        // Store original origin settings
+        const originalOriginX = activeObject.originX;
+        const originalOriginY = activeObject.originY;
+
+        // Temporarily set origin to center for proper rotation
+        activeObject.set({
+          originX: "center",
+          originY: "center",
+        });
+
+        // Set the rotation angle
+        activeObject.set({
+          angle: angle,
+        });
+
+        // Restore original origin settings
+        activeObject.set({
+          originX: originalOriginX,
+          originY: originalOriginY,
+        });
+
+        activeObject.setCoords();
+        fabricInstance.renderAll();
+      }
+    };
+
+    rotationContainer.appendChild(rotationSlider);
   };
 
   const createCanvasElement = () => {
@@ -632,13 +697,13 @@ const Editor = (node, fabric) => {
     return `${graphId}_${nodeId}.${format}${isTemp ? " [temp]" : ""}`;
   };
 
-  const updateWidgetValues = (event, node) => {
+  const updateWidgetValues = async (event, node) => {
     const imageName = buildImageName(app.graph.id, node.id, "png", false);
     imageNameWidget.value = imageName;
     fabricDataWidget.value = JSON.stringify(fabricInstance);
 
     const dataUrl = grabSnapshot();
-    uploadSnapshot(dataUrl, imageNameWidget.value, true);
+    await uploadSnapshot(dataUrl, imageNameWidget.value, true);
 
     node.setDirtyCanvas(true, true); // Force UI update
   };
@@ -860,6 +925,32 @@ const Editor = (node, fabric) => {
       }
     });
 
+    // Update rotation slider when object is rotated
+    fabricInstance.on("object:rotating", function (opt) {
+      updateRotationSlider();
+    });
+
+    // Update rotation slider when selection changes
+    fabricInstance.on("selection:created", function (opt) {
+      updateRotationSlider();
+      if (rotationSlider) rotationSlider.disabled = false;
+    });
+
+    fabricInstance.on("selection:updated", function (opt) {
+      updateRotationSlider();
+      if (rotationSlider) rotationSlider.disabled = false;
+    });
+
+    fabricInstance.on("selection:cleared", function (opt) {
+      if (rotationSlider) {
+        rotationSlider.disabled = true;
+        rotationSlider.value = "0";
+      }
+      if (rotationLabel) {
+        rotationLabel.textContent = "Rotate: 0°";
+      }
+    });
+
     // Save after object is modified
     fabricInstance.on("object:modified", function (opt) {
       console.log("compositor3Debug: async object modified event");
@@ -872,20 +963,42 @@ const Editor = (node, fabric) => {
     });
   };
 
+  const updateSeedValue = () => {
+    fabricDataWidget.value = Math.random();
+  };
+
+  const updateRotationSlider = () => {
+    if (!rotationSlider || !rotationLabel) return;
+
+    const activeObject = fabricInstance.getActiveObject();
+    if (activeObject) {
+      isUpdatingRotationSlider = true;
+
+      // Normalize angle to 0-360 range
+      let angle = activeObject.angle % 360;
+      if (angle < 0) angle += 360;
+
+      rotationSlider.value = Math.round(angle);
+      rotationLabel.textContent = `Rotate: ${Math.round(angle)}°`;
+
+      isUpdatingRotationSlider = false;
+    }
+  };
+
   const showSavingIndicator = () => {
-    if (savingIndicator) {
-      savingIndicator.style.display = "block";
+    if (saveBtn) {
+      saveBtn.disabled = true;
+      saveBtn.style.backgroundColor = COLOR_INDICATOR_SAVING;
+      saveBtn.style.cursor = "not-allowed";
     }
   };
 
   const hideSavingIndicator = () => {
-    if (savingIndicator) {
-      savingIndicator.style.display = "none";
+    if (saveBtn) {
+      saveBtn.disabled = false;
+      saveBtn.style.backgroundColor = COLOR_BUTTON_BG;
+      saveBtn.style.cursor = "pointer";
     }
-  };
-
-  const updateSeedValue = () => {
-    fabricDataWidget.value = Math.random();
   };
 
   const snapToGrid = (value) => {
@@ -1202,6 +1315,76 @@ const Editor = (node, fabric) => {
       obj.setCoords();
     });
 
+    fabricInstance.renderAll();
+  };
+
+  const flipHorizontally = () => {
+    const activeObject = fabricInstance.getActiveObject();
+    if (!activeObject) {
+      console.log("No object selected for flipping");
+      return;
+    }
+
+    // Store original origin settings
+    const originalOriginX = activeObject.originX;
+    const originalOriginY = activeObject.originY;
+
+    // Get the center point before flipping
+    const center = activeObject.getCenterPoint();
+
+    // Temporarily set origin to center for proper flipping
+    activeObject.set({
+      originX: "center",
+      originY: "center",
+    });
+
+    // Flip by inverting scaleX
+    activeObject.set({
+      scaleX: -activeObject.scaleX,
+    });
+
+    // Restore original origin settings
+    activeObject.set({
+      originX: originalOriginX,
+      originY: originalOriginY,
+    });
+
+    activeObject.setCoords();
+    fabricInstance.renderAll();
+  };
+
+  const flipVertically = () => {
+    const activeObject = fabricInstance.getActiveObject();
+    if (!activeObject) {
+      console.log("No object selected for flipping");
+      return;
+    }
+
+    // Store original origin settings
+    const originalOriginX = activeObject.originX;
+    const originalOriginY = activeObject.originY;
+
+    // Get the center point before flipping
+    const center = activeObject.getCenterPoint();
+
+    // Temporarily set origin to center for proper flipping
+    activeObject.set({
+      originX: "center",
+      originY: "center",
+    });
+
+    // Flip by inverting scaleY
+    activeObject.set({
+      scaleY: -activeObject.scaleY,
+    });
+
+    // Restore original origin settings
+    activeObject.set({
+      originX: originalOriginX,
+      originY: originalOriginY,
+    });
+
+    activeObject.setCoords();
     fabricInstance.renderAll();
   };
 

@@ -52,6 +52,7 @@ class Compositor3Debug:
         config_node_id = config["node_id"]
         onConfigChanged = config["onConfigChanged"]
         names = config["names"]
+        saveFolder = config.get("saveFolder", "temp")
 
         ui = {
             #"test": ("value",),
@@ -65,6 +66,7 @@ class Compositor3Debug:
             #"awaited": [self.result],
             #"configChanged": [configChanged],
             "onConfigChanged": [onConfigChanged],
+            "saveFolder": [saveFolder],
         }
 
         detail = {"output": ui, "node": node_id}
@@ -79,16 +81,18 @@ class Compositor3Debug:
                 "result": blocker_result
             }
         
-        imageExists = folder_paths.exists_annotated_filepath("../temp/compositor/"+imageName)
+        # Construct path based on saveFolder
+        folder_path = f"../{saveFolder}/compositor/{imageName}"
+        imageExists = folder_paths.exists_annotated_filepath(folder_path)
         if not imageExists:
-            print(f"Compositor3Debug: Image does not exist: ../temp/compositor/{imageName}")
+            print(f"Compositor3Debug: Image does not exist: {folder_path}")
             # Return ExecutionBlocker for all outputs if blocked
             blocker_result = tuple([ExecutionBlocker(None)] * len(self.RETURN_TYPES))
             return {
                 "ui": ui,
                 "result": blocker_result
             }
-        image_path = folder_paths.get_annotated_filepath("../temp/compositor/"+imageName)
+        image_path = folder_paths.get_annotated_filepath(folder_path)
         i = Image.open(image_path)
         i = ImageOps.exif_transpose(i)
         if i.mode == 'I':

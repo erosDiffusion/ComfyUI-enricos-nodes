@@ -192,6 +192,11 @@ function executedMessageHandler(event, a, b) {
       editor.updateCanvasDimensions(e.width, e.height, e.padding);
     }
 
+    // Store saveFolder in editor if provided
+    if (e.saveFolder !== undefined) {
+      editor.setSaveFolder(e.saveFolder);
+    }
+
     // e.names -> array of image filenames or base64
     e.names.map((name, index) => editor.appendImage(name, index));
   }
@@ -343,6 +348,7 @@ const Editor = (node, fabric) => {
   let canvasWidth = WIDTH;
   let canvasHeight = HEIGHT;
   let canvasPadding = PADDING;
+  let saveFolder = "temp"; // Default folder for saving images
 
   const imageNameWidget = getImageNameWidget(node);
   const fabricDataWidget = getFabricDataWidget(node);
@@ -1333,7 +1339,7 @@ const Editor = (node, fabric) => {
 
     body.append("image", file);
     body.append("subfolder", STORE_FOLDER);
-    body.append("type", "temp");
+    body.append("type", saveFolder);  // Use saveFolder variable instead of hardcoded "temp"
     body.append("overwrite", OVERWRITE);
 
     const result = await api.fetchApi(UPLOAD_ENDPOINT, {
@@ -1456,7 +1462,7 @@ const Editor = (node, fabric) => {
   const appendImage = (imageSource, index) => {
     // imageSource can be either:
     // 1. A base64 data URL (starts with "data:image/")
-    // 2. A filename from temp/compositor folder
+    // 2. A filename from {saveFolder}/compositor folder
     // 3. null/undefined
 
     if (!imageSource) {
@@ -1469,10 +1475,10 @@ const Editor = (node, fabric) => {
       // It's a base64 data URL, use directly
       imageUrl = imageSource;
     } else {
-      // It's a filename, construct the URL to temp/compositor folder
+      // It's a filename, construct the URL using the saveFolder setting
       imageUrl = `/view?filename=${encodeURIComponent(
         imageSource
-      )}&type=temp&subfolder=compositor`;
+      )}&type=${saveFolder}&subfolder=compositor`;
     }
 
     console.log(
@@ -2214,6 +2220,11 @@ const Editor = (node, fabric) => {
     fabricInstance.renderAll();
   };
 
+  const setSaveFolder = (folder) => {
+    saveFolder = folder;
+    console.log(`Compositor3Debug: saveFolder set to ${saveFolder}`);
+  };
+
   // public interface of the Editor
   return {
     initialize,
@@ -2222,5 +2233,6 @@ const Editor = (node, fabric) => {
     appendImage,
     selectImageByIndex,
     updateCanvasDimensions,
+    setSaveFolder,
   };
 };

@@ -17,6 +17,8 @@ const UPLOAD_ENDPOINT = "/upload/image";
 const STORE_FOLDER = "compositor";
 const TOOLBAR_HEIGHT = 30;
 const INDICATOR_RADIUS = 8;
+const GRID_SIZE = 1; // pixels for snap to grid
+const SNAP_ENABLED = true; // toggle snap to grid on/off
 // wether to overwrite existing images on upload
 const OVERWRITE = true;
 
@@ -184,6 +186,8 @@ const Editor = (node, fabric) => {
   let compositionBorder = null;
   let compositionArea = null;
   let savingIndicator = null;
+  let snapEnabled = SNAP_ENABLED; // Editor property for snap to grid
+  let snapButton = null;
   let images = [null, null, null, null, null, null, null, null, null];
 
   const imageNameWidget = getImageNameWidget(node);
@@ -200,6 +204,28 @@ const Editor = (node, fabric) => {
     containerEl.style.margin = "0px";
     containerEl.style.overflow = "hidden";
     return containerEl;
+  };
+
+  const createToolbar = () => {
+    // create a toolbar area with a slider and 2 buttons. for now just use placeholder components
+    const toolbar = document.createElement("div");
+    toolbar.style.width = "100%";
+    toolbar.style.height = TOOLBAR_HEIGHT + "px";
+    toolbar.style.backgroundColor = "rgba(50, 50, 50, 0.5)";
+    containerEl.appendChild(toolbar);
+
+    // create a slider
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = 0;
+    slider.max = 100;
+    slider.value = 50;
+    toolbar.appendChild(slider);
+
+    // create a button to toggle snap to grid
+    const snapButton = document.createElement("button");
+    snapButton.textContent = "Snap: ON";
+    toolbar.appendChild(snapButton);
   };
 
   const createCanvasElement = () => {
@@ -313,6 +339,7 @@ const Editor = (node, fabric) => {
 
   const initialize = () => {
     createContainer();
+    createToolbar();
     createCanvasElement();
     appendCanvasToContainer();
     initializeFabricCanvas();
@@ -351,10 +378,13 @@ const Editor = (node, fabric) => {
       "Reset"
     );
 
+    snapButton = createButton(130, 0, 80, 25, toggleSnapToGrid, "Snap: ON");
+
     createSavingIndicator();
 
     fabricInstance.add(resetButton);
     fabricInstance.add(saveButton);
+    fabricInstance.add(snapButton);
 
     addCanvasEventListeners();
 
@@ -572,19 +602,37 @@ const Editor = (node, fabric) => {
   };
 
   const addCanvasEventListeners = () => {
-    //this.fcanvas.on("object:modified", async function (opt) {
+    // Snap to grid on object movement
+    fabricInstance.on("object:moving", function (opt) {
+      if (snapEnabled) {
+        const target = opt.target;
+        target.set({
+          left: snapToGrid(target.left),
+          top: snapToGrid(target.top),
+        });
+      }
+    });
 
+    // Snap to grid on object scaling
+    fabricInstance.on("object:scaling", function (opt) {
+      if (snapEnabled) {
+        const target = opt.target;
+        target.set({
+          left: snapToGrid(target.left),
+          top: snapToGrid(target.top),
+        });
+      }
+    });
+
+    // Save after object is modified
     fabricInstance.on("object:modified", function (opt) {
       console.log("compositor3Debug: async object modified event");
-      // showSavingIndicator();
       const dataUrl = grabSnapshot();
-      // await uploadSnapshot(dataURLToBlob, imageNameWidget.value);
       showSavingIndicator();
       uploadSnapshot(dataUrl, imageNameWidget.value).then(() => {
         hideSavingIndicator();
         updateSeedValue();
       });
-      // hideSavingIndicator();
     });
   };
 
@@ -618,7 +666,25 @@ const Editor = (node, fabric) => {
     fabricDataWidget.value = Math.random();
   };
 
-  const toggleSnapToGrid = (enable, gridSize) => {
+  const snapToGrid = (value) => {
+    return Math.round(value / GRID_SIZE) * GRID_SIZE;
+  };
+
+  const toggleSnapToGrid = () => {
+    snapEnabled = !snapEnabled;
+
+    // Update button appearance
+    if (snapButton) {
+      const buttonRect = snapButton._objects[0];
+
+      if (snapEnabled) {
+        buttonRect.set("fill", "rgba(50, 50, 50, 0.9)");
+      } else {
+        buttonRect.set("fill", "rgba(100, 100, 100, 0.7)");
+      }
+      fabricInstance.renderAll();
+    }
+  };
 
   // public interface of the Editor
   return {

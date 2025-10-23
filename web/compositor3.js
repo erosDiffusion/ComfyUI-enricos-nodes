@@ -186,7 +186,7 @@ app.registerExtension({
             const e = event.detail.output;
             const nodeId = event.detail.node;
             const node = Editor.hook(nodeId);
-            if (node.type != "Compositor3") {
+            if (!node || node.type != "Compositor3") {
                 // console.log(node.type);
                 return;
             }

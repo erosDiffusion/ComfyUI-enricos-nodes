@@ -23,4 +23,3 @@ experimental node: frontend communication only with feature flag, needs page rel
         }
 
         return {"ui": ui, "result": (use_alignment_controls,)}
-

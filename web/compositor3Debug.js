@@ -318,6 +318,7 @@ const Editor = (node, fabric) => {
   let images = [null, null, null, null, null, null, null, null, null];
   let imagePositions = [0, 1, 2, 3, 4, 5, 6, 7, 8]; // Z-index stacking order (0=bottom, 8=top)
   let draggedLayerIndex = null; // Track which layer is being dragged
+  let pendingTransforms = [null, null, null, null, null, null, null, null, null]; // Store transforms to apply during restoration
 
   const imageNameWidget = getImageNameWidget(node);
   const fabricDataWidget = getFabricDataWidget(node);
@@ -1135,10 +1136,10 @@ const Editor = (node, fabric) => {
 
     createContainer();
     createToolbar();
-    
+
     // Update UI elements to reflect restored state
     updateUIAfterRestore();
-    
+
     createCanvasElement();
     const contentWrapper = createLayersPanel();
     appendCanvasToContainer(contentWrapper);
@@ -1262,9 +1263,17 @@ const Editor = (node, fabric) => {
     });
 
     let currentTransform = null;
-    if (hasImageAtIndex(index)) {
+    
+    // First, check if there's a pending transform (from deserialization)
+    if (pendingTransforms[index]) {
+      currentTransform = pendingTransforms[index];
+      console.log("Compositor3Debug: applying pending transform for index", index, currentTransform);
+      pendingTransforms[index] = null; // Clear after use
+    }
+    // Otherwise, check if there's an existing image to preserve its transform
+    else if (hasImageAtIndex(index)) {
       currentTransform = getCurrentTransforms(index);
-      console.log("Compositor3Debug: currentTransform", currentTransform);
+      console.log("Compositor3Debug: preserving existing transform", currentTransform);
     }
 
     fabricInstance.remove(getImageAtIndex(index));
@@ -1313,27 +1322,27 @@ const Editor = (node, fabric) => {
 
   const createPlaceholderImage = (index, callback) => {
     // Create a simple placeholder image using a canvas
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement("canvas");
     canvas.width = 200;
     canvas.height = 200;
-    const ctx = canvas.getContext('2d');
-    
+    const ctx = canvas.getContext("2d");
+
     // Draw a gray rectangle with "Missing" text
-    ctx.fillStyle = '#444444';
+    ctx.fillStyle = "#444444";
     ctx.fillRect(0, 0, 200, 200);
-    
-    ctx.strokeStyle = '#888888';
+
+    ctx.strokeStyle = "#888888";
     ctx.lineWidth = 2;
     ctx.strokeRect(5, 5, 190, 190);
-    
-    ctx.fillStyle = '#CCCCCC';
-    ctx.font = 'bold 24px Arial';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillText('Missing', 100, 85);
-    ctx.font = '16px Arial';
+
+    ctx.fillStyle = "#CCCCCC";
+    ctx.font = "bold 24px Arial";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText("Missing", 100, 85);
+    ctx.font = "16px Arial";
     ctx.fillText(`Image ${index + 1}`, 100, 115);
-    
+
     // Convert canvas to data URL and load as Fabric image
     const dataUrl = canvas.toDataURL();
     fabric.Image.fromURL(dataUrl, callback);
@@ -1344,41 +1353,53 @@ const Editor = (node, fabric) => {
     // 1. A base64 data URL (starts with "data:image/")
     // 2. A filename from temp/compositor folder
     // 3. null/undefined
-    
+
     if (!imageSource) {
       console.log(`Compositor3Debug: No image source for index ${index}`);
       return;
     }
-    
+
     let imageUrl;
-    if (imageSource.startsWith('data:image/')) {
+    if (imageSource.startsWith("data:image/")) {
       // It's a base64 data URL, use directly
       imageUrl = imageSource;
     } else {
       // It's a filename, construct the URL to temp/compositor folder
-      imageUrl = `/view?filename=${encodeURIComponent(imageSource)}&type=temp&subfolder=compositor`;
+      imageUrl = `/view?filename=${encodeURIComponent(
+        imageSource
+      )}&type=temp&subfolder=compositor`;
     }
-    
-    console.log(`Compositor3Debug: Loading image ${index} from ${imageUrl.substring(0, 100)}...`);
-    
+
+    console.log(
+      `Compositor3Debug: Loading image ${index} from ${imageUrl.substring(
+        0,
+        100
+      )}...`
+    );
+
     // Add a timestamp to force cache busting for file-based URLs
     // This helps when the workflow is loaded from localStorage and files might be stale
-    const cacheBustUrl = imageSource.startsWith('data:image/') 
-      ? imageUrl 
+    const cacheBustUrl = imageSource.startsWith("data:image/")
+      ? imageUrl
       : `${imageUrl}&t=${Date.now()}`;
-    
-    fabric.Image.fromURL(cacheBustUrl, 
+
+    fabric.Image.fromURL(
+      cacheBustUrl,
       (img) => {
         // Check if image loaded successfully
         if (!img || !img.getElement() || img.getElement().naturalWidth === 0) {
-          console.warn(`Compositor3Debug: Failed to load image ${index} (file may not exist yet), using placeholder`);
-          createPlaceholderImage(index, (placeholderImg) => fromUrlCallback(placeholderImg, index));
+          console.warn(
+            `Compositor3Debug: Failed to load image ${index} (file may not exist yet), using placeholder`
+          );
+          createPlaceholderImage(index, (placeholderImg) =>
+            fromUrlCallback(placeholderImg, index)
+          );
         } else {
           console.log(`Compositor3Debug: Successfully loaded image ${index}`);
           fromUrlCallback(img, index);
         }
       },
-      { crossOrigin: 'anonymous' }
+      { crossOrigin: "anonymous" }
     );
   };
 
@@ -1441,14 +1462,14 @@ const Editor = (node, fabric) => {
           if (imgElement && imgElement.src) {
             const src = imgElement.src;
             // Extract filename from URL or keep base64 as-is
-            if (src.startsWith('data:image/')) {
+            if (src.startsWith("data:image/")) {
               // Keep base64 data URLs as-is for backward compatibility
               imageNames.push(src);
             } else {
               // Extract filename from URL like /view?filename=config_123_image1.png&type=temp&subfolder=compositor
               try {
                 const url = new URL(src, window.location.origin);
-                const filename = url.searchParams.get('filename');
+                const filename = url.searchParams.get("filename");
                 imageNames.push(filename || src);
               } catch (e) {
                 // If URL parsing fails, keep original
@@ -1483,11 +1504,14 @@ const Editor = (node, fabric) => {
   const deserializeCompositorData = (dataString) => {
     try {
       const data = JSON.parse(dataString);
-      
+
       // Restore imagePositions if available
       if (data.imagePositions && Array.isArray(data.imagePositions)) {
         imagePositions = data.imagePositions;
-        console.log("Compositor3Debug: restored imagePositions", imagePositions);
+        console.log(
+          "Compositor3Debug: restored imagePositions",
+          imagePositions
+        );
       }
 
       // Restore snap settings if available
@@ -1501,15 +1525,25 @@ const Editor = (node, fabric) => {
         console.log("Compositor3Debug: restored gridSize", gridSize);
       }
 
+      // Store transforms for pending restoration
+      if (data.transforms && Array.isArray(data.transforms)) {
+        console.log("Compositor3Debug: storing pending transforms", data.transforms);
+        pendingTransforms = data.transforms.slice(); // Copy the array
+      }
+
       // Restore images from imageNames if available
       if (data.imageNames && Array.isArray(data.imageNames)) {
-        console.log("Compositor3Debug: restoring images from imageNames", data.imageNames);
+        console.log(
+          "Compositor3Debug: restoring images from imageNames",
+          data.imageNames
+        );
         data.imageNames.forEach((imageName, index) => {
           if (imageName) {
             // Use appendImage which already handles filename vs base64 and placeholders
             // NOTE: When workflow is loaded from localStorage before backend runs,
             // image files may not exist yet, so placeholders will be shown initially.
             // They will be replaced with actual images once the backend runs.
+            // The transforms will be applied from pendingTransforms array in fromUrlCallback
             appendImage(imageName, index);
           }
         });

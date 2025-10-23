@@ -348,7 +348,7 @@ const Editor = (node, fabric) => {
   let canvasWidth = WIDTH;
   let canvasHeight = HEIGHT;
   let canvasPadding = PADDING;
-  let saveFolder = "temp"; // Default folder for saving images
+  let saveFolder = "output"; // Default folder for saving images
 
   const imageNameWidget = getImageNameWidget(node);
   const fabricDataWidget = getFabricDataWidget(node);
@@ -1339,7 +1339,7 @@ const Editor = (node, fabric) => {
 
     body.append("image", file);
     body.append("subfolder", STORE_FOLDER);
-    body.append("type", saveFolder);  // Use saveFolder variable instead of hardcoded "temp"
+    body.append("type", saveFolder); // Use saveFolder variable instead of hardcoded "temp"
     body.append("overwrite", OVERWRITE);
 
     const result = await api.fetchApi(UPLOAD_ENDPOINT, {

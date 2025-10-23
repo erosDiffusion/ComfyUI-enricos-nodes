@@ -108,33 +108,33 @@ class CompositorConfig3:
     def INPUT_TYPES(cls):
         return {
             "required": {
-                "width": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
-                "height": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32}),
-                "padding": ("INT", {"default": 100, "min": 0, "max": MAX_RESOLUTION, "step": 1}),
-                "normalizeHeight": ("BOOLEAN", {"default": False}),
-                "onConfigChanged": ("BOOLEAN", {"label_off": "stop", "label_on": "Grab and Continue", "default": False}),
-                "invertMask": ("BOOLEAN", {"default": False}),
-                "saveFormat": (["PNG Level 0 (fastest)", "PNG Level 1", "PNG Level 9 (smallest)", "JPEG (quality 100)", "WebP Lossless", "BMP (uncompressed)"], {"default": "PNG Level 0 (fastest)"}),
-                "saveFolder": (["temp", "input", "output"], {"default": "temp"}),
-                "initialized": ("STRING", {"default": ""}),
+                "width": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32, "tooltip": "Width of the composition area in pixels"}),
+                "height": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32, "tooltip": "Height of the composition area in pixels"}),
+                "padding": ("INT", {"default": 100, "min": 0, "max": MAX_RESOLUTION, "step": 1, "tooltip": "Extra space around the composition area for positioning images outside the canvas"}),
+                "normalizeHeight": ("BOOLEAN", {"default": False, "tooltip": "Scale all input images to the same height while maintaining aspect ratio"}),
+                "onConfigChanged": ("BOOLEAN", {"label_off": "stop", "label_on": "Grab and Continue", "default": False, "tooltip": "When enabled, automatically grabs the snapshot and continues execution. When disabled, pauses to allow manual composition"}),
+                "invertMask": ("BOOLEAN", {"default": False, "tooltip": "Invert the alpha channel of all input masks before applying them to images"}),
+                "saveFormat": (["PNG Level 0 (fastest)", "PNG Level 1", "PNG Level 9 (smallest)", "JPEG (quality 100)", "WebP Lossless", "BMP (uncompressed)"], {"default": "PNG Level 0 (fastest)", "tooltip": "Image format for saving compositor images. PNG Level 0 is fastest, Level 9 creates smallest files"}),
+                "saveFolder": (["temp", "input", "output"], {"default": "output", "tooltip": "Folder where compositor images are saved: temp (temporary), input, or output directory"}),
+                "initialized": ("STRING", {"default": "", "tooltip": "Internal state field, do not modify"}),
             },
             "optional": {
-                "image1": ("IMAGE",),
-                "mask1": ("MASK",),
-                "image2": ("IMAGE",),
-                "mask2": ("MASK",),
-                "image3": ("IMAGE",),
-                "mask3": ("MASK",),
-                "image4": ("IMAGE",),
-                "mask4": ("MASK",),
-                "image5": ("IMAGE",),
-                "mask5": ("MASK",),
-                "image6": ("IMAGE",),
-                "mask6": ("MASK",),
-                "image7": ("IMAGE",),
-                "mask7": ("MASK",),
-                "image8": ("IMAGE",),
-                "mask8": ("MASK",),
+                "image1": ("IMAGE", {"tooltip": "First input image (optional)"}),
+                "mask1": ("MASK", {"tooltip": "Alpha mask for first image (optional)"}),
+                "image2": ("IMAGE", {"tooltip": "Second input image (optional)"}),
+                "mask2": ("MASK", {"tooltip": "Alpha mask for second image (optional)"}),
+                "image3": ("IMAGE", {"tooltip": "Third input image (optional)"}),
+                "mask3": ("MASK", {"tooltip": "Alpha mask for third image (optional)"}),
+                "image4": ("IMAGE", {"tooltip": "Fourth input image (optional)"}),
+                "mask4": ("MASK", {"tooltip": "Alpha mask for fourth image (optional)"}),
+                "image5": ("IMAGE", {"tooltip": "Fifth input image (optional)"}),
+                "mask5": ("MASK", {"tooltip": "Alpha mask for fifth image (optional)"}),
+                "image6": ("IMAGE", {"tooltip": "Sixth input image (optional)"}),
+                "mask6": ("MASK", {"tooltip": "Alpha mask for sixth image (optional)"}),
+                "image7": ("IMAGE", {"tooltip": "Seventh input image (optional)"}),
+                "mask7": ("MASK", {"tooltip": "Alpha mask for seventh image (optional)"}),
+                "image8": ("IMAGE", {"tooltip": "Eighth input image (optional)"}),
+                "mask8": ("MASK", {"tooltip": "Alpha mask for eighth image (optional)"}),
             },
             "hidden": {
                 "prompt": "PROMPT",
@@ -145,18 +145,13 @@ class CompositorConfig3:
 
     RETURN_TYPES = ("COMPOSITOR_CONFIG", "COMPOSITOR_CONFIG")
     RETURN_NAMES = ("config", "extendedConfig")
+    OUTPUT_TOOLTIPS = ("Configuration object containing compositor settings and processed images", 
+                       "Extended configuration including all raw input parameters")
 
     FUNCTION = "configure"
 
     CATEGORY = "image"
-    DESCRIPTION = """
-The compositor node
-- pass up to 8 images
-- optionally pass their masks (invert them)
-- masks are automatically applied and internally the compositor is passed an rgba
-- use the sizing controls to configure the compositor, it will be resized on run
-- set the flag to pause to allow yourself time to build your composition (pause acts on compositor, not the config node)
-"""
+    DESCRIPTION = "Configuration node for the compositor system. Accepts up to 8 images with optional masks, applies masking to create RGBA composites, and provides canvas sizing controls. The 'onConfigChanged' pause option allows time to build compositions before continuing execution. Outputs configuration objects used by compositor debug nodes."
 
     def configure(self, **kwargs):
         # capture all inputs for extendedConfig
@@ -189,7 +184,7 @@ The compositor node
         invertMask = kwargs.pop('invertMask', False)
         normalizeHeight = kwargs.pop('normalizeHeight', 512)
         saveFormat = kwargs.pop('saveFormat', 'PNG Level 0 (fastest)')
-        saveFolder = kwargs.pop('saveFolder', 'temp')
+        saveFolder = kwargs.pop('saveFolder', 'output')
         # grabAndContinue, stop
         onConfigChanged = kwargs.pop('onConfigChanged', False)
         node_id = kwargs.pop('node_id', None)

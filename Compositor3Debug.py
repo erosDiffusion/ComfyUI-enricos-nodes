@@ -17,14 +17,16 @@ class Compositor3Debug:
                 
                 "fabricData": ("STRING", {
                     "multiline": False,
-                    "default": ""
+                    "default": "",
+                    "tooltip": "JSON string containing the compositor state (transforms, positions, visibility). Auto-managed by the compositor interface"
                 }),
                 "imageName": ("STRING", {
                     "multiline": False,
-                    "default": ""
+                    "default": "",
+                    "tooltip": "Name of the snapshot image file. Auto-generated based on graph and node ID"
                 }),
                 #is it possible that if we put config on top then the gui breaks ?
-                "config": ("COMPOSITOR_CONFIG", {"forceInput": True}),
+                "config": ("COMPOSITOR_CONFIG", {"forceInput": True, "tooltip": "Configuration from CompositorConfig node containing canvas size, images, and settings"}),
             },
             "hidden": {
                 "extra_pnginfo": "EXTRA_PNGINFO",
@@ -35,8 +37,12 @@ class Compositor3Debug:
 
     RETURN_TYPES = ("STRING", "STRING","IMAGE")
     RETURN_NAMES = ("fabricData_output", "imageName_output","image")
+    OUTPUT_TOOLTIPS = ("Compositor state data (transforms, positions, etc.)", 
+                       "Filename of the saved composition snapshot",
+                       "Final composed image rendered from the compositor canvas")
     FUNCTION = "run"
     CATEGORY = "image/debug"
+    DESCRIPTION = "Interactive compositor canvas for positioning, scaling, rotating, and arranging multiple images with real-time preview. Provides a visual editor with layers panel, alignment tools, and snap-to-grid functionality."
     OUTPUT_NODE = True
 
     def run(self, **kwargs):
@@ -52,7 +58,7 @@ class Compositor3Debug:
         config_node_id = config["node_id"]
         onConfigChanged = config["onConfigChanged"]
         names = config["names"]
-        saveFolder = config.get("saveFolder", "temp")
+        saveFolder = config.get("saveFolder", "output")
 
         ui = {
             #"test": ("value",),

@@ -445,6 +445,12 @@ const Editor = (node, fabric) => {
   // Store keyboard handler reference for cleanup
   let keyboardHandler = null;
 
+  // Save queue management for throttling/batching saves with debounce
+  let isSaving = false;
+  let pendingSaveRequest = null;
+  let saveDebounceTimeout = null;
+  const SAVE_DEBOUNCE_DELAY = 15; // milliseconds
+
   const imageNameWidget = getImageNameWidget(node);
   const fabricDataWidget = getFabricDataWidget(node);
 
@@ -485,13 +491,11 @@ const Editor = (node, fabric) => {
     // Create vertical group for Save and Reset buttons
     const mainButtonGroup = createVerticalButtonGroup(toolbarEl);
 
-    // Create and append Save button with saving state tracking
+    // Create and append Save button (non-blocking, queued save)
     saveBtn = createToolbarButton(
       "Save",
-      async (event) => {
-        showSavingIndicator();
-        await updateWidgetValues(event, node);
-        hideSavingIndicator();
+      (event) => {
+        updateWidgetValues(event, node);
       },
       mainButtonGroup
     );
@@ -1022,6 +1026,29 @@ const Editor = (node, fabric) => {
     }
   };
 
+  const updateLayerSelectionHighlight = () => {
+    // Clear all highlights first
+    layerItems.forEach((layerItem, idx) => {
+      if (layerItem) {
+        layerItem.style.backgroundColor = COLOR_BUTTON_BG;
+      }
+    });
+
+    // Get the currently selected object
+    const activeObject = fabricInstance.getActiveObject();
+    if (!activeObject) return;
+
+    // If it's a single object, find its index and highlight it
+    if (activeObject.type !== "activeSelection") {
+      const selectedIndex = images.indexOf(activeObject);
+      if (selectedIndex !== -1 && layerItems[selectedIndex]) {
+        layerItems[selectedIndex].style.backgroundColor = COLOR_BUTTON_ACTIVE;
+      }
+    }
+    // For multi-selection, we could highlight all selected layers
+    // but for now we'll just clear highlights for multi-select
+  };
+
   const toggleImageVisibility = (index) => {
     if (!images[index]) {
       console.log(`Layer ${index} is empty`);
@@ -1059,10 +1086,7 @@ const Editor = (node, fabric) => {
     fabricInstance.renderAll();
 
     // Save the changes (same as object:modified event)
-    const dataUrl = grabSnapshot();
-    showSavingIndicator();
-    uploadSnapshot(dataUrl, imageNameWidget.value).then(() => {
-      hideSavingIndicator();
+    queuedSave(false).then(() => {
       updateSeedValue();
     });
   };
@@ -1082,10 +1106,7 @@ const Editor = (node, fabric) => {
     updateCanvasZOrder();
 
     // Save the changes
-    const dataUrl = grabSnapshot();
-    showSavingIndicator();
-    uploadSnapshot(dataUrl, imageNameWidget.value).then(() => {
-      hideSavingIndicator();
+    queuedSave(false).then(() => {
       updateSeedValue();
     });
   };
@@ -1125,6 +1146,9 @@ const Editor = (node, fabric) => {
         }
       }
     });
+
+    // Update selection highlight after reordering
+    updateLayerSelectionHighlight();
   };
 
   const updateCanvasZOrder = () => {
@@ -1248,7 +1272,8 @@ const Editor = (node, fabric) => {
     return `${graphId}_${nodeId}.${format}${isTemp ? " [temp]" : ""}`;
   };
 
-  const updateWidgetValues = async (event, node) => {
+  const executeSave = async (queue = false) => {
+    // Actual save execution
     const imageName = buildImageName(app.graph.id, node.id, "png", false);
     imageNameWidget.value = imageName;
 
@@ -1257,9 +1282,60 @@ const Editor = (node, fabric) => {
     fabricDataWidget.value = JSON.stringify(compositorData);
 
     const dataUrl = grabSnapshot();
-    await uploadSnapshot(dataUrl, imageNameWidget.value, true);
+    await uploadSnapshot(dataUrl, imageNameWidget.value, queue);
 
     node.setDirtyCanvas(true, true); // Force UI update
+  };
+
+  const queuedSave = (queue = false) => {
+    // Cancel any pending debounced save
+    if (saveDebounceTimeout) {
+      clearTimeout(saveDebounceTimeout);
+      saveDebounceTimeout = null;
+      console.log("Compositor3Debug: cancelled pending save (debounce)");
+    }
+
+    // If a save is in progress, store this request as pending (only keep the latest)
+    if (isSaving) {
+      pendingSaveRequest = { queue };
+      console.log("Compositor3Debug: save queued (another save in progress)");
+      return Promise.resolve(); // Return resolved promise for .then() compatibility
+    }
+
+    // Return a promise that resolves when the save completes
+    return new Promise((resolve) => {
+      // Schedule the save after debounce delay
+      saveDebounceTimeout = setTimeout(async () => {
+        saveDebounceTimeout = null;
+
+        // Mark that we're saving
+        isSaving = true;
+        showSavingIndicator();
+
+        try {
+          await executeSave(queue);
+        } catch (error) {
+          console.error("Compositor3Debug: save failed", error);
+        } finally {
+          hideSavingIndicator();
+          isSaving = false;
+          resolve(); // Resolve the promise after save completes
+
+          // If there's a pending save request, execute it now
+          if (pendingSaveRequest) {
+            const request = pendingSaveRequest;
+            pendingSaveRequest = null;
+            console.log("Compositor3Debug: executing queued save");
+            // Execute immediately (will go through debounce again)
+            queuedSave(request.queue);
+          }
+        }
+      }, SAVE_DEBOUNCE_DELAY);
+    });
+  };
+
+  const updateWidgetValues = (event, node) => {
+    queuedSave(true);
   };
 
   const resetImagePositions = (event, node) => {
@@ -1862,15 +1938,18 @@ const Editor = (node, fabric) => {
     // Update rotation slider when selection changes
     fabricInstance.on("selection:created", function (opt) {
       updateRotationSlider();
+      updateLayerSelectionHighlight();
       if (rotationSlider) rotationSlider.disabled = false;
     });
 
     fabricInstance.on("selection:updated", function (opt) {
       updateRotationSlider();
+      updateLayerSelectionHighlight();
       if (rotationSlider) rotationSlider.disabled = false;
     });
 
     fabricInstance.on("selection:cleared", function (opt) {
+      updateLayerSelectionHighlight();
       if (rotationSlider) {
         rotationSlider.disabled = true;
         rotationSlider.value = "0";
@@ -1883,10 +1962,7 @@ const Editor = (node, fabric) => {
     // Save after object is modified
     fabricInstance.on("object:modified", function (opt) {
       console.log("compositor3Debug: async object modified event");
-      const dataUrl = grabSnapshot();
-      showSavingIndicator();
-      uploadSnapshot(dataUrl, imageNameWidget.value).then(() => {
-        hideSavingIndicator();
+      queuedSave(false).then(() => {
         updateSeedValue();
       });
     });
@@ -1973,10 +2049,7 @@ const Editor = (node, fabric) => {
     fabricInstance.renderAll();
 
     // Save the changes
-    const dataUrl = grabSnapshot();
-    showSavingIndicator();
-    uploadSnapshot(dataUrl, imageNameWidget.value).then(() => {
-      hideSavingIndicator();
+    queuedSave(false).then(() => {
       updateSeedValue();
     });
   };
@@ -1986,6 +2059,13 @@ const Editor = (node, fabric) => {
     if (keyboardHandler) {
       document.removeEventListener("keydown", keyboardHandler);
       keyboardHandler = null;
+    }
+
+    // Cancel any pending debounced saves
+    if (saveDebounceTimeout) {
+      clearTimeout(saveDebounceTimeout);
+      saveDebounceTimeout = null;
+      console.log("Compositor3Debug: cancelled pending save on cleanup");
     }
   };
 
@@ -2116,6 +2196,11 @@ const Editor = (node, fabric) => {
 
     activeObject.setCoords();
     fabricInstance.renderAll();
+
+    // Save the changes
+    queuedSave(false).then(() => {
+      updateSeedValue();
+    });
   };
 
   const isImageObject = (obj) => {
@@ -2143,6 +2228,11 @@ const Editor = (node, fabric) => {
 
     activeObject.setCoords();
     fabricInstance.renderAll();
+
+    // Save the changes
+    queuedSave(false).then(() => {
+      updateSeedValue();
+    });
   };
 
   const stretchVertically = () => {
@@ -2165,6 +2255,11 @@ const Editor = (node, fabric) => {
 
     activeObject.setCoords();
     fabricInstance.renderAll();
+
+    // Save the changes
+    queuedSave(false).then(() => {
+      updateSeedValue();
+    });
   };
 
   const equalizeHeight = () => {
@@ -2202,6 +2297,11 @@ const Editor = (node, fabric) => {
     });
 
     fabricInstance.renderAll();
+
+    // Save the changes
+    queuedSave(false).then(() => {
+      updateSeedValue();
+    });
   };
 
   const equalizeWidth = () => {
@@ -2239,6 +2339,11 @@ const Editor = (node, fabric) => {
     });
 
     fabricInstance.renderAll();
+
+    // Save the changes
+    queuedSave(false).then(() => {
+      updateSeedValue();
+    });
   };
 
   const distributeVertically = () => {
@@ -2294,6 +2399,11 @@ const Editor = (node, fabric) => {
     });
 
     fabricInstance.renderAll();
+
+    // Save the changes
+    queuedSave(false).then(() => {
+      updateSeedValue();
+    });
   };
 
   const distributeHorizontally = () => {
@@ -2349,6 +2459,11 @@ const Editor = (node, fabric) => {
     });
 
     fabricInstance.renderAll();
+
+    // Save the changes
+    queuedSave(false).then(() => {
+      updateSeedValue();
+    });
   };
 
   const flipHorizontally = () => {
@@ -2384,6 +2499,11 @@ const Editor = (node, fabric) => {
 
     activeObject.setCoords();
     fabricInstance.renderAll();
+
+    // Save the changes
+    queuedSave(false).then(() => {
+      updateSeedValue();
+    });
   };
 
   const flipVertically = () => {
@@ -2419,6 +2539,11 @@ const Editor = (node, fabric) => {
 
     activeObject.setCoords();
     fabricInstance.renderAll();
+
+    // Save the changes
+    queuedSave(false).then(() => {
+      updateSeedValue();
+    });
   };
 
   const setSaveFolder = (folder) => {

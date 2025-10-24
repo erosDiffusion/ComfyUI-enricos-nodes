@@ -147,6 +147,18 @@ const initializeCustomCanvasWidget = (node) => {
     node.editorWidget = editorWidget;
     node.editor = editor;
 
+    // Add cleanup when node is removed
+    const originalOnRemoved = node.onRemoved;
+    node.onRemoved = function () {
+      console.log("Compositor3Debug: node removed, cleaning up", node.id);
+      if (node.editor && node.editor.cleanup) {
+        node.editor.cleanup();
+      }
+      if (originalOnRemoved) {
+        originalOnRemoved.call(this);
+      }
+    };
+
     // Set initial size - this will be updated in loadedGraphNode or compositor_init
     node.setSize(editor.calculateNodeSize());
     node.resizable = false;
@@ -412,13 +424,26 @@ const Editor = (node, fabric) => {
   // Store direct references to layer UI elements (avoids getElementById issues with multiple nodes)
   let layerItems = [null, null, null, null, null, null, null, null, null];
   let layerThumbnails = [null, null, null, null, null, null, null, null, null];
-  let layerVisibilityButtons = [null, null, null, null, null, null, null, null, null];
+  let layerVisibilityButtons = [
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+    null,
+  ];
 
   // Canvas dimensions - can be updated from config
   let canvasWidth = WIDTH;
   let canvasHeight = HEIGHT;
   let canvasPadding = PADDING;
   let saveFolder = "output"; // Default folder for saving images
+
+  // Store keyboard handler reference for cleanup
+  let keyboardHandler = null;
 
   const imageNameWidget = getImageNameWidget(node);
   const fabricDataWidget = getFabricDataWidget(node);
@@ -1865,6 +1890,103 @@ const Editor = (node, fabric) => {
         updateSeedValue();
       });
     });
+
+    // Add keyboard navigation for selected objects
+    keyboardHandler = handleKeyboardNavigation;
+    document.addEventListener("keydown", keyboardHandler);
+  };
+
+  const handleKeyboardNavigation = (e) => {
+    // Only handle arrow keys when an object is selected in this canvas
+    const activeObject = fabricInstance?.getActiveObject();
+    if (!activeObject) return;
+
+    // Check if we should handle this event (don't interfere with text input)
+    if (
+      e.target.tagName === "INPUT" ||
+      e.target.tagName === "TEXTAREA" ||
+      e.target.isContentEditable
+    ) {
+      return;
+    }
+
+    // Arrow key codes
+    const isArrowKey = [
+      "ArrowUp",
+      "ArrowDown",
+      "ArrowLeft",
+      "ArrowRight",
+    ].includes(e.key);
+    if (!isArrowKey) return;
+
+    // Prevent default behavior (scrolling)
+    e.preventDefault();
+
+    // Determine movement distance (1px normal, 10px with Shift)
+    const distance = e.shiftKey ? 10 : 1;
+
+    // Calculate new position
+    let deltaX = 0;
+    let deltaY = 0;
+
+    switch (e.key) {
+      case "ArrowLeft":
+        deltaX = -distance;
+        break;
+      case "ArrowRight":
+        deltaX = distance;
+        break;
+      case "ArrowUp":
+        deltaY = -distance;
+        break;
+      case "ArrowDown":
+        deltaY = distance;
+        break;
+    }
+
+    // Move the object(s)
+    if (activeObject.type === "activeSelection") {
+      // Multi-selection: move all selected objects
+      activeObject.forEachObject((obj) => {
+        obj.set({
+          left: obj.left + deltaX,
+          top: obj.top + deltaY,
+        });
+        obj.setCoords();
+      });
+      // Update the selection group position
+      activeObject.set({
+        left: activeObject.left + deltaX,
+        top: activeObject.top + deltaY,
+      });
+      activeObject.setCoords();
+    } else {
+      // Single selection: move the object
+      activeObject.set({
+        left: activeObject.left + deltaX,
+        top: activeObject.top + deltaY,
+      });
+      activeObject.setCoords();
+    }
+
+    // Render the changes
+    fabricInstance.renderAll();
+
+    // Save the changes
+    const dataUrl = grabSnapshot();
+    showSavingIndicator();
+    uploadSnapshot(dataUrl, imageNameWidget.value).then(() => {
+      hideSavingIndicator();
+      updateSeedValue();
+    });
+  };
+
+  const cleanup = () => {
+    // Remove keyboard event listener when editor is destroyed
+    if (keyboardHandler) {
+      document.removeEventListener("keydown", keyboardHandler);
+      keyboardHandler = null;
+    }
   };
 
   const updateSeedValue = () => {
@@ -2375,5 +2497,6 @@ const Editor = (node, fabric) => {
     updateCanvasDimensions,
     setSaveFolder,
     restoreState,
+    cleanup,
   };
 };

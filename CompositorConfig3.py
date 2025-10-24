@@ -11,6 +11,8 @@ import os
 import hashlib
 import time
 from comfy.utils import common_upscale
+from typing_extensions import override
+from comfy_api.latest import ComfyExtension, io
 
 MAX_RESOLUTION = nodes.MAX_RESOLUTION
 
@@ -103,118 +105,92 @@ def saveImageToCompositorFolder(img, config_node_id, index, save_format, save_fo
     return filename
 
 
-class CompositorConfig3:
-    NOT_IDEMPOTENT = True
+class CompositorConfig3(io.ComfyNode):
+    #NOT_IDEMPOTENT = True
 
     @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                "width": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32, "tooltip": "Width of the composition area in pixels"}),
-                "height": ("INT", {"default": 512, "min": 0, "max": MAX_RESOLUTION, "step": 32, "tooltip": "Height of the composition area in pixels"}),
-                "padding": ("INT", {"default": 100, "min": 0, "max": MAX_RESOLUTION, "step": 1, "tooltip": "Extra space around the composition area for positioning images outside the canvas"}),
-                "normalizeHeight": ("BOOLEAN", {"default": False, "tooltip": "Scale all input images to the same height while maintaining aspect ratio"}),
-                "onConfigChanged": ("BOOLEAN", {"label_off": "stop", "label_on": "Grab and Continue", "default": False, "tooltip": "When enabled, automatically grabs the snapshot and continues execution. When disabled, pauses to allow manual composition"}),
-                "invertMask": ("BOOLEAN", {"default": False, "tooltip": "Invert the alpha channel of all input masks before applying them to images"}),
-                "saveFormat": (["PNG Level 0 (fastest)", "PNG Level 1", "PNG Level 9 (smallest)", "JPEG (quality 100)", "WebP Lossless", "BMP (uncompressed)"], {"default": "PNG Level 0 (fastest)", "tooltip": "Image format for saving compositor images. PNG Level 0 is fastest, Level 9 creates smallest files"}),
-                "saveFolder": (["temp", "input", "output"], {"default": "output", "tooltip": "Folder where compositor images are saved: temp (temporary), input, or output directory"}),
-                "initialized": ("STRING", {"default": "", "tooltip": "Internal state field, do not modify"}),
-            },
-            "optional": {
-                "image1": ("IMAGE", {"tooltip": "First input image (optional)"}),
-                "mask1": ("MASK", {"tooltip": "Alpha mask for first image (optional)"}),
-                "image2": ("IMAGE", {"tooltip": "Second input image (optional)"}),
-                "mask2": ("MASK", {"tooltip": "Alpha mask for second image (optional)"}),
-                "image3": ("IMAGE", {"tooltip": "Third input image (optional)"}),
-                "mask3": ("MASK", {"tooltip": "Alpha mask for third image (optional)"}),
-                "image4": ("IMAGE", {"tooltip": "Fourth input image (optional)"}),
-                "mask4": ("MASK", {"tooltip": "Alpha mask for fourth image (optional)"}),
-                "image5": ("IMAGE", {"tooltip": "Fifth input image (optional)"}),
-                "mask5": ("MASK", {"tooltip": "Alpha mask for fifth image (optional)"}),
-                "image6": ("IMAGE", {"tooltip": "Sixth input image (optional)"}),
-                "mask6": ("MASK", {"tooltip": "Alpha mask for sixth image (optional)"}),
-                "image7": ("IMAGE", {"tooltip": "Seventh input image (optional)"}),
-                "mask7": ("MASK", {"tooltip": "Alpha mask for seventh image (optional)"}),
-                "image8": ("IMAGE", {"tooltip": "Eighth input image (optional)"}),
-                "mask8": ("MASK", {"tooltip": "Alpha mask for eighth image (optional)"}),
-            },
-            "hidden": {
-                "prompt": "PROMPT",
-                "extra_pnginfo": "EXTRA_PNGINFO",
-                "node_id": "UNIQUE_ID",
-            },
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id="CompositorConfig3",
+            display_name="Compositor Config V3",
+            category="image",
+            description="Configuration node for the compositor system. Accepts up to 8 images with optional masks, applies masking to create RGBA composites, and provides canvas sizing controls. The 'onConfigChangedContinue' pause option allows time to build compositions before continuing execution. Outputs configuration objects used by compositor debug nodes.",
+            inputs=[
+                io.Int.Input("width", default=512, min=0, max=MAX_RESOLUTION, step=32, tooltip="Width of the composition area in pixels"),
+                io.Int.Input("height", default=512, min=0, max=MAX_RESOLUTION, step=32, tooltip="Height of the composition area in pixels"),
+                io.Int.Input("padding", default=100, min=0, max=MAX_RESOLUTION, step=1, tooltip="Extra space around the composition area for positioning images outside the canvas"),
+                io.Boolean.Input("normalizeHeight", default=False, tooltip="Scale all input images to the same height while maintaining aspect ratio"),
+                io.Boolean.Input("onConfigChangedContinue", default=False, label_off="stop", label_on="Grab and Continue", tooltip="When enabled, automatically grabs the snapshot and continues execution. When disabled, pauses to allow manual composition"),
+                io.Boolean.Input("invertMask", default=False, tooltip="Invert the alpha channel of all input masks before applying them to images"),
+                io.Combo.Input("saveFormat", options=["PNG Level 0 (fastest)", "PNG Level 1", "PNG Level 9 (smallest)", "JPEG (quality 100)", "WebP Lossless", "BMP (uncompressed)"], default="PNG Level 0 (fastest)", tooltip="Image format for saving compositor images. PNG Level 0 is fastest, Level 9 creates smallest files"),
+                io.Combo.Input("saveFolder", options=["temp", "input", "output"], default="output", tooltip="Folder where compositor images are saved: temp (temporary), input, or output directory"),                
+                # Optional image inputs
+                io.Image.Input("image1", optional=True, tooltip="First input image (optional)"),
+                io.Mask.Input("mask1", optional=True, tooltip="Alpha mask for first image (optional)"),
+                io.Image.Input("image2", optional=True, tooltip="Second input image (optional)"),
+                io.Mask.Input("mask2", optional=True, tooltip="Alpha mask for second image (optional)"),
+                io.Image.Input("image3", optional=True, tooltip="Third input image (optional)"),
+                io.Mask.Input("mask3", optional=True, tooltip="Alpha mask for third image (optional)"),
+                io.Image.Input("image4", optional=True, tooltip="Fourth input image (optional)"),
+                io.Mask.Input("mask4", optional=True, tooltip="Alpha mask for fourth image (optional)"),
+                io.Image.Input("image5", optional=True, tooltip="Fifth input image (optional)"),
+                io.Mask.Input("mask5", optional=True, tooltip="Alpha mask for fifth image (optional)"),
+                io.Image.Input("image6", optional=True, tooltip="Sixth input image (optional)"),
+                io.Mask.Input("mask6", optional=True, tooltip="Alpha mask for sixth image (optional)"),
+                io.Image.Input("image7", optional=True, tooltip="Seventh input image (optional)"),
+                io.Mask.Input("mask7", optional=True, tooltip="Alpha mask for seventh image (optional)"),
+                io.Image.Input("image8", optional=True, tooltip="Eighth input image (optional)"),
+                io.Mask.Input("mask8", optional=True, tooltip="Alpha mask for eighth image (optional)"),
+            ],
+            outputs=[
+                io.Custom("COMPOSITOR_CONFIG").Output(display_name="config", tooltip="Configuration object containing compositor settings and processed images"),
+                io.Custom("COMPOSITOR_CONFIG").Output(display_name="extendedConfig", tooltip="Extended configuration including all raw input parameters"),
+            ],
+            hidden=[
+                io.Hidden.prompt,
+                io.Hidden.extra_pnginfo,
+                io.Hidden.unique_id,
+            ]
+        )
+
+    @classmethod
+    def execute(cls, width, height, padding, normalizeHeight, onConfigChangedContinue, invertMask, saveFormat, saveFolder,
+                image1=None, mask1=None, image2=None, mask2=None, image3=None, mask3=None,
+                image4=None, mask4=None, image5=None, mask5=None, image6=None, mask6=None,
+                image7=None, mask7=None, image8=None, mask8=None) -> io.NodeOutput:
+        
+        import random
+        hash_input = str(random.random())
+
+        print(f"[CompositorConfig3] execute called")
+        # Access hidden inputs via cls.hidden
+        node_id = cls.hidden.unique_id if cls.hidden else None
+        extra_pnginfo = cls.hidden.extra_pnginfo if cls.hidden else None
+        prompt = cls.hidden.prompt if cls.hidden else None
+        
+        # Capture all inputs for extendedConfig
+        all_inputs = {
+            "width": width, "height": height, "padding": padding,
+            "normalizeHeight": normalizeHeight, "onConfigChangedContinue": onConfigChangedContinue,
+            "invertMask": invertMask, "saveFormat": saveFormat, "saveFolder": saveFolder,
+            "configSignature": hash_input,
+            "image1": image1, "mask1": mask1, "image2": image2, "mask2": mask2,
+            "image3": image3, "mask3": mask3, "image4": image4, "mask4": mask4,
+            "image5": image5, "mask5": mask5, "image6": image6, "mask6": mask6,
+            "image7": image7, "mask7": mask7, "image8": image8, "mask8": mask8,
+            "prompt": prompt, "extra_pnginfo": extra_pnginfo, "node_id": node_id
         }
-
-    RETURN_TYPES = ("COMPOSITOR_CONFIG", "COMPOSITOR_CONFIG")
-    RETURN_NAMES = ("config", "extendedConfig")
-    OUTPUT_TOOLTIPS = ("Configuration object containing compositor settings and processed images", 
-                       "Extended configuration including all raw input parameters")
-
-    FUNCTION = "configure"
-
-    CATEGORY = "image"
-    DESCRIPTION = "Configuration node for the compositor system. Accepts up to 8 images with optional masks, applies masking to create RGBA composites, and provides canvas sizing controls. The 'onConfigChanged' pause option allows time to build compositions before continuing execution. Outputs configuration objects used by compositor debug nodes."
-
-    def configure(self, **kwargs):
-        # capture all inputs for extendedConfig
-        all_inputs = kwargs.copy()
-        # extract the images
-        # convert them from tensor to pil and then to base 64
-        # send as custom to be able to be used by ui
-        # finally return the resulting image (the composite "image" is seen as input but it's actually the output)
-
-        image1 = kwargs.pop('image1', None)
-        image2 = kwargs.pop('image2', None)
-        image3 = kwargs.pop('image3', None)
-        image4 = kwargs.pop('image4', None)
-        image5 = kwargs.pop('image5', None)
-        image6 = kwargs.pop('image6', None)
-        image7 = kwargs.pop('image7', None)
-        image8 = kwargs.pop('image8', None)
-        mask1 = kwargs.pop('mask1', None)
-        mask2 = kwargs.pop('mask2', None)
-        mask3 = kwargs.pop('mask3', None)
-        mask4 = kwargs.pop('mask4', None)
-        mask5 = kwargs.pop('mask5', None)
-        mask6 = kwargs.pop('mask6', None)
-        mask7 = kwargs.pop('mask7', None)
-        mask8 = kwargs.pop('mask8', None)
-        # pause = kwargs.pop('pause', False)
-        padding = kwargs.pop('padding', 100)
-        width = kwargs.pop('width', 512)
-        height = kwargs.pop('height', 512)
-        invertMask = kwargs.pop('invertMask', False)
-        normalizeHeight = kwargs.pop('normalizeHeight', 512)
-        saveFormat = kwargs.pop('saveFormat', 'PNG Level 0 (fastest)')
-        saveFolder = kwargs.pop('saveFolder', 'output')
-        # grabAndContinue, stop
-        onConfigChanged = kwargs.pop('onConfigChanged', False)
-        node_id = kwargs.pop('node_id', None)
 
         images = [image1, image2, image3, image4, image5, image6, image7, image8, ]
         masks = [mask1, mask2, mask3, mask4, mask5, mask6, mask7, mask8, ]
         input_images = []
 
-        # Generate a hash that represents the current state of all inputs
-        # This hash will change whenever any input (image, mask, or parameter) changes
-        hash_input = f"{width}_{height}_{padding}_{invertMask}_{normalizeHeight}_{saveFormat}_{saveFolder}_{onConfigChanged}"
+        # Generate a random hash that changes on every execution
+        # This forces the Compositor3Debug node to re-execute every time
         
-        # Add image/mask presence to hash (True/False for each slot)
-        for img, mask in zip(images, masks):
-            hash_input += f"_img:{img is not None}_mask:{mask is not None}"
-        
-        # Add tensor data hashes for images that are present
-        for idx, img in enumerate(images):
-            if img is not None:
-                # Use a small sample of tensor data to detect different images
-                tensor_hash = hashlib.md5(img.cpu().numpy().tobytes()[:10000]).hexdigest()[:8]
-                hash_input += f"_imgdata{idx}:{tensor_hash}"
-        
-        # Add timestamp to ensure uniqueness on each execution
-        hash_input += f"_t:{time.time()}"
         
         # Generate final hash
-        config_signature = hashlib.md5(hash_input.encode()).hexdigest()
+        # config_signature = hashlib.md5(hash_input.encode()).hexdigest()
 
         # apply the masks to the images if any so that we get a rgba
         # then pass the rgba in the return value
@@ -231,16 +207,8 @@ class CompositorConfig3:
                 # tensor
 
                 if mask is not None:
-                    # if normalizeHeight:
-                    #     # print(mask)
-                    #     #mask = self.upscale(img, "lanczos", height, "height", "disabled")
-                    #     mask = prepare_mask(mask, foo_is_batch=True)
-                    #     mask = processor.scale_image(mask, height)
-
                     # apply the mask and return
-                    # apply the mask and return
-                    masked = self.apply_mask(img, mask, invertMask)
-                    # self.masked = masked[0]
+                    masked = cls.apply_mask(img, mask, invertMask)
 
                     i = tensor2pil(masked[0])
                     # Save image to disk and return filename instead of base64
@@ -258,7 +226,7 @@ class CompositorConfig3:
                 # input is None, forward
                 input_images.append(img)
 
-        self.ensureEmpty()
+        cls.ensureEmpty()
 
         res = {
             "node_id": node_id,
@@ -266,15 +234,17 @@ class CompositorConfig3:
             "height": height,
             "padding": padding,
             "names": input_images,
-            "onConfigChanged": onConfigChanged,
+            "onConfigChangedContinue": onConfigChangedContinue,
             "normalizeHeight": normalizeHeight,
             "invertMask": invertMask,
             "saveFolder": saveFolder,
-            "configSignature": config_signature,  # Hash that changes on every execution
-        }        
-        return (res, all_inputs)
+            "configSignature": hash_input,  # Hash that changes on every execution
+        }
+        
+        return io.NodeOutput(res, all_inputs)
 
-    def apply_mask(self, image: torch.Tensor, alpha: torch.Tensor, invertMask=False):
+    @classmethod
+    def apply_mask(cls, image: torch.Tensor, alpha: torch.Tensor, invertMask=False):
         batch_size = min(len(image), len(alpha))
         out_images = []
 
@@ -289,8 +259,8 @@ class CompositorConfig3:
         result = (torch.stack(out_images),)
         return result
 
-    # ensures empty.png exists
-    def ensureEmpty(self):
+    @classmethod
+    def ensureEmpty(cls):
         image = "test_empty.png"
         if not folder_paths.exists_annotated_filepath(image):
             # print("it does not exist")
@@ -318,7 +288,7 @@ class CompositorConfig3:
                 width_ratio = width_B / height_B
                 height = side_length
                 width = width_ratio * height
-            return width, height
+            return int(width), int(height)
 
         if side == "Longest":
             if width > height:
@@ -395,3 +365,14 @@ def prepare_mask(mask, foo_is_batch):
         mask = mask.unsqueeze(0).permute(0, 2, 3, 1)  # Add batch dim and permute to [1, height, width, channels]
 
     return mask
+
+
+# V3 Extension and Entry Point
+class CompositorConfigExtension(ComfyExtension):
+    @override
+    async def get_node_list(self) -> list[type[io.ComfyNode]]:
+        return [CompositorConfig3]
+
+
+async def comfy_entrypoint() -> CompositorConfigExtension:
+    return CompositorConfigExtension()

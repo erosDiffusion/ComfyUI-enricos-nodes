@@ -4,8 +4,11 @@ from comfy_execution.graph import ExecutionBlocker
 from PIL import Image, ImageOps
 import numpy as np
 import torch
-from comfy_execution.graph import ExecutionBlocker
-class Compositor3Debug:
+from typing_extensions import override
+from comfy_api.latest import ComfyExtension, io
+
+
+class Compositor3Debug(io.ComfyNode):
     """
     Debug node to inspect fabricData and imageName values
     """
@@ -14,64 +17,69 @@ class Compositor3Debug:
     configCache = {}
     
     @classmethod
-    def INPUT_TYPES(cls):
-        return {
-            "required": {
-                
-                "fabricData": ("STRING", {
-                    "multiline": False,
-                    "default": "",
-                    "tooltip": "JSON string containing the compositor state (transforms, positions, visibility). Auto-managed by the compositor interface"
-                }),
-                "imageName": ("STRING", {
-                    "multiline": False,
-                    "default": "",
-                    "tooltip": "Name of the snapshot image file. Auto-generated based on graph and node ID"
-                }),
-                #is it possible that if we put config on top then the gui breaks ?
-                "config": ("COMPOSITOR_CONFIG", {"forceInput": True, "tooltip": "Configuration from CompositorConfig node containing canvas size, images, and settings"}),
-            },
-            "hidden": {
-                "extra_pnginfo": "EXTRA_PNGINFO",
-                "node_id": "UNIQUE_ID",
-            },  
-           
-        }
+    def define_schema(cls) -> io.Schema:
+        return io.Schema(
+            node_id="Compositor3Debug",
+            display_name="Compositor Debug V3",
+            category="image/debug",
+            description="Interactive compositor canvas for positioning, scaling, rotating, and arranging multiple images with real-time preview. Provides a visual editor with layers panel, alignment tools, and snap-to-grid functionality.",
+            inputs=[
+                io.String.Input("fabricData", default="", multiline=False, tooltip="JSON string containing the compositor state (transforms, positions, visibility). Auto-managed by the compositor interface"),
+                io.String.Input("imageName", default="", multiline=False, tooltip="Name of the snapshot image file. Auto-generated based on graph and node ID"),
+                io.Custom("COMPOSITOR_CONFIG").Input("config", tooltip="Configuration from CompositorConfig node containing canvas size, images, and settings"),
+            ],
+            outputs=[
+                io.String.Output(display_name="fabricData_output", tooltip="Compositor state data (transforms, positions, etc.)"),
+                io.String.Output(display_name="imageName_output", tooltip="Filename of the saved composition snapshot"),
+                io.Image.Output(display_name="image", tooltip="Final composed image rendered from the compositor canvas"),
+            ],
+            hidden=[
+                io.Hidden.extra_pnginfo,
+                io.Hidden.unique_id,
+            ],
+            is_output_node=True,
+        )
 
-    RETURN_TYPES = ("STRING", "STRING","IMAGE")
-    RETURN_NAMES = ("fabricData_output", "imageName_output","image")
-    OUTPUT_TOOLTIPS = ("Compositor state data (transforms, positions, etc.)", 
-                       "Filename of the saved composition snapshot",
-                       "Final composed image rendered from the compositor canvas")
-    FUNCTION = "run"
-    CATEGORY = "image/debug"
-    DESCRIPTION = "Interactive compositor canvas for positioning, scaling, rotating, and arranging multiple images with real-time preview. Provides a visual editor with layers panel, alignment tools, and snap-to-grid functionality."
-    OUTPUT_NODE = True
 
-    def run(self, **kwargs):
-        node_id = kwargs.get('node_id', None)
-
-        config = kwargs.get('config', "default")
-        fabricData = kwargs.get('fabricData', "default")
-        imageName = kwargs.get('imageName', "default")
-        padding = config["padding"]
-        invertMask = config["invertMask"]
-        width = config["width"]
-        height = config["height"]
-        config_node_id = config["node_id"]
-        onConfigChanged = config["onConfigChanged"]
-        names = config["names"]
+    @classmethod
+    def execute(cls, fabricData, imageName, config) -> io.NodeOutput:
+        # Access hidden inputs via cls.hidden
+        node_id = cls.hidden.unique_id if cls.hidden else None
+        extra_pnginfo = cls.hidden.extra_pnginfo if cls.hidden else None
+        
+        print(f"[Compositor3Debug] execute: node_id={node_id}, imageName={imageName}")
+        
+        fabricData = fabricData or "default"
+        imageName = imageName or "default"
+        
+        # Handle config - it should be a dict from CompositorConfig3
+        if not config or not isinstance(config, dict):
+            print(f"[Compositor3Debug] Config invalid or missing")
+            # If config is missing or invalid, we can't proceed
+            blocker_result = tuple([ExecutionBlocker(None)] * 3)
+            ui = {"error": ["Config input required from CompositorConfig node"]}
+            return io.NodeOutput(*blocker_result, ui=ui)
+        
+        padding = config.get("padding", 0)
+        invertMask = config.get("invertMask", False)
+        width = config.get("width", 512)
+        height = config.get("height", 512)
+        config_node_id = config.get("node_id")
+        onConfigChangedContinue = config.get("onConfigChangedContinue", False)
+        names = config.get("names", [])
         saveFolder = config.get("saveFolder", "output")
         configSignature = config.get("configSignature", None)
 
         # Detect if configuration has changed since last run for this specific node
         # Use the config signature (hash) generated by CompositorConfig3
         # This signature changes whenever ANY input changes (images, masks, parameters)
-        cached_signature = self.configCache.get(node_id)
+        cached_signature = cls.configCache.get(node_id)
         configChanged = cached_signature != configSignature
         
+        print(f"[Compositor3Debug] configChanged={configChanged}, onConfigChangedContinue={onConfigChangedContinue}")
+        
         # Store the current signature using compositor node's ID as key
-        self.configCache[node_id] = configSignature
+        cls.configCache[node_id] = configSignature
 
         ui = {
             #"test": ("value",),
@@ -82,33 +90,43 @@ class Compositor3Debug:
             "node_id": [node_id],
             "names": names,
             "fabricData": [fabricData],
+            "configSignature": [configSignature],
             "configChanged": [configChanged],
-            "onConfigChanged": [onConfigChanged],
+            "onConfigChangedContinue": [onConfigChangedContinue],
             "saveFolder": [saveFolder],
         }
+
+        print(ui)
 
         detail = {"output": ui, "node": node_id}
         PromptServer.instance.send_sync("compositor_init", detail)
 
+        # when config changes, will always stop, frontend decides what to do next
+        # this sends an executed event , with blocker
+        if configChanged:
+            blocker_result = tuple([ExecutionBlocker(None)] * 3)
+            print(f"[Compositor3Debug] Config changed, blocking execution for user interaction, user decides whtat to do next")
+            return io.NodeOutput(*blocker_result, ui=ui)
+
+        # Config hasn't changed - proceed to load existing image
+        print(f"[Compositor3Debug] Config unchanged, proceeding to load image")
+        
         # Check if imageName is valid (not default/empty)
         if not imageName or imageName == "default" or imageName.strip() == "":
-            blocker_result = tuple([ExecutionBlocker(None)] * len(self.RETURN_TYPES))
-            return {
-                "ui": ui,
-                "result": blocker_result
-            }
+            print(f"[Compositor3Debug] No valid imageName - this is first run or widget not set, blocking")
+            blocker_result = tuple([ExecutionBlocker(None)] * 3)  # 3 outputs
+            return io.NodeOutput(*blocker_result, ui=ui)
         
         # Construct path based on saveFolder
         folder_path = f"../{saveFolder}/compositor/{imageName}"
         imageExists = folder_paths.exists_annotated_filepath(folder_path)
         if not imageExists:
             # Return ExecutionBlocker for all outputs if blocked
-            blocker_result = tuple([ExecutionBlocker(None)] * len(self.RETURN_TYPES))
-            return {
-                "ui": ui,
-                "result": blocker_result
-            }
+            print(f"[Compositor3Debug] Image not found: {folder_path}")
+            blocker_result = tuple([ExecutionBlocker(None)] * 3)  # 3 outputs
+            return io.NodeOutput(*blocker_result, ui=ui)
         image_path = folder_paths.get_annotated_filepath(folder_path)
+        print(f"[Compositor3Debug] Loading image: {image_path}")
         i = Image.open(image_path)
         i = ImageOps.exif_transpose(i)
         if i.mode == 'I':
@@ -117,4 +135,15 @@ class Compositor3Debug:
         image = np.array(image).astype(np.float32) / 255.0
         image = torch.from_numpy(image)[None, ]
         
-        return (fabricData, imageName,image)
+        print(f"[Compositor3Debug] Returning image successfully")
+        return io.NodeOutput(fabricData, imageName, image, ui=ui)
+
+
+class CompositorDebugExtension(ComfyExtension):
+    @override
+    async def get_node_list(self) -> list[type[io.ComfyNode]]:
+        return [Compositor3Debug]
+
+
+async def comfy_entrypoint() -> CompositorDebugExtension:
+    return CompositorDebugExtension()

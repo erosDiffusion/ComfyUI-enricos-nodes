@@ -87,23 +87,10 @@ function getFabricDataWidget(node) {
   return getWidget(node, "fabricData");
 }
 
-const debugWidgetValues = (node) => {
-  if (isCorrectType(node)) {
-    const imageNameWidget = getImageNameWidget(node);
-    const fabricDataWidget = getFabricDataWidget(node);
-
-    const widgets_values = node.widgets_values;
-  }
-};
-
 const initializeCustomCanvasWidget = (node) => {
   if (isCorrectType(node)) {
-    // Note: At this point (nodeCreated), widget values are NOT yet available
-    // They will be populated later in loadedGraphNode when loading a workflow
-    // or via compositor_init event when executing the workflow
-
-    // attempt at hiding widgets, does not work as expected
-    hideWidgets(node, ["imageName", "fabricData"]);
+    // Note: Widget hiding functionality is commented out as it doesn't work as expected
+    // hideWidgets(node, ["imageName", "fabricData"]);
 
     const editor = Editor(node, fabric);
     editor.initialize(); // Initialize UI structure only, don't restore state yet
@@ -114,7 +101,6 @@ const initializeCustomCanvasWidget = (node) => {
       editor.getContainer(),
       {
         hideOnZoom: false,
-        // serialize: false, // Don't serialize the DOM widget itself
       }
     );
 
@@ -172,30 +158,55 @@ const restoreCanvasState = (node) => {
   }
 };
 
-const hideWidget = (widget) => {
-  if (widget) {
-    // TODO
-  }
-};
+// const hideWidget = (widget) => {
+//   if (widget) {
+//     // TODO
+//   }
+// };
 
-const hideWidgets = (node, widgetNames) => {
-  widgetNames.forEach((name) => {
-    const widget = getWidget(node, name);
-    hideWidget(widget);
-  });
-};
+// const hideWidgets = (node, widgetNames) => {
+//   widgetNames.forEach((name) => {
+//     const widget = getWidget(node, name);
+//     hideWidget(widget);
+//   });
+// };
 
 function executedMessageHandler(event, a, b) {
   const nodeId = event.detail.node;
   const node = getNodeById(nodeId);
+
+  console.log("[Compositor3Debug] executedMessageHandler: nodeId=", nodeId);
+
+  // Check if node exists before checking type
+  if (!node) {
+    console.error("[Compositor3Debug] Node not found");
+    return;
+  }
+
   const nodeFound = isCorrectType(node);
 
   if (nodeFound) {
+    console.log("[Compositor3Debug] 1 Node found");
     // This event is triggered when the Python backend executes the node
     // At this point, widget values are populated with actual config data
     // This is when we update the editor with canvas dimensions, images, etc.
     const e = event.detail.output;
     const editor = node.editor;
+
+    // console.log("[Compositor3Debug] Event data:", {
+    //   // width: e.width,
+    //   // height: e.height,
+    //   // namesCount: e.names?.length,
+    //   configSignature: e.configSignature,
+    //   configChanged: e.configChanged,
+    //   onConfigChangedContinue: e.onConfigChangedContinue,
+    // });
+
+    // Check if editor exists (it might not if node was just created)
+    if (!editor) {
+      console.warn("[Compositor3Debug] 2 Editor not initialized yet");
+      return;
+    }
 
     // Update canvas dimensions from config if available
     if (
@@ -211,31 +222,25 @@ function executedMessageHandler(event, a, b) {
       editor.setSaveFolder(e.saveFolder);
     }
 
-    // Store onConfigChanged flag and configChanged state
-    const onConfigChanged = e.onConfigChanged ? e.onConfigChanged[0] : false;
-    const configChanged = e.configChanged ? e.configChanged[0] : false;
+    // Load images (this will clear old images and load new ones)
+    if (e.names && Array.isArray(e.names)) {
+      // console.log("[Compositor3Debug] Loading images:", e.names);
+      e.names.forEach((name, index) => editor.appendImage(name, index));
+    }
 
-    // Load images
-    e.names.map((name, index) => editor.appendImage(name, index));
+    // Handle auto-save for "grab and continue" mode
+    const onConfigChangedContinue = Boolean(e.onConfigChangedContinue?.[0]);
+    const configChanged = Boolean(e.configChanged?.[0]);
 
-    // Handle configuration change scenarios
-    // onConfigChanged is a boolean: true = "grab and continue", false = "stop"
-    if (configChanged) {
-      if (onConfigChanged === true) {
-        // Grab mode: save snapshot after initialization completes, then re-enqueue
-        // Wait for images to load, then save and re-enqueue
-        const reEnqueue = () => {
-          interrupt().then(() => {
-            app.queuePrompt(0, 1);
-          });
-        };
+    console.log("[Compositor3Debug] 3 Auto-save check:", {
+      configChanged,
+      onConfigChangedContinue,
+      rawConfigChanged: e.configChanged,
+      rawOnConfigChangedContinue: e.onConfigChangedContinue,
+    });
 
-        // Queue the save with re-enqueue callback
-        editor.queuedSave(false).then(reEnqueue);
-      } else {
-        // Stop mode: interrupt workflow and wait for user input
-        interrupt();
-      }
+    if (configChanged && onConfigChangedContinue) {
+      editor.saveBtn.click();
     }
   }
 }
@@ -248,18 +253,20 @@ const getNodeById = (nodeId) => {
 const createToolbarButton = (text, onClick, parent) => {
   const button = document.createElement("button");
   button.textContent = text;
-  button.style.height = BUTTON_HEIGHT;
-  button.style.padding = "0 12px";
-  button.style.backgroundColor = COLOR_BUTTON_BG;
-  button.style.color = COLOR_BUTTON_TEXT;
-  button.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
-  button.style.borderRadius = "4px";
-  button.style.cursor = "pointer";
-  button.style.fontSize = BUTTON_FONT_SIZE;
-  button.style.display = "flex";
-  button.style.alignItems = "center";
-  button.style.justifyContent = "center";
-  button.style.whiteSpace = "nowrap";
+  applyStyles(button, {
+    height: BUTTON_HEIGHT,
+    padding: "0 12px",
+    backgroundColor: COLOR_BUTTON_BG,
+    color: COLOR_BUTTON_TEXT,
+    border: `1px solid ${COLOR_BUTTON_BORDER}`,
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontSize: BUTTON_FONT_SIZE,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    whiteSpace: "nowrap",
+  });
 
   button.onmouseover = () => {
     button.style.backgroundColor = COLOR_BUTTON_HOVER;
@@ -282,21 +289,23 @@ const createToolbarButton = (text, onClick, parent) => {
 const createIconButton = (icon, onClick, parent) => {
   const button = document.createElement("button");
   button.textContent = icon;
-  button.style.width = ICON_BUTTON_SIZE;
-  button.style.height = ICON_BUTTON_SIZE;
-  button.style.minWidth = ICON_BUTTON_SIZE;
-  button.style.minHeight = ICON_BUTTON_SIZE;
-  button.style.padding = "0";
-  button.style.backgroundColor = COLOR_BUTTON_BG;
-  button.style.color = COLOR_BUTTON_TEXT;
-  button.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
-  button.style.borderRadius = "4px";
-  button.style.cursor = "pointer";
-  button.style.fontSize = ICON_FONT_SIZE;
-  button.style.display = "flex";
-  button.style.alignItems = "center";
-  button.style.justifyContent = "center";
-  button.style.lineHeight = "1";
+  applyStyles(button, {
+    width: ICON_BUTTON_SIZE,
+    height: ICON_BUTTON_SIZE,
+    minWidth: ICON_BUTTON_SIZE,
+    minHeight: ICON_BUTTON_SIZE,
+    padding: "0",
+    backgroundColor: COLOR_BUTTON_BG,
+    color: COLOR_BUTTON_TEXT,
+    border: `1px solid ${COLOR_BUTTON_BORDER}`,
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontSize: ICON_FONT_SIZE,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    lineHeight: "1",
+  });
 
   button.onmouseover = () => {
     button.style.backgroundColor = COLOR_BUTTON_HOVER;
@@ -318,10 +327,12 @@ const createIconButton = (icon, onClick, parent) => {
 // Utility function to create toolbar separator
 const createSeparator = (parent) => {
   const separator = document.createElement("div");
-  separator.style.width = "1px";
-  separator.style.height = "20px";
-  separator.style.backgroundColor = COLOR_SEPARATOR;
-  separator.style.margin = "0 5px";
+  applyStyles(separator, {
+    width: "1px",
+    height: "20px",
+    backgroundColor: COLOR_SEPARATOR,
+    margin: "0 5px",
+  });
 
   if (parent) {
     parent.appendChild(separator);
@@ -333,9 +344,11 @@ const createSeparator = (parent) => {
 // Utility function to create vertical button group
 const createVerticalButtonGroup = (parent) => {
   const group = document.createElement("div");
-  group.style.display = "flex";
-  group.style.flexDirection = "column";
-  group.style.gap = "2px";
+  applyStyles(group, {
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+  });
 
   if (parent) {
     parent.appendChild(group);
@@ -523,36 +536,40 @@ const Editor = (node, fabric) => {
 
   const createContainer = () => {
     containerEl = document.createElement("div");
-    containerEl.style.backgroundColor = COLOR_CONTAINER_BG;
-    containerEl.style.display = "flex";
-    containerEl.style.flexDirection = "column";
-    containerEl.style.width =
-      canvasWidth +
-      canvasPadding * 2 +
-      COMPOSITION_BORDER_SIZE * 2 +
-      150 +
-      "px"; // Added 150px for layers panel
-    containerEl.style.height =
-      canvasHeight + canvasPadding * 2 + COMPOSITION_BORDER_SIZE * 2 + "px";
-    containerEl.style.margin = "0px";
-    containerEl.style.overflow = "visible";
+    applyStyles(containerEl, {
+      backgroundColor: COLOR_CONTAINER_BG,
+      display: "flex",
+      flexDirection: "column",
+      width:
+        canvasWidth +
+        canvasPadding * 2 +
+        COMPOSITION_BORDER_SIZE * 2 +
+        150 +
+        "px", // Added 150px for layers panel
+      height:
+        canvasHeight + canvasPadding * 2 + COMPOSITION_BORDER_SIZE * 2 + "px",
+      margin: "0px",
+      overflow: "visible",
+    });
     return containerEl;
   };
 
   const createToolbar = () => {
     toolbarEl = document.createElement("div");
-    toolbarEl.style.width = "100%";
-    toolbarEl.style.minHeight = "auto";
-    toolbarEl.style.height = "118px";
-    toolbarEl.style.backgroundColor = COLOR_TOOLBAR_BG;
-    toolbarEl.style.display = "flex";
-    toolbarEl.style.alignItems = "center";
-    toolbarEl.style.borderRadius = "8px";
-    toolbarEl.style.padding = "5px 10px";
-    toolbarEl.style.boxSizing = "border-box";
-    toolbarEl.style.gap = "5px";
-    toolbarEl.style.position = "relative";
-    toolbarEl.style.boxShadow = "inset 0 0 5px rgba(0, 0, 0, 0.2)";
+    applyStyles(toolbarEl, {
+      width: "100%",
+      minHeight: "auto",
+      height: "118px",
+      backgroundColor: COLOR_TOOLBAR_BG,
+      display: "flex",
+      alignItems: "center",
+      borderRadius: "8px",
+      padding: "5px 10px",
+      boxSizing: "border-box",
+      gap: "5px",
+      position: "relative",
+      boxShadow: "inset 0 0 5px rgba(0, 0, 0, 0.2)",
+    });
     containerEl.appendChild(toolbarEl);
 
     // Create vertical group for Save and Reset buttons
@@ -591,10 +608,12 @@ const Editor = (node, fabric) => {
     ];
 
     const alignmentGrid = document.createElement("div");
-    alignmentGrid.style.display = "grid";
-    alignmentGrid.style.gridTemplateColumns = "repeat(3, 1fr)";
-    alignmentGrid.style.gap = "2px";
-    alignmentGrid.style.width = "78px"; // 3 × 24px + 2 × 2px gaps
+    applyStyles(alignmentGrid, {
+      display: "grid",
+      gridTemplateColumns: "repeat(3, 1fr)",
+      gap: "2px",
+      width: "78px", // 3 × 24px + 2 × 2px gaps
+    });
 
     alignments.forEach(({ label, align, title }) => {
       const btn = createIconButton(label, () => alignSelected(align));
@@ -842,7 +861,9 @@ const Editor = (node, fabric) => {
         fabricInstance.renderAll();
 
         // Trigger debounced save
-        saveAndUpdateSeed();
+        saveAndUpdateSeed().then(() => {
+          api.enqueuePrompt(0, 1);
+        });
       }
     };
 
@@ -958,20 +979,22 @@ const Editor = (node, fabric) => {
   const createLayerThumbnail = (index) => {
     const thumbnail = document.createElement("div");
     // No need for ID - we'll store direct reference
-    thumbnail.style.width = "30px";
-    thumbnail.style.height = "30px";
-    thumbnail.style.backgroundColor = "rgba(0, 0, 0, 0.3)";
-    thumbnail.style.borderRadius = "2px";
-    thumbnail.style.backgroundSize = "contain";
-    thumbnail.style.backgroundPosition = "center";
-    thumbnail.style.backgroundRepeat = "no-repeat";
-    thumbnail.style.display = "flex";
-    thumbnail.style.alignItems = "center";
-    thumbnail.style.justifyContent = "center";
-    thumbnail.style.color = COLOR_BUTTON_TEXT;
-    thumbnail.style.fontSize = "9px";
-    thumbnail.style.cursor = "pointer";
-    thumbnail.style.flexShrink = "0";
+    applyStyles(thumbnail, {
+      width: "30px",
+      height: "30px",
+      backgroundColor: "rgba(0, 0, 0, 0.3)",
+      borderRadius: "2px",
+      backgroundSize: "contain",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "9px",
+      cursor: "pointer",
+      flexShrink: "0",
+    });
 
     thumbnail.onclick = () => selectImageByIndex(index);
 
@@ -984,9 +1007,11 @@ const Editor = (node, fabric) => {
   const createLayerLabel = (index) => {
     const label = document.createElement("div");
     label.textContent = `Image ${index + 1}`;
-    label.style.color = COLOR_BUTTON_TEXT;
-    label.style.fontSize = "10px";
-    label.style.fontWeight = "bold";
+    applyStyles(label, {
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "10px",
+      fontWeight: "bold",
+    });
     return label;
   };
 
@@ -994,18 +1019,20 @@ const Editor = (node, fabric) => {
     const visibilityBtn = document.createElement("button");
     // No need for ID - we'll store direct reference
     visibilityBtn.textContent = "👁";
-    visibilityBtn.style.width = "20px";
-    visibilityBtn.style.height = "20px";
-    visibilityBtn.style.padding = "0";
-    visibilityBtn.style.backgroundColor = COLOR_BUTTON_BG;
-    visibilityBtn.style.color = COLOR_BUTTON_TEXT;
-    visibilityBtn.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
-    visibilityBtn.style.borderRadius = "3px";
-    visibilityBtn.style.cursor = "pointer";
-    visibilityBtn.style.fontSize = "12px";
-    visibilityBtn.style.display = "flex";
-    visibilityBtn.style.alignItems = "center";
-    visibilityBtn.style.justifyContent = "center";
+    applyStyles(visibilityBtn, {
+      width: "20px",
+      height: "20px",
+      padding: "0",
+      backgroundColor: COLOR_BUTTON_BG,
+      color: COLOR_BUTTON_TEXT,
+      border: `1px solid ${COLOR_BUTTON_BORDER}`,
+      borderRadius: "3px",
+      cursor: "pointer",
+      fontSize: "12px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    });
 
     visibilityBtn.onclick = (e) => {
       e.stopPropagation();
@@ -1033,19 +1060,21 @@ const Editor = (node, fabric) => {
     const dragBtn = document.createElement("button");
     // No need for ID - we'll use stored references
     dragBtn.textContent = "☰";
-    dragBtn.style.width = "20px";
-    dragBtn.style.height = "20px";
-    dragBtn.style.padding = "0";
-    dragBtn.style.backgroundColor = COLOR_BUTTON_BG;
-    dragBtn.style.color = COLOR_BUTTON_TEXT;
-    dragBtn.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
-    dragBtn.style.borderRadius = "3px";
-    dragBtn.style.cursor = "grab";
-    dragBtn.style.fontSize = "14px";
-    dragBtn.style.display = "flex";
-    dragBtn.style.alignItems = "center";
-    dragBtn.style.justifyContent = "center";
     dragBtn.draggable = true;
+    applyStyles(dragBtn, {
+      width: "20px",
+      height: "20px",
+      padding: "0",
+      backgroundColor: COLOR_BUTTON_BG,
+      color: COLOR_BUTTON_TEXT,
+      border: `1px solid ${COLOR_BUTTON_BORDER}`,
+      borderRadius: "3px",
+      cursor: "grab",
+      fontSize: "14px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    });
 
     dragBtn.ondragstart = (e) => {
       draggedLayerIndex = index;
@@ -1080,18 +1109,20 @@ const Editor = (node, fabric) => {
   const createLayerItem = (index) => {
     const layerItem = document.createElement("div");
     // No need for ID - we'll store direct reference
-    layerItem.style.width = "100%";
-    layerItem.style.height = "40px";
-    layerItem.style.backgroundColor = COLOR_BUTTON_BG;
-    layerItem.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
-    layerItem.style.borderRadius = "4px";
-    layerItem.style.display = "flex";
-    layerItem.style.flexDirection = "row";
-    layerItem.style.alignItems = "center";
-    layerItem.style.gap = "5px";
-    layerItem.style.padding = "5px";
-    layerItem.style.boxSizing = "border-box";
-    layerItem.style.position = "relative";
+    applyStyles(layerItem, {
+      width: "100%",
+      height: "40px",
+      backgroundColor: COLOR_BUTTON_BG,
+      border: `1px solid ${COLOR_BUTTON_BORDER}`,
+      borderRadius: "4px",
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: "5px",
+      padding: "5px",
+      boxSizing: "border-box",
+      position: "relative",
+    });
 
     // Add drag and drop event handlers to the layer item
     layerItem.ondragover = (e) => {
@@ -1128,11 +1159,13 @@ const Editor = (node, fabric) => {
 
     // Create info and controls container
     const infoContainer = document.createElement("div");
-    infoContainer.style.display = "flex";
-    infoContainer.style.flexDirection = "row";
-    infoContainer.style.alignItems = "center";
-    infoContainer.style.flex = "1";
-    infoContainer.style.gap = "3px";
+    applyStyles(infoContainer, {
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "center",
+      flex: "1",
+      gap: "3px",
+    });
 
     // Add label and visibility button
     const label = createLayerLabel(index);
@@ -1151,11 +1184,13 @@ const Editor = (node, fabric) => {
   const createLayersPanelTitle = () => {
     const title = document.createElement("div");
     title.textContent = "Layers";
-    title.style.color = COLOR_BUTTON_TEXT;
-    title.style.fontSize = "14px";
-    title.style.fontWeight = "bold";
-    title.style.marginBottom = "5px";
-    title.style.textAlign = "center";
+    applyStyles(title, {
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "14px",
+      fontWeight: "bold",
+      marginBottom: "5px",
+      textAlign: "center",
+    });
     return title;
   };
 
@@ -1592,16 +1627,16 @@ const Editor = (node, fabric) => {
     }
   };
 
-  const restoreImagePositions = () => {
-    try {
-      const widgetValue = fabricDataWidget.value;
-      if (widgetValue && typeof widgetValue === "string") {
-        const data = deserializeCompositorData(widgetValue);
-      }
-    } catch (e) {
-      console.error("Compositor3Debug: could not restore compositor data", e);
-    }
-  };
+  // const restoreImagePositions = () => {
+  //   try {
+  //     const widgetValue = fabricDataWidget.value;
+  //     if (widgetValue && typeof widgetValue === "string") {
+  //       const data = deserializeCompositorData(widgetValue);
+  //     }
+  //   } catch (e) {
+  //     console.error("Compositor3Debug: could not restore compositor data", e);
+  //   }
+  // };
 
   const getContainer = () => {
     return containerEl;
@@ -2232,10 +2267,10 @@ const Editor = (node, fabric) => {
     }
   };
 
-  const updateSeedValue = () => {
+  const updateSeedValue = (signature = false) => {
     // Store custom compositor data with a random seed to trigger update
     const compositorData = serializeCompositorData();
-    compositorData.seed = Math.random(); // Add seed to trigger change detection
+    compositorData.seed = signature != false ? signature : Math.random(); // Add seed to trigger change detection
     fabricDataWidget.value = JSON.stringify(compositorData);
   };
 
@@ -2363,10 +2398,8 @@ const Editor = (node, fabric) => {
         });
         break;
       case "bottom-right":
-        activeObject.set({
-          left: compRight - objBounds.width - offsetX,
-          top: compBottom - objBounds.height - offsetY,
-        });
+        // prettier-ignore
+        activeObject.set({ left: compRight - objBounds.width - offsetX, top: compBottom - objBounds.height - offsetY });
         break;
     }
 
@@ -2618,6 +2651,8 @@ const Editor = (node, fabric) => {
     restoreState,
     cleanup,
     queuedSave, // Expose for configuration change handling
+    saveAndUpdateSeed,
+    saveBtn,
   };
 };
 

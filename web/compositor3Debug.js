@@ -409,6 +409,11 @@ const Editor = (node, fabric) => {
     null,
   ]; // Store transforms to apply during restoration
 
+  // Store direct references to layer UI elements (avoids getElementById issues with multiple nodes)
+  let layerItems = [null, null, null, null, null, null, null, null, null];
+  let layerThumbnails = [null, null, null, null, null, null, null, null, null];
+  let layerVisibilityButtons = [null, null, null, null, null, null, null, null, null];
+
   // Canvas dimensions - can be updated from config
   let canvasWidth = WIDTH;
   let canvasHeight = HEIGHT;
@@ -714,7 +719,7 @@ const Editor = (node, fabric) => {
 
   const createLayerThumbnail = (index) => {
     const thumbnail = document.createElement("div");
-    thumbnail.id = `layer-thumbnail-${index}`;
+    // No need for ID - we'll store direct reference
     thumbnail.style.width = "30px";
     thumbnail.style.height = "30px";
     thumbnail.style.backgroundColor = "rgba(0, 0, 0, 0.3)";
@@ -732,6 +737,9 @@ const Editor = (node, fabric) => {
 
     thumbnail.onclick = () => selectImageByIndex(index);
 
+    // Store reference in array
+    layerThumbnails[index] = thumbnail;
+
     return thumbnail;
   };
 
@@ -746,7 +754,7 @@ const Editor = (node, fabric) => {
 
   const createVisibilityButton = (index) => {
     const visibilityBtn = document.createElement("button");
-    visibilityBtn.id = `layer-visibility-${index}`;
+    // No need for ID - we'll store direct reference
     visibilityBtn.textContent = "👁";
     visibilityBtn.style.width = "20px";
     visibilityBtn.style.height = "20px";
@@ -777,12 +785,15 @@ const Editor = (node, fabric) => {
         : COLOR_BUTTON_DISABLED;
     };
 
+    // Store reference in array
+    layerVisibilityButtons[index] = visibilityBtn;
+
     return visibilityBtn;
   };
 
   const createDragHandleButton = (index) => {
     const dragBtn = document.createElement("button");
-    dragBtn.id = `layer-drag-${index}`;
+    // No need for ID - we'll use stored references
     dragBtn.textContent = "☰";
     dragBtn.style.width = "20px";
     dragBtn.style.height = "20px";
@@ -801,18 +812,18 @@ const Editor = (node, fabric) => {
     dragBtn.ondragstart = (e) => {
       draggedLayerIndex = index;
       dragBtn.style.cursor = "grabbing";
-      const layerItem = document.getElementById(`layer-${index}`);
-      if (layerItem) {
-        layerItem.style.opacity = "0.5";
+      // Use stored reference instead of getElementById
+      if (layerItems[index]) {
+        layerItems[index].style.opacity = "0.5";
       }
       e.dataTransfer.effectAllowed = "move";
     };
 
     dragBtn.ondragend = (e) => {
       dragBtn.style.cursor = "grab";
-      const layerItem = document.getElementById(`layer-${index}`);
-      if (layerItem) {
-        layerItem.style.opacity = "1";
+      // Use stored reference instead of getElementById
+      if (layerItems[index]) {
+        layerItems[index].style.opacity = "1";
       }
       draggedLayerIndex = null;
     };
@@ -830,7 +841,7 @@ const Editor = (node, fabric) => {
 
   const createLayerItem = (index) => {
     const layerItem = document.createElement("div");
-    layerItem.id = `layer-${index}`;
+    // No need for ID - we'll store direct reference
     layerItem.style.width = "100%";
     layerItem.style.height = "40px";
     layerItem.style.backgroundColor = COLOR_BUTTON_BG;
@@ -892,6 +903,9 @@ const Editor = (node, fabric) => {
     infoContainer.appendChild(label);
     infoContainer.appendChild(visibilityBtn);
     layerItem.appendChild(infoContainer);
+
+    // Store reference in array
+    layerItems[index] = layerItem;
 
     return layerItem;
   };
@@ -957,7 +971,8 @@ const Editor = (node, fabric) => {
   };
 
   const updateLayerThumbnail = (index) => {
-    const thumbnail = document.getElementById(`layer-thumbnail-${index}`);
+    // Use stored reference instead of getElementById
+    const thumbnail = layerThumbnails[index];
     if (!thumbnail) return;
 
     if (images[index]) {
@@ -999,8 +1014,8 @@ const Editor = (node, fabric) => {
       visible: !isCurrentlyVisible,
     });
 
-    // Update visibility button appearance
-    const visibilityBtn = document.getElementById(`layer-visibility-${index}`);
+    // Update visibility button appearance using stored reference
+    const visibilityBtn = layerVisibilityButtons[index];
     if (visibilityBtn) {
       visibilityBtn.textContent = isCurrentlyVisible ? "👁‍🗨" : "👁";
       visibilityBtn.style.backgroundColor = isCurrentlyVisible
@@ -1076,11 +1091,9 @@ const Editor = (node, fabric) => {
       // Update thumbnail in case it was already loaded
       updateLayerThumbnail(index);
 
-      // Update visibility button state
+      // Update visibility button state using stored reference
       if (images[index]) {
-        const visibilityBtn = document.getElementById(
-          `layer-visibility-${index}`
-        );
+        const visibilityBtn = layerVisibilityButtons[index];
         if (visibilityBtn && images[index].visible === false) {
           visibilityBtn.textContent = "👁‍🗨";
           visibilityBtn.style.backgroundColor = COLOR_BUTTON_DISABLED;
@@ -1469,8 +1482,8 @@ const Editor = (node, fabric) => {
     // Update layer thumbnail
     updateLayerThumbnail(index);
 
-    // Update visibility button state if image is hidden
-    const visibilityBtn = document.getElementById(`layer-visibility-${index}`);
+    // Update visibility button state if image is hidden using stored reference
+    const visibilityBtn = layerVisibilityButtons[index];
     if (visibilityBtn && img.visible === false) {
       visibilityBtn.textContent = "👁‍🗨";
       visibilityBtn.style.backgroundColor = COLOR_BUTTON_DISABLED;

@@ -50,27 +50,29 @@ app.registerExtension({
     api.addEventListener("compositor_init", executedMessageHandler);
   },
 
-  //   async beforeRegisterNodeDef(nodeType, nodeData) {
-  //     if (nodeData?.name === COMPOSITOR_3_DEBUG) {
-  //       console.log(
-  //         "Compositor3Debug: before register node def",
-  //         nodeType,
-  //         nodeData
-  //       );
-  //     }
-  //   },
   async nodeCreated(node) {
-    // debugWidgetValues(node);
+    // Initialize the basic editor UI structure when node is created
+    // At this point, widget values are NOT yet available (they're populated later)
+    if (isCorrectType(node)) {
+      console.log("Compositor3Debug: nodeCreated, initializing UI", node);
+      initializeCustomCanvasWidget(node);
+    }
   },
 
-  // at this point the graph is fully loaded and the nodes are created and the values in widget can be retrieved
+  loadedGraphNode(node) {
+    // This is called AFTER widget values have been populated from the workflow file
+    // This is the correct place to restore saved state
+    if (isCorrectType(node)) {
+      console.log("Compositor3Debug: loadedGraphNode, restoring state", node);
+      // Call the restoreCanvasState function which accesses widget values
+      // and calls the editor's restoreState method
+      restoreCanvasState(node);
+    }
+  },
+
   async afterConfigureGraph(args) {
-    console.log("Compositor3Debug: after configure graph", args);
-
-    const nodes = app.graph.findNodesByType(COMPOSITOR_3_DEBUG);
-
-    // nodes.forEach(debugWidgetValues);
-    nodes.forEach(initializeCustomCanvasWidget);
+    // All nodes have been created and loaded at this point
+    console.log("Compositor3Debug: afterConfigureGraph", args);
   },
 });
 
@@ -117,11 +119,20 @@ const debugWidgetValues = (node) => {
 
 const initializeCustomCanvasWidget = (node) => {
   if (isCorrectType(node)) {
+    console.log(
+      "Compositor3Debug: Initializing custom canvas widget for node",
+      node.id
+    );
+
+    // Note: At this point (nodeCreated), widget values are NOT yet available
+    // They will be populated later in loadedGraphNode when loading a workflow
+    // or via compositor_init event when executing the workflow
+
     // attempt at hiding widgets, does not work as expected
     hideWidgets(node, ["imageName", "fabricData"]);
 
     const editor = Editor(node, fabric);
-    editor.initialize();
+    editor.initialize(); // Initialize UI structure only, don't restore state yet
 
     const editorWidget = node.addDOMWidget(
       "compositorGui",
@@ -136,17 +147,68 @@ const initializeCustomCanvasWidget = (node) => {
     node.editorWidget = editorWidget;
     node.editor = editor;
 
-    // w, h
-    // node.setSize([
-    //   COMPOSITION_BORDER_SIZE * 2 + WIDTH + LITEGRAPH_NODE_PADDING * 2,
-    //   1024,
-    // ]);
-
+    // Set initial size - this will be updated in loadedGraphNode or compositor_init
     node.setSize(editor.calculateNodeSize());
-
-    editorWidget.get;
     node.resizable = false;
     node.setDirtyCanvas(true, true);
+  }
+};
+
+// Restore canvas state when widget values are available (loadedGraphNode)
+const restoreCanvasState = (node) => {
+  if (!isCorrectType(node) || !node.editor) {
+    console.log(
+      "Compositor3Debug: Cannot restore state, node not initialized",
+      node.id
+    );
+    return;
+  }
+
+  console.log(
+    "Compositor3Debug: Restoring canvas state from widget values",
+    node.id
+  );
+
+  try {
+    // Get the fabricData widget which contains serialized canvas state
+    const fabricDataWidget = node.widgets?.find((w) => w.name === "fabricData");
+
+    if (
+      fabricDataWidget &&
+      fabricDataWidget.value &&
+      fabricDataWidget.value !== "{}"
+    ) {
+      console.log(
+        "Compositor3Debug: Found fabricData to restore, length:",
+        fabricDataWidget.value.length
+      );
+
+      // Call the editor's restoreState method which will:
+      // 1. Deserialize the compositor data
+      // 2. Restore canvas dimensions, imagePositions, snap settings, grid size
+      // 3. Store pending transforms
+      // 4. Load images via appendImage (which applies the transforms)
+      // 5. Update UI elements
+      const restored = node.editor.restoreState(fabricDataWidget.value);
+
+      if (restored) {
+        console.log("Compositor3Debug: Canvas state restoration complete");
+      } else {
+        console.log(
+          "Compositor3Debug: Canvas state restoration failed or no data"
+        );
+      }
+    } else {
+      console.log("Compositor3Debug: No fabricData to restore or empty data");
+    }
+
+    // Update node size after restoring state
+    const newSize = node.editor.calculateNodeSize();
+    console.log("Compositor3Debug: Setting node size to", newSize);
+    node.setSize(newSize);
+    node.setDirtyCanvas(true, true);
+  } catch (error) {
+    console.error("Compositor3Debug: Error restoring canvas state:", error);
   }
 };
 
@@ -173,6 +235,9 @@ function executedMessageHandler(event, a, b) {
   const nodeFound = isCorrectType(node);
 
   if (nodeFound) {
+    // This event is triggered when the Python backend executes the node
+    // At this point, widget values are populated with actual config data
+    // This is when we update the editor with canvas dimensions, images, etc.
     const e = event.detail.output;
     const editor = node.editor;
     console.log("Compositor3Debug: received compositor_init", e, nodeId, a, b);
@@ -1177,13 +1242,14 @@ const Editor = (node, fabric) => {
       console.log(`Compositor3Debug: initialized imageName to ${imageName}`);
     }
 
-    // Try to restore compositor data from saved state
-    restoreImagePositions();
+    // DON'T restore compositor data here - widget values aren't available yet in nodeCreated
+    // Restoration will happen in loadedGraphNode hook where widget values are populated
+    // restoreImagePositions();
 
     createContainer();
     createToolbar();
 
-    // Update UI elements to reflect restored state
+    // Update UI elements to reflect restored state (will be properly restored in loadedGraphNode)
     updateUIAfterRestore();
 
     createCanvasElement();
@@ -2225,6 +2291,67 @@ const Editor = (node, fabric) => {
     console.log(`Compositor3Debug: saveFolder set to ${saveFolder}`);
   };
 
+  const restoreState = (dataString) => {
+    // Deserialize and restore the entire compositor state
+    // This should be called from loadedGraphNode when widget values are available
+    try {
+      const data = deserializeCompositorData(dataString);
+      if (data) {
+        // Update UI elements to reflect restored state
+        updateUIAfterRestore();
+
+        // Update canvas dimensions if they were restored
+        if (fabricInstance && compositionArea && compositionBorder) {
+          setCanvasSize(
+            canvasWidth,
+            canvasHeight,
+            canvasPadding,
+            COMPOSITION_BORDER_SIZE
+          );
+
+          // Update composition area
+          compositionArea.set({
+            left: canvasPadding + COMPOSITION_BORDER_SIZE,
+            top: canvasPadding + COMPOSITION_BORDER_SIZE,
+            width: canvasWidth,
+            height: canvasHeight,
+          });
+
+          // Update composition border
+          compositionBorder.set({
+            left: canvasPadding - COMPOSITION_BORDER_SIZE,
+            top: canvasPadding - COMPOSITION_BORDER_SIZE,
+            width: canvasWidth + COMPOSITION_BORDER_SIZE * 2,
+            height: canvasHeight + COMPOSITION_BORDER_SIZE * 2,
+          });
+
+          // Update container size
+          if (containerEl) {
+            containerEl.style.width =
+              canvasWidth +
+              canvasPadding * 2 +
+              COMPOSITION_BORDER_SIZE * 2 +
+              150 +
+              "px";
+            containerEl.style.height =
+              canvasHeight +
+              canvasPadding * 2 +
+              COMPOSITION_BORDER_SIZE * 2 +
+              "px";
+          }
+
+          fabricInstance.renderAll();
+        }
+
+        console.log("Compositor3Debug Editor: state restored successfully");
+        return true;
+      }
+    } catch (e) {
+      console.error("Compositor3Debug Editor: could not restore state", e);
+    }
+    return false;
+  };
+
   // public interface of the Editor
   return {
     initialize,
@@ -2234,5 +2361,6 @@ const Editor = (node, fabric) => {
     selectImageByIndex,
     updateCanvasDimensions,
     setSaveFolder,
+    restoreState,
   };
 };

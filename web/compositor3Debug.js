@@ -45,8 +45,6 @@ app.registerExtension({
   name: "Comfy.Compositor3Debug",
 
   async setup(app) {
-    console.log("Compositor3Debug: extension setup");
-
     api.addEventListener("compositor_init", executedMessageHandler);
   },
 
@@ -54,7 +52,6 @@ app.registerExtension({
     // Initialize the basic editor UI structure when node is created
     // At this point, widget values are NOT yet available (they're populated later)
     if (isCorrectType(node)) {
-      console.log("Compositor3Debug: nodeCreated, initializing UI", node);
       initializeCustomCanvasWidget(node);
     }
   },
@@ -63,7 +60,6 @@ app.registerExtension({
     // This is called AFTER widget values have been populated from the workflow file
     // This is the correct place to restore saved state
     if (isCorrectType(node)) {
-      console.log("Compositor3Debug: loadedGraphNode, restoring state", node);
       // Call the restoreCanvasState function which accesses widget values
       // and calls the editor's restoreState method
       restoreCanvasState(node);
@@ -72,7 +68,6 @@ app.registerExtension({
 
   async afterConfigureGraph(args) {
     // All nodes have been created and loaded at this point
-    console.log("Compositor3Debug: afterConfigureGraph", args);
   },
 });
 
@@ -94,36 +89,15 @@ function getFabricDataWidget(node) {
 
 const debugWidgetValues = (node) => {
   if (isCorrectType(node)) {
-    console.log("Compositor3Debug: node created", node);
     const imageNameWidget = getImageNameWidget(node);
     const fabricDataWidget = getFabricDataWidget(node);
 
     const widgets_values = node.widgets_values;
-    console.log(
-      "Compositor3Debug: node widgets values iterator",
-      node.widgets.values((w) => w)
-    );
-    console.log("Compositor3Debug: widget values", widgets_values);
-    console.log(
-      "Compositor3Debug: imageNameWidget",
-      imageNameWidget.name,
-      imageNameWidget?.value
-    );
-    console.log(
-      "Compositor3Debug: fabricDataWidget",
-      fabricDataWidget.name,
-      fabricDataWidget?.value
-    );
   }
 };
 
 const initializeCustomCanvasWidget = (node) => {
   if (isCorrectType(node)) {
-    console.log(
-      "Compositor3Debug: Initializing custom canvas widget for node",
-      node.id
-    );
-
     // Note: At this point (nodeCreated), widget values are NOT yet available
     // They will be populated later in loadedGraphNode when loading a workflow
     // or via compositor_init event when executing the workflow
@@ -150,7 +124,6 @@ const initializeCustomCanvasWidget = (node) => {
     // Add cleanup when node is removed
     const originalOnRemoved = node.onRemoved;
     node.onRemoved = function () {
-      console.log("Compositor3Debug: node removed, cleaning up", node.id);
       if (node.editor && node.editor.cleanup) {
         node.editor.cleanup();
       }
@@ -169,17 +142,8 @@ const initializeCustomCanvasWidget = (node) => {
 // Restore canvas state when widget values are available (loadedGraphNode)
 const restoreCanvasState = (node) => {
   if (!isCorrectType(node) || !node.editor) {
-    console.log(
-      "Compositor3Debug: Cannot restore state, node not initialized",
-      node.id
-    );
     return;
   }
-
-  console.log(
-    "Compositor3Debug: Restoring canvas state from widget values",
-    node.id
-  );
 
   try {
     // Get the fabricData widget which contains serialized canvas state
@@ -190,11 +154,6 @@ const restoreCanvasState = (node) => {
       fabricDataWidget.value &&
       fabricDataWidget.value !== "{}"
     ) {
-      console.log(
-        "Compositor3Debug: Found fabricData to restore, length:",
-        fabricDataWidget.value.length
-      );
-
       // Call the editor's restoreState method which will:
       // 1. Deserialize the compositor data
       // 2. Restore canvas dimensions, imagePositions, snap settings, grid size
@@ -202,21 +161,10 @@ const restoreCanvasState = (node) => {
       // 4. Load images via appendImage (which applies the transforms)
       // 5. Update UI elements
       const restored = node.editor.restoreState(fabricDataWidget.value);
-
-      if (restored) {
-        console.log("Compositor3Debug: Canvas state restoration complete");
-      } else {
-        console.log(
-          "Compositor3Debug: Canvas state restoration failed or no data"
-        );
-      }
-    } else {
-      console.log("Compositor3Debug: No fabricData to restore or empty data");
     }
 
     // Update node size after restoring state
     const newSize = node.editor.calculateNodeSize();
-    console.log("Compositor3Debug: Setting node size to", newSize);
     node.setSize(newSize);
     node.setDirtyCanvas(true, true);
   } catch (error) {
@@ -252,13 +200,6 @@ function executedMessageHandler(event, a, b) {
     // This is when we update the editor with canvas dimensions, images, etc.
     const e = event.detail.output;
     const editor = node.editor;
-    console.log("Compositor3Debug: received compositor_init", e, nodeId, a, b);
-    console.log(
-      "Compositor3Debug: initializing custom canvas widget",
-      node,
-      node.editor,
-      node.editorWidget
-    );
 
     // Update canvas dimensions from config if available
     if (
@@ -278,59 +219,27 @@ function executedMessageHandler(event, a, b) {
     const onConfigChanged = e.onConfigChanged ? e.onConfigChanged[0] : false;
     const configChanged = e.configChanged ? e.configChanged[0] : false;
 
-    console.log(
-      "Compositor3Debug: onConfigChanged =",
-      onConfigChanged,
-      "configChanged =",
-      configChanged
-    );
-    console.log("Compositor3Debug: Full event data:", e);
-
     // Load images
     e.names.map((name, index) => editor.appendImage(name, index));
 
     // Handle configuration change scenarios
     // onConfigChanged is a boolean: true = "grab and continue", false = "stop"
     if (configChanged) {
-      console.log(
-        "Compositor3Debug: ⚠️ CONFIG CHANGE DETECTED - Handling mode..."
-      );
-      debugger; // Pause execution here to inspect state
-
       if (onConfigChanged === true) {
         // Grab mode: save snapshot after initialization completes, then re-enqueue
-        console.log(
-          "Compositor3Debug: 🎯 Config changed with 'grab and continue' mode - will save and re-enqueue"
-        );
-
         // Wait for images to load, then save and re-enqueue
         const reEnqueue = () => {
-          console.log("Compositor3Debug: 🔄 Starting re-enqueue process...");
           interrupt().then(() => {
-            console.log("Compositor3Debug: ✅ Interrupted, now queuing prompt");
             app.queuePrompt(0, 1);
           });
         };
 
         // Queue the save with re-enqueue callback
-        console.log("Compositor3Debug: 💾 Queueing save...");
         editor.queuedSave(false).then(reEnqueue);
       } else {
         // Stop mode: interrupt workflow and wait for user input
-        console.log(
-          "Compositor3Debug: 🛑 Config changed with 'stop' mode - interrupting workflow"
-        );
-        debugger; // Pause execution here too
-        interrupt().then(() => {
-          console.log(
-            "Compositor3Debug: ⏸️ Workflow interrupted, waiting for user input"
-          );
-        });
+        interrupt();
       }
-    } else {
-      console.log(
-        "Compositor3Debug: ℹ️ No config change detected, skipping auto-save/interrupt"
-      );
     }
   }
 }
@@ -702,7 +611,6 @@ const Editor = (node, fabric) => {
         snapBtn.style.backgroundColor = snapEnabled
           ? COLOR_BUTTON_ACTIVE
           : COLOR_BUTTON_DISABLED;
-        console.log("Snap to grid:", snapEnabled);
       },
       snapGridContainer
     );
@@ -791,10 +699,6 @@ const Editor = (node, fabric) => {
         });
 
         fabricInstance.renderAll();
-        console.log(
-          "Precise selection (perPixelTargetFind):",
-          preciseSelection
-        );
       },
       rotationPreciseContainer
     );
@@ -1323,8 +1227,6 @@ const Editor = (node, fabric) => {
     if (images[index] && images[index].visible !== false) {
       fabricInstance.setActiveObject(images[index]);
       fabricInstance.renderAll();
-    } else {
-      console.log(`Layer ${index} is empty or hidden`);
     }
   };
 
@@ -1353,7 +1255,6 @@ const Editor = (node, fabric) => {
 
   const toggleImageVisibility = (index) => {
     if (!images[index]) {
-      console.log(`Layer ${index} is empty`);
       return;
     }
 
@@ -1594,13 +1495,11 @@ const Editor = (node, fabric) => {
     if (saveDebounceTimeout) {
       clearTimeout(saveDebounceTimeout);
       saveDebounceTimeout = null;
-      console.log("Compositor3Debug: cancelled pending save (debounce)");
     }
 
     // If a save is in progress, store this request as pending (only keep the latest)
     if (isSaving) {
       pendingSaveRequest = { queue };
-      console.log("Compositor3Debug: save queued (another save in progress)");
       return Promise.resolve(); // Return resolved promise for .then() compatibility
     }
 
@@ -1627,7 +1526,6 @@ const Editor = (node, fabric) => {
           if (pendingSaveRequest) {
             const request = pendingSaveRequest;
             pendingSaveRequest = null;
-            console.log("Compositor3Debug: executing queued save");
             // Execute immediately (will go through debounce again)
             queuedSave(request.queue);
           }
@@ -1655,7 +1553,6 @@ const Editor = (node, fabric) => {
     if (!imageNameWidget.value || imageNameWidget.value === "default") {
       const imageName = buildImageName(app.graph.id, node.id, "png", false);
       imageNameWidget.value = imageName;
-      console.log(`Compositor3Debug: initialized imageName to ${imageName}`);
     }
 
     // DON'T restore compositor data here - widget values aren't available yet in nodeCreated
@@ -1717,13 +1614,9 @@ const Editor = (node, fabric) => {
       const widgetValue = fabricDataWidget.value;
       if (widgetValue && typeof widgetValue === "string") {
         const data = deserializeCompositorData(widgetValue);
-        if (data) {
-          // imagePositions, snapEnabled, and gridSize are restored in deserializeCompositorData
-          console.log("Compositor3Debug: restored compositor data");
-        }
       }
     } catch (e) {
-      console.log("Compositor3Debug: could not restore compositor data", e);
+      console.error("Compositor3Debug: could not restore compositor data", e);
     }
   };
 
@@ -1736,10 +1629,6 @@ const Editor = (node, fabric) => {
     const w = Number(width);
     const h = Number(height);
     const p = Number(padding);
-
-    console.log(
-      `Compositor3Debug: updating canvas dimensions to ${w}x${h}, padding: ${p}`
-    );
 
     canvasWidth = w;
     canvasHeight = h;
@@ -1854,20 +1743,11 @@ const Editor = (node, fabric) => {
     // First, check if there's a pending transform (from deserialization)
     if (pendingTransforms[index]) {
       currentTransform = pendingTransforms[index];
-      console.log(
-        "Compositor3Debug: applying pending transform for index",
-        index,
-        currentTransform
-      );
       pendingTransforms[index] = null; // Clear after use
     }
     // Otherwise, check if there's an existing image to preserve its transform
     else if (hasImageAtIndex(index)) {
       currentTransform = getCurrentTransforms(index);
-      console.log(
-        "Compositor3Debug: preserving existing transform",
-        currentTransform
-      );
     }
 
     fabricInstance.remove(getImageAtIndex(index));
@@ -1949,7 +1829,6 @@ const Editor = (node, fabric) => {
     // 3. null/undefined
 
     if (!imageSource) {
-      console.log(`Compositor3Debug: No image source for index ${index}`);
       return;
     }
 
@@ -1964,13 +1843,6 @@ const Editor = (node, fabric) => {
       )}&type=${saveFolder}&subfolder=compositor`;
     }
 
-    console.log(
-      `Compositor3Debug: Loading image ${index} from ${imageUrl.substring(
-        0,
-        100
-      )}...`
-    );
-
     // Add a timestamp to force cache busting for file-based URLs
     // This helps when the workflow is loaded from localStorage and files might be stale
     const cacheBustUrl = imageSource.startsWith("data:image/")
@@ -1982,14 +1854,10 @@ const Editor = (node, fabric) => {
       (img) => {
         // Check if image loaded successfully
         if (!img || !img.getElement() || img.getElement().naturalWidth === 0) {
-          console.warn(
-            `Compositor3Debug: Failed to load image ${index} (file may not exist yet), using placeholder`
-          );
           createPlaceholderImage(index, (placeholderImg) =>
             fromUrlCallback(placeholderImg, index)
           );
         } else {
-          console.log(`Compositor3Debug: Successfully loaded image ${index}`);
           fromUrlCallback(img, index);
         }
       },
@@ -2107,9 +1975,6 @@ const Editor = (node, fabric) => {
         data.height !== undefined &&
         data.padding !== undefined
       ) {
-        console.log(
-          `Compositor3Debug: restoring canvas dimensions ${data.width}x${data.height}, padding: ${data.padding}`
-        );
         // Just set the variables during restoration, don't call updateCanvasDimensions yet
         // because fabric instance and elements don't exist yet during initialization
         canvasWidth = Number(data.width);
@@ -2120,38 +1985,24 @@ const Editor = (node, fabric) => {
       // Restore imagePositions if available
       if (data.imagePositions && Array.isArray(data.imagePositions)) {
         imagePositions = data.imagePositions;
-        console.log(
-          "Compositor3Debug: restored imagePositions",
-          imagePositions
-        );
       }
 
       // Restore snap settings if available
       if (data.snapEnabled !== undefined) {
         snapEnabled = data.snapEnabled;
-        console.log("Compositor3Debug: restored snapEnabled", snapEnabled);
       }
 
       if (data.gridSize !== undefined) {
         gridSize = data.gridSize;
-        console.log("Compositor3Debug: restored gridSize", gridSize);
       }
 
       // Store transforms for pending restoration
       if (data.transforms && Array.isArray(data.transforms)) {
-        console.log(
-          "Compositor3Debug: storing pending transforms",
-          data.transforms
-        );
         pendingTransforms = data.transforms.slice(); // Copy the array
       }
 
       // Restore images from imageNames if available
       if (data.imageNames && Array.isArray(data.imageNames)) {
-        console.log(
-          "Compositor3Debug: restoring images from imageNames",
-          data.imageNames
-        );
         data.imageNames.forEach((imageName, index) => {
           if (imageName) {
             // Use appendImage which already handles filename vs base64 and placeholders
@@ -2166,7 +2017,10 @@ const Editor = (node, fabric) => {
 
       return data;
     } catch (e) {
-      console.log("Compositor3Debug: could not deserialize compositor data", e);
+      console.error(
+        "Compositor3Debug: could not deserialize compositor data",
+        e
+      );
       return null;
     }
   };
@@ -2294,7 +2148,6 @@ const Editor = (node, fabric) => {
 
     // Save after object is modified
     fabricInstance.on("object:modified", function (opt) {
-      console.log("compositor3Debug: async object modified event");
       updateSizeInputs();
       queuedSave(false).then(() => {
         updateSeedValue();
@@ -2399,7 +2252,6 @@ const Editor = (node, fabric) => {
     if (saveDebounceTimeout) {
       clearTimeout(saveDebounceTimeout);
       saveDebounceTimeout = null;
-      console.log("Compositor3Debug: cancelled pending save on cleanup");
     }
   };
 
@@ -2469,7 +2321,6 @@ const Editor = (node, fabric) => {
   const alignSelected = (alignment) => {
     const activeObject = fabricInstance.getActiveObject();
     if (!activeObject) {
-      console.log("No object selected for alignment");
       return;
     }
 
@@ -2559,7 +2410,6 @@ const Editor = (node, fabric) => {
   const stretchHorizontally = () => {
     const activeObject = fabricInstance.getActiveObject();
     if (!activeObject || !isImageObject(activeObject)) {
-      console.log("No image selected for stretching");
       return;
     }
 
@@ -2586,7 +2436,6 @@ const Editor = (node, fabric) => {
   const stretchVertically = () => {
     const activeObject = fabricInstance.getActiveObject();
     if (!activeObject || !isImageObject(activeObject)) {
-      console.log("No image selected for stretching");
       return;
     }
 
@@ -2613,20 +2462,17 @@ const Editor = (node, fabric) => {
   const equalizeHeight = () => {
     const activeObject = fabricInstance.getActiveObject();
     if (!activeObject) {
-      console.log("No object selected for equalizing");
       return;
     }
 
     // Check if it's a multi-selection (ActiveSelection in Fabric.js 4.6)
     if (activeObject.type !== "activeSelection") {
-      console.log("Multiple objects must be selected for equalizing");
       return;
     }
 
     const objects = activeObject._objects.filter((obj) => isImageObject(obj));
 
     if (objects.length < 2) {
-      console.log("At least 2 images must be selected");
       return;
     }
 
@@ -2655,20 +2501,17 @@ const Editor = (node, fabric) => {
   const equalizeWidth = () => {
     const activeObject = fabricInstance.getActiveObject();
     if (!activeObject) {
-      console.log("No object selected for equalizing");
       return;
     }
 
     // Check if it's a multi-selection (ActiveSelection in Fabric.js 4.6)
     if (activeObject.type !== "activeSelection") {
-      console.log("Multiple objects must be selected for equalizing");
       return;
     }
 
     const objects = activeObject._objects.filter((obj) => isImageObject(obj));
 
     if (objects.length < 2) {
-      console.log("At least 2 images must be selected");
       return;
     }
 
@@ -2697,20 +2540,17 @@ const Editor = (node, fabric) => {
   const distributeVertically = () => {
     const activeObject = fabricInstance.getActiveObject();
     if (!activeObject) {
-      console.log("No object selected for distribution");
       return;
     }
 
     // Check if it's a multi-selection (ActiveSelection in Fabric.js 4.6)
     if (activeObject.type !== "activeSelection") {
-      console.log("Multiple objects must be selected for distribution");
       return;
     }
 
     const objects = activeObject._objects.filter((obj) => isImageObject(obj));
 
     if (objects.length < 2) {
-      console.log("At least 2 images must be selected");
       return;
     }
 
@@ -2757,20 +2597,17 @@ const Editor = (node, fabric) => {
   const distributeHorizontally = () => {
     const activeObject = fabricInstance.getActiveObject();
     if (!activeObject) {
-      console.log("No object selected for distribution");
       return;
     }
 
     // Check if it's a multi-selection (ActiveSelection in Fabric.js 4.6)
     if (activeObject.type !== "activeSelection") {
-      console.log("Multiple objects must be selected for distribution");
       return;
     }
 
     const objects = activeObject._objects.filter((obj) => isImageObject(obj));
 
     if (objects.length < 2) {
-      console.log("At least 2 images must be selected");
       return;
     }
 
@@ -2817,7 +2654,6 @@ const Editor = (node, fabric) => {
   const flipHorizontally = () => {
     const activeObject = fabricInstance.getActiveObject();
     if (!activeObject) {
-      console.log("No object selected for flipping");
       return;
     }
 
@@ -2857,7 +2693,6 @@ const Editor = (node, fabric) => {
   const flipVertically = () => {
     const activeObject = fabricInstance.getActiveObject();
     if (!activeObject) {
-      console.log("No object selected for flipping");
       return;
     }
 
@@ -2896,7 +2731,6 @@ const Editor = (node, fabric) => {
 
   const setSaveFolder = (folder) => {
     saveFolder = folder;
-    console.log(`Compositor3Debug: saveFolder set to ${saveFolder}`);
   };
 
   const restoreState = (dataString) => {
@@ -2951,7 +2785,6 @@ const Editor = (node, fabric) => {
           fabricInstance.renderAll();
         }
 
-        console.log("Compositor3Debug Editor: state restored successfully");
         return true;
       }
     } catch (e) {
@@ -2985,7 +2818,6 @@ async function interrupt() {
         "Content-Type": "text/html",
       },
     });
-    console.log("Compositor3Debug: Workflow interrupted");
     return response;
   } catch (error) {
     console.error("Compositor3Debug: Failed to interrupt workflow", error);

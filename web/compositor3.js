@@ -8,7 +8,7 @@ function isCompositor3(node) {
 
 function getCompositorWidget(node, widgetName) {
   return node.widgets.find((w) => {
-    console.log("checking widget", w.name, widgetName, node.widgetValues);
+    //console.log("checking widget", w.name, widgetName, node.widgetValues);
     return w.name === widgetName;
   });
 }
@@ -65,7 +65,7 @@ app.registerExtension({
       const nodeId = event.detail.node;
       const node = Editor.hook(nodeId);
       if (!node || node.type != "Compositor3") {
-        console.log("no compositor3 node found for id", nodeId);
+        // console.log("no compositor3 node found for id", nodeId);
         return;
       }
       const instance = node.compositorInstance;
@@ -80,17 +80,17 @@ app.registerExtension({
 
       const images = [...e.names];
 
-      console.log("deserializing fabric data for node", nodeId, node);
+      // console.log("deserializing fabric data for node", nodeId, node);
       const restore = Editor.deserializeStuff(node.fabricDataWidget.value);
       const three = Editor.getConfigWidgetValue(node, 3);
-      console.log("restoreVal", three);
+      // console.log("restoreVal", three);
       const shouldRestore = restore ?? false; // Editor.getConfigWidgetValue(node, 3);
       const normalizeHeight = Editor.getConfigWidgetValue(node, 3);
       const onConfigChanged = Editor.getConfigWidgetValue(node, 4);
       const five = Editor.getConfigWidgetValue(node, 5);
       const six = Editor.getConfigWidgetValue(node, 6);
 
-      console.log(three, five, six);
+      // console.log(three, five, six);
 
       instance.normalizeHeigh = normalizeHeight;
       instance.onConfigChanged = onConfigChanged;
@@ -153,10 +153,10 @@ app.registerExtension({
       const tools = currentNode.getInputNode(1);
 
       if (!tools) {
-        console.log(
-          "No tools node connected to input 1 for Compositor3 node:",
-          currentNode.id
-        );
+        // console.log(
+        //   "No tools node connected to input 1 for Compositor3 node:",
+        //   currentNode.id
+        // );
         return; // Skip this node
       }
 
@@ -175,7 +175,7 @@ app.registerExtension({
             centerSelected(e, currentNode);
             break;
           default:
-            console.log("unknown broadcast event", e);
+            console.warn("unknown broadcast event", e);
         }
       });
 
@@ -293,16 +293,16 @@ class Editor {
   configurationNode;
 
   static hook(nodeId) {
-    console.log("hooking", nodeId);
+    // console.log("hooking", nodeId);
     return app.graph.getNodeById(nodeId);
   }
 
   static deserializeStuff(value) {
-    console.log("deserializing fabric data", value);
+    //console.log("deserializing fabric data", value);
     try {
       return JSON.parse(value);
     } catch (e) {
-      console.log("deserializeStuff", e, value);
+      // console.warn("deserializeStuff", e, value);
       return undefined;
     }
   }
@@ -884,14 +884,14 @@ class Editor {
   uploadIfNeeded(
     compositorInstance,
     callback = () => {
-      console.log("upload if needed...");
+      // console.log("upload if needed...");
     }
   ) {
     if (compositorInstance.needsUpload) {
-      console.log("...uploading");
+      //console.log("...uploading");
       compositorInstance.needsUpload = false;
       const serialized = Editor.serializeStuff(compositorInstance.node);
-      console.log("serialized data:", serialized);
+      //console.log("serialized data:", serialized);
       compositorInstance.node.fabricDataWidget.value = serialized;
 
       compositorInstance.grabUploadAndSetOutput(
@@ -900,7 +900,7 @@ class Editor {
         callback
       );
     } else {
-      console.log("...no upload needed to be done");
+      console.warn("...no upload needed to be done");
     }
   }
 

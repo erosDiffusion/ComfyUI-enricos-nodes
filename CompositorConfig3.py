@@ -215,8 +215,6 @@ class CompositorConfig3:
         
         # Generate final hash
         config_signature = hashlib.md5(hash_input.encode()).hexdigest()
-        
-        print(f"CompositorConfig3 - Generated config signature: {config_signature}")
 
         # apply the masks to the images if any so that we get a rgba
         # then pass the rgba in the return value

@@ -70,21 +70,6 @@ class Compositor3Debug:
         cached_signature = self.configCache.get(node_id)
         configChanged = cached_signature != configSignature
         
-        # Debug logging
-        print(f"Compositor3Debug - Compositor Node ID (cache key): {node_id}")
-        print(f"Compositor3Debug - Config Node ID: {config_node_id}")
-        print(f"Compositor3Debug - Config Signature (current): {configSignature}")
-        print(f"Compositor3Debug - Config Signature (cached):  {cached_signature}")
-        print(f"Compositor3Debug - Config Changed: {configChanged}")
-        if configChanged:
-            print("Compositor3Debug - ⚠️ CONFIG CHANGE DETECTED!")
-            if cached_signature is None:
-                print("Compositor3Debug -   First run for this node (no cached signature)")
-            else:
-                print("Compositor3Debug -   Signature mismatch - inputs or parameters changed")
-        else:
-            print("Compositor3Debug - ℹ️ No config change (signature match)")
-        
         # Store the current signature using compositor node's ID as key
         self.configCache[node_id] = configSignature
 
@@ -107,7 +92,6 @@ class Compositor3Debug:
 
         # Check if imageName is valid (not default/empty)
         if not imageName or imageName == "default" or imageName.strip() == "":
-            print(f"Compositor3Debug: No valid image name provided ('{imageName}'), returning execution blocker")
             blocker_result = tuple([ExecutionBlocker(None)] * len(self.RETURN_TYPES))
             return {
                 "ui": ui,
@@ -118,7 +102,6 @@ class Compositor3Debug:
         folder_path = f"../{saveFolder}/compositor/{imageName}"
         imageExists = folder_paths.exists_annotated_filepath(folder_path)
         if not imageExists:
-            print(f"Compositor3Debug: Image does not exist: {folder_path}")
             # Return ExecutionBlocker for all outputs if blocked
             blocker_result = tuple([ExecutionBlocker(None)] * len(self.RETURN_TYPES))
             return {
@@ -133,28 +116,5 @@ class Compositor3Debug:
         image = i.convert("RGB")
         image = np.array(image).astype(np.float32) / 255.0
         image = torch.from_numpy(image)[None, ]
-
-        """
-        Dumps the input values to console and returns them
-        """
-        print("=" * 80)
-        #print(f"Compositor3Debug - Config: {config}")
-        print(f"Compositor3Debug - Padding: {padding}")
-        print(f"Compositor3Debug - Invert Mask: {invertMask}")
-        print(f"Compositor3Debug - Width: {width}")
-        print(f"Compositor3Debug - Height: {height}")
-        print(f"Compositor3Debug - Node ID: {config_node_id}")
-        print(f"Compositor3Debug - On Config Changed: {onConfigChanged}")
-        print(f"Compositor3Debug - Names: {names}")
-        print("Compositor3Debug - Dump:")
-        print("=" * 80)
-        print(f"fabricData type: {type(fabricData)}")
-        print(f"fabricData length: {len(fabricData) if fabricData else 0}")
-        print(f"fabricData content:\n{fabricData}")
-        print("-" * 80)
-        print(f"imageName type: {type(imageName)}")
-        print(f"imageName length: {len(imageName) if imageName else 0}")
-        print(f"imageName content: {imageName}")
-        print("=" * 80)
         
         return (fabricData, imageName,image)

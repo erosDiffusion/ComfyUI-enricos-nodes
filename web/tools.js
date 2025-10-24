@@ -21,14 +21,14 @@ app.registerExtension({
   async loadedGraphNode(node, app) {},
   async afterConfigureGraph(args) {
     // not enough to do here only we also in node created (for later or connection changed)
-    console.log("after configure graph");
+    //console.log("after configure graph");
     // To do something when a workflow has loaded, use afterConfigureGraph, not setup
     // console.log("afterConfigureGraph", args);
 
     const tools = app.graph.findNodesByType("CompositorTools3");
     tools.forEach((node) => {
       const CHANNELNAME = `Tools${node.id}`;
-      console.log(CHANNELNAME);
+      // console.log(CHANNELNAME);
       const channel = new BroadcastChannel(CHANNELNAME);
 
       node["togglePreciseSelection"] = () => {

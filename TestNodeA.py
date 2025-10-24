@@ -1,19 +1,20 @@
 import hashlib
 import random
+import os
+from PIL import Image
+import numpy as np
 from typing_extensions import override
 from comfy_api.latest import ComfyExtension, io
+import folder_paths
 
 
 class TestNodeA(io.ComfyNode):
     """
-    Test Node A: Receives image, returns filename and random seed.
+    Test Node A: Receives image, saves it to fixed location, returns filename and random seed.
     Seed only changes when input image changes.
     """
     
-    # Cache: node_id -> image_hash
-    imageCache = {}
-    # Cache: node_id -> current_seed
-    seedCache = {}
+    
     
     @classmethod
     def define_schema(cls) -> io.Schema:
@@ -21,13 +22,13 @@ class TestNodeA(io.ComfyNode):
             node_id="TestNodeA",
             display_name="Test Node A (Config)",
             category="test",
-            description="Test config node - returns seed that changes only when image input changes",
+            description="Test config node - saves image and returns seed that changes only when image input changes",
             inputs=[
                 io.Image.Input("image", tooltip="Input image to monitor for changes"),
             ],
             outputs=[
-                io.Int.Output(display_name="seed", tooltip="Random seed that changes when image changes"),
-                io.String.Output(display_name="filename", tooltip="Generated filename based on node ID"),
+                io.String.Output(display_name="seed", tooltip="Random seed that changes when image changes"),
+                io.String.Output(display_name="filename", tooltip="Fixed filename where image is saved"),
             ],
             hidden=[
                 io.Hidden.unique_id,
@@ -36,42 +37,38 @@ class TestNodeA(io.ComfyNode):
 
     @classmethod
     def execute(cls, image) -> io.NodeOutput:
-        node_id = cls.hidden.unique_id if cls.hidden else None
+        node_id = cls.hidden.unique_id
         
         print(f"\n[TestNodeA] ========== EXECUTE ==========")
         print(f"[TestNodeA] node_id={node_id}")
         
-        # Generate hash of input image to detect changes
-        image_bytes = image.cpu().numpy().tobytes()
-        image_hash = hashlib.md5(image_bytes).hexdigest()
         
-        # Check if image changed
-        cached_hash = cls.imageCache.get(node_id)
-        image_changed = cached_hash != image_hash
         
-        print(f"[TestNodeA] image_hash={image_hash[:8]}...")
-        print(f"[TestNodeA] cached_hash={cached_hash[:8] if cached_hash else 'None'}...")
-        print(f"[TestNodeA] image_changed={image_changed}")
+        #Generate seed        
+        seed = str(random.randint(1000, 9999))
         
-        # Update cache
-        cls.imageCache[node_id] = image_hash
         
-        # Generate or reuse seed
-        if image_changed or node_id not in cls.seedCache:
-            seed = random.randint(1000, 9999)
-            cls.seedCache[node_id] = seed
-            print(f"[TestNodeA] NEW seed generated: {seed}")
-        else:
-            seed = cls.seedCache[node_id]
-            print(f"[TestNodeA] REUSING existing seed: {seed}")
+        # Save image to fixed location for frontend access
+        input_dir = folder_paths.get_input_directory()
+        test_folder = os.path.join(input_dir, "test_node_b")
+        os.makedirs(test_folder, exist_ok=True)
         
-        # Generate filename
-        filename = f"test_{node_id}_{seed}.png"
+        # Save with fixed filename pattern based on node_id
+        fixed_filename = f"test_node_b_input_{node_id}.png"
+        input_path = os.path.join(test_folder, fixed_filename)
         
-        print(f"[TestNodeA] Returning: seed={seed}, filename={filename}")
+        # Convert tensor to PIL and save
+        img_np = (image.cpu().numpy() * 255).astype(np.uint8)
+        if img_np.ndim == 4:
+            img_np = img_np[0]  # Remove batch dimension
+        pil_image = Image.fromarray(img_np)
+        pil_image.save(input_path)
+        print(f"[TestNodeA] Saved input image to: {input_path}")
+        
+        print(f"[TestNodeA] Returning: seed={seed}, filename={fixed_filename}")
         print(f"[TestNodeA] =============================\n")
         
-        return io.NodeOutput(seed, filename)
+        return io.NodeOutput(seed, fixed_filename)
 
 
 class TestNodeAExtension(ComfyExtension):

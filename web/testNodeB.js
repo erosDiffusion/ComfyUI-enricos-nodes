@@ -1,6 +1,3 @@
-// Test Node B Frontend Handler
-// Handles test_node_b_init event and implements grab_and_continue behavior
-
 import { app } from "../../scripts/app.js";
 import { api } from "../../scripts/api.js";
 
@@ -10,7 +7,6 @@ app.registerExtension({
   name: "Test.NodeB",
 
   async setup(app) {
-    console.log("[TestNodeB] Setting up event listener");
     api.addEventListener("test_node_b_init", testNodeBInitHandler);
     api.addEventListener("executed", testNodeBExecutedHandler);
   },
@@ -20,20 +16,11 @@ function testNodeBInitHandler(event) {
   const nodeId = event.detail.node;
   const node = app.graph.getNodeById(nodeId);
 
-  console.log("\n[TestNodeB] ========== INIT EVENT ==========");
-  console.log("[TestNodeB] Event received for nodeId:", nodeId);
-  console.log("[TestNodeB] Event detail:", event.detail);
-
   if (!node) {
-    console.log("[TestNodeB] Node not found");
-    console.log("[TestNodeB] ================================\n");
     return;
   }
 
-  // Check if this is TestNodeB
   if (node.constructor.comfyClass !== "TestNodeB") {
-    console.log("[TestNodeB] Not TestNodeB, ignoring");
-    console.log("[TestNodeB] ================================\n");
     return;
   }
 
@@ -50,40 +37,57 @@ function testNodeBInitHandler(event) {
     grabAndContinue,
   });
 
-  // If seed changed and grab_and_continue is enabled, auto-continue
   if (seedChanged && grabAndContinue) {
-    console.log("[TestNodeB] Seed changed + grab_and_continue enabled");
-    console.log("[TestNodeB] Starting auto-continue sequence...");
-
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-    // Generate random colored image in frontend
-    const generateRandomColoredImage = () => {
-      console.log("[TestNodeB] Generating random colored canvas...");
-      const canvas = document.createElement("canvas");
-      canvas.width = 512;
-      canvas.height = 512;
-      const ctx = canvas.getContext("2d");
+    // Load and flip the input image from Node A
+    const loadAndFlipImage = (inputFilename) => {
+      return new Promise((resolve, reject) => {
+        console.log("[TestNodeB] Loading input image:", inputFilename);
 
-      // Generate random color
-      const r = Math.floor(Math.random() * 256);
-      const g = Math.floor(Math.random() * 256);
-      const b = Math.floor(Math.random() * 256);
-      const color = `rgb(${r}, ${g}, ${b})`;
+        // Construct URL to load the image from test_node_b subfolder
+        const imageUrl = `/view?filename=${encodeURIComponent(
+          inputFilename
+        )}&type=input&subfolder=test_node_b&rand=${Math.random()}`;
 
-      console.log("[TestNodeB] Generated color:", color);
+        const img = new Image();
+        img.crossOrigin = "anonymous";
 
-      // Fill canvas with random color
-      ctx.fillStyle = color;
-      ctx.fillRect(0, 0, 512, 512);
+        img.onload = () => {
+          console.log("[TestNodeB] Image loaded, creating flipped canvas...");
 
-      // Add text showing the seed
-      ctx.fillStyle = "white";
-      ctx.font = "bold 48px Arial";
-      ctx.textAlign = "center";
-      ctx.fillText(`Seed: ${seed}`, 256, 256);
+          const canvas = document.createElement("canvas");
+          canvas.width = img.width;
+          canvas.height = img.height;
+          const ctx = canvas.getContext("2d");
 
-      return { canvas, color };
+          // Flip the image horizontally
+          ctx.save();
+          ctx.scale(-1, 1);
+          ctx.drawImage(img, -canvas.width, 0);
+          ctx.restore();
+
+          // Add text showing the seed
+          ctx.fillStyle = "red";
+          ctx.strokeStyle = "white";
+          ctx.lineWidth = 3;
+          ctx.font = "bold 48px Arial";
+          ctx.textAlign = "center";
+
+          // Stroke (outline) and fill the text
+          ctx.strokeText(`Seed: ${seed}`, canvas.width / 2, 60);
+          ctx.fillText(`Seed: ${seed}`, canvas.width / 2, 60);
+
+          resolve(canvas);
+        };
+
+        img.onerror = () => {
+          console.error("[TestNodeB] Failed to load image:", imageUrl);
+          reject(new Error("Failed to load input image"));
+        };
+
+        img.src = imageUrl;
+      });
     };
 
     // Upload canvas as blob
@@ -106,6 +110,16 @@ function testNodeBInitHandler(event) {
               .then((response) => response.json())
               .then((data) => {
                 console.log("[TestNodeB] Upload response:", data);
+
+                // set the uploaded_image widget value
+                const uploadedImageWidget = node.widgets?.find(
+                  (w) => w.name === "uploaded_image"
+                );
+
+                if (uploadedImageWidget) {
+                  uploadedImageWidget.value = uploadFilename;
+                }
+
                 resolve(data);
               })
               .catch(reject);
@@ -119,19 +133,19 @@ function testNodeBInitHandler(event) {
     // Execute the sequence
     wait(100)
       .then(() => {
-        // Generate image
-        const { canvas, color } = generateRandomColoredImage();
-
+        return loadAndFlipImage(filename, seed);
+      })
+      .then((canvas) => {
         // Upload with fixed filename
-        const uploadFilename = `test_node_b_${node.id}.png`;
-        console.log("[TestNodeB] Uploading image with color:", color);
+        debugger;
+        const uploadFilename = "test_node_b_snapshot.png";
+        console.log("[TestNodeB] Uploading flipped image");
 
         return uploadCanvas(canvas, uploadFilename).then((uploadData) => ({
           uploadFilename,
-          color,
         }));
       })
-      .then(({ uploadFilename, color }) => {
+      .then(({ uploadFilename }) => {
         console.log("[TestNodeB] Upload complete:", uploadFilename);
 
         // Update snapshot_data widget with current seed (like fabricData with seed)
@@ -142,10 +156,17 @@ function testNodeBInitHandler(event) {
         if (snapshotDataWidget) {
           const snapshotData = {
             seed: seed,
-            timestamp: Date.now(),
+            // timestamp: Date.now(),
           };
           snapshotDataWidget.value = JSON.stringify(snapshotData);
-          console.log("[TestNodeB] snapshot_data updated:", snapshotDataWidget.value);
+
+          const uploadedImageWidget = node.widgets?.find(
+            (w) => w.name === "uploaded_image"
+          );
+          //   console.log(
+          //     "[TestNodeB] snapshot_data updated:",
+          //     snapshotDataWidget.value
+          //   );
         }
 
         return wait(100);

@@ -174,11 +174,7 @@ const restoreCanvasState = (node) => {
 
 const hideWidget = (widget) => {
   if (widget) {
-    //widget.computeSize = () => [0, 0];
-    // if (!window.enrico) window.enrico = {};
-    // window.enrico[widget.name] = widget;
-    // window.enrico[widget.name].computeSize = () => [0, 0];
-    // window.enrico[widget.name].hidden = true;
+    // TODO
   }
 };
 
@@ -348,6 +344,37 @@ const createVerticalButtonGroup = (parent) => {
   return group;
 };
 
+// Utility function to apply multiple styles at once
+const applyStyles = (element, styles) => {
+  Object.entries(styles).forEach(([key, value]) => {
+    element.style[key] = value;
+  });
+};
+
+// Utility function to create a horizontal button row
+const createButtonRow = (parent) => {
+  const row = document.createElement("div");
+  applyStyles(row, {
+    display: "flex",
+    gap: "2px",
+  });
+  if (parent) {
+    parent.appendChild(row);
+  }
+  return row;
+};
+
+// Utility function to create a null-filled array
+const createNullArray = (length) => Array(length).fill(null);
+
+// Utility function to create sorted index-position pairs
+const createSortedIndexPositionPairs = (positions, descending = false) => {
+  const pairs = positions.map((position, index) => ({ index, position }));
+  return descending
+    ? pairs.sort((a, b) => b.position - a.position)
+    : pairs.sort((a, b) => a.position - b.position);
+};
+
 // Editor Component
 
 const Editor = (node, fabric) => {
@@ -371,35 +398,16 @@ const Editor = (node, fabric) => {
   let isUpdatingRotationSlider = false; // Flag to prevent circular updates
   let snapEnabled = SNAP_ENABLED; // Editor property for snap to grid
   let gridSize = GRID_SIZE; // Editor property for grid size
-  let images = [null, null, null, null, null, null, null, null, null];
-  let imagePositions = [0, 1, 2, 3, 4, 5, 6, 7, 8]; // Z-index stacking order (0=bottom, 8=top)
+  const IMAGE_COUNT = 9;
+  let images = createNullArray(IMAGE_COUNT);
+  let imagePositions = Array.from({ length: IMAGE_COUNT }, (_, i) => i); // Z-index stacking order (0=bottom, 8=top)
   let draggedLayerIndex = null; // Track which layer is being dragged
-  let pendingTransforms = [
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-  ]; // Store transforms to apply during restoration
+  let pendingTransforms = createNullArray(IMAGE_COUNT); // Store transforms to apply during restoration
 
   // Store direct references to layer UI elements (avoids getElementById issues with multiple nodes)
-  let layerItems = [null, null, null, null, null, null, null, null, null];
-  let layerThumbnails = [null, null, null, null, null, null, null, null, null];
-  let layerVisibilityButtons = [
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-    null,
-  ];
+  let layerItems = createNullArray(IMAGE_COUNT);
+  let layerThumbnails = createNullArray(IMAGE_COUNT);
+  let layerVisibilityButtons = createNullArray(IMAGE_COUNT);
 
   // Canvas dimensions - can be updated from config
   let canvasWidth = WIDTH;
@@ -419,6 +427,99 @@ const Editor = (node, fabric) => {
 
   const imageNameWidget = getImageNameWidget(node);
   const fabricDataWidget = getFabricDataWidget(node);
+
+  // Helper function to save and update seed
+  const saveAndUpdateSeed = () => {
+    return queuedSave(false).then(() => {
+      updateSeedValue();
+    });
+  };
+
+  // Helper function to create a toggle button with active/disabled states
+  const createToggleButton = (
+    initialState,
+    onLabel,
+    offLabel,
+    onChange,
+    parent
+  ) => {
+    const button = createToolbarButton(
+      initialState ? onLabel : offLabel,
+      () => {
+        const newState = !initialState;
+        initialState = newState;
+        button.textContent = newState ? onLabel : offLabel;
+        button.style.backgroundColor = newState
+          ? COLOR_BUTTON_ACTIVE
+          : COLOR_BUTTON_DISABLED;
+        onChange(newState);
+      },
+      parent
+    );
+
+    // Set initial styling
+    button.style.backgroundColor = initialState
+      ? COLOR_BUTTON_ACTIVE
+      : COLOR_BUTTON_DISABLED;
+
+    // Override hover behavior
+    button.onmouseover = () => {
+      button.style.backgroundColor = COLOR_BUTTON_HOVER;
+    };
+
+    button.onmouseout = () => {
+      button.style.backgroundColor = initialState
+        ? COLOR_BUTTON_ACTIVE
+        : COLOR_BUTTON_DISABLED;
+    };
+
+    return button;
+  };
+
+  // Helper function to create number input
+  const createNumberInput = (labelText, parent) => {
+    const container = document.createElement("div");
+    applyStyles(container, {
+      display: "flex",
+      gap: "3px",
+      alignItems: "center",
+      height: "24px",
+    });
+
+    const label = document.createElement("label");
+    label.textContent = labelText;
+    applyStyles(label, {
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "10px",
+      minWidth: "15px",
+    });
+    container.appendChild(label);
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.value = "0";
+    input.disabled = true;
+    applyStyles(input, {
+      width: "60px",
+      height: "20px",
+      fontSize: "10px",
+      padding: "2px",
+      backgroundColor: COLOR_BUTTON_BG,
+      color: COLOR_BUTTON_TEXT,
+      border: `1px solid ${COLOR_BUTTON_BORDER}`,
+      borderRadius: "3px",
+      boxSizing: "border-box",
+      MozAppearance: "textfield",
+      appearance: "textfield",
+    });
+    container.appendChild(input);
+
+    if (parent) {
+      parent.appendChild(container);
+    }
+
+    return { container, input };
+  };
 
   const createContainer = () => {
     containerEl = document.createElement("div");
@@ -510,10 +611,7 @@ const Editor = (node, fabric) => {
     const flipButtonGroup = createVerticalButtonGroup(toolbarEl);
 
     // Create horizontal flip button
-    const flipHRow = document.createElement("div");
-    flipHRow.style.display = "flex";
-    flipHRow.style.gap = "2px";
-    flipButtonGroup.appendChild(flipHRow);
+    const flipHRow = createButtonRow(flipButtonGroup);
 
     const flipHBtn = createIconButton("⇄", () => flipHorizontally(), flipHRow);
     flipHBtn.title = "Flip selected object horizontally";
@@ -528,10 +626,7 @@ const Editor = (node, fabric) => {
     const transformButtonGroup = createVerticalButtonGroup(toolbarEl);
 
     // Row 1: Stretch buttons (↔ ↕ symbols)
-    const stretchRow = document.createElement("div");
-    stretchRow.style.display = "flex";
-    stretchRow.style.gap = "2px";
-    transformButtonGroup.appendChild(stretchRow);
+    const stretchRow = createButtonRow(transformButtonGroup);
 
     const stretchHBtn = createIconButton(
       "↔",
@@ -550,10 +645,7 @@ const Editor = (node, fabric) => {
       "Stretch selected image vertically (keeping proportions)";
 
     // Row 2: Equalize buttons (= symbol for equalize)
-    const equalizeRow = document.createElement("div");
-    equalizeRow.style.display = "flex";
-    equalizeRow.style.gap = "2px";
-    transformButtonGroup.appendChild(equalizeRow);
+    const equalizeRow = createButtonRow(transformButtonGroup);
 
     const equalizeWidthBtn = createIconButton(
       "=W",
@@ -572,10 +664,7 @@ const Editor = (node, fabric) => {
       "Equalize height of all selected images (keeping proportions)";
 
     // Row 3: Distribute buttons (⋮ ⋯ symbols for distribute)
-    const distributeRow = document.createElement("div");
-    distributeRow.style.display = "flex";
-    distributeRow.style.gap = "2px";
-    transformButtonGroup.appendChild(distributeRow);
+    const distributeRow = createButtonRow(transformButtonGroup);
 
     const distributeHBtn = createIconButton(
       "⋯",
@@ -596,61 +685,47 @@ const Editor = (node, fabric) => {
 
     // Create vertical container for Snap button and Grid slider (3 rows: Snap 24px, Label 24px, Slider 24px)
     const snapGridContainer = document.createElement("div");
-    snapGridContainer.style.display = "flex";
-    snapGridContainer.style.flexDirection = "column";
-    snapGridContainer.style.gap = "2px";
-    snapGridContainer.style.minWidth = "80px";
+    applyStyles(snapGridContainer, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "2px",
+      minWidth: "80px",
+    });
     toolbarEl.appendChild(snapGridContainer);
 
     // Create and append Snap button with special toggle behavior (24px height)
-    snapBtn = createToolbarButton(
-      snapEnabled ? "Snap: ON" : "Snap: OFF",
-      () => {
-        snapEnabled = !snapEnabled;
-        snapBtn.textContent = snapEnabled ? "Snap: ON" : "Snap: OFF";
-        snapBtn.style.backgroundColor = snapEnabled
-          ? COLOR_BUTTON_ACTIVE
-          : COLOR_BUTTON_DISABLED;
+    snapBtn = createToggleButton(
+      snapEnabled,
+      "Snap: ON",
+      "Snap: OFF",
+      (newState) => {
+        snapEnabled = newState;
       },
       snapGridContainer
     );
 
-    // Override default styling for snap button based on initial state
-    snapBtn.style.backgroundColor = snapEnabled
-      ? COLOR_BUTTON_ACTIVE
-      : COLOR_BUTTON_DISABLED;
-
-    // Override hover behavior for snap button
-    snapBtn.onmouseover = () => {
-      if (snapEnabled) {
-        snapBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
-      }
-    };
-
-    snapBtn.onmouseout = () => {
-      snapBtn.style.backgroundColor = snapEnabled
-        ? COLOR_BUTTON_ACTIVE
-        : COLOR_BUTTON_DISABLED;
-    };
-
     // Create grid size label (24px height)
     gridSizeLabel = document.createElement("label");
     gridSizeLabel.textContent = `Grid: ${gridSize}px`;
-    gridSizeLabel.style.color = COLOR_BUTTON_TEXT;
-    gridSizeLabel.style.fontSize = "10px";
-    gridSizeLabel.style.textAlign = "center";
-    gridSizeLabel.style.height = "24px";
-    gridSizeLabel.style.lineHeight = "24px";
-    gridSizeLabel.style.display = "flex";
-    gridSizeLabel.style.alignItems = "center";
-    gridSizeLabel.style.justifyContent = "center";
+    applyStyles(gridSizeLabel, {
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "10px",
+      textAlign: "center",
+      height: "24px",
+      lineHeight: "24px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    });
     snapGridContainer.appendChild(gridSizeLabel);
 
     // Create grid size slider container (24px height)
     const gridSliderContainer = document.createElement("div");
-    gridSliderContainer.style.height = "24px";
-    gridSliderContainer.style.display = "flex";
-    gridSliderContainer.style.alignItems = "center";
+    applyStyles(gridSliderContainer, {
+      height: "24px",
+      display: "flex",
+      alignItems: "center",
+    });
     snapGridContainer.appendChild(gridSliderContainer);
 
     gridSizeSlider = document.createElement("input");
@@ -673,70 +748,54 @@ const Editor = (node, fabric) => {
 
     // Create vertical container for Rotation and Precise Selection (3 rows: Precise button 24px, Label 24px, Slider 24px)
     const rotationPreciseContainer = document.createElement("div");
-    rotationPreciseContainer.style.display = "flex";
-    rotationPreciseContainer.style.flexDirection = "column";
-    rotationPreciseContainer.style.gap = "2px";
-    rotationPreciseContainer.style.minWidth = "80px";
+    applyStyles(rotationPreciseContainer, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "2px",
+      minWidth: "80px",
+    });
     toolbarEl.appendChild(rotationPreciseContainer);
 
     // Create Precise Selection toggle button (24px height) - now at the top
-    const preciseBtn = createToolbarButton(
-      preciseSelection ? "Precise: ON" : "Precise: OFF",
-      () => {
-        preciseSelection = !preciseSelection;
-        preciseBtn.textContent = preciseSelection
-          ? "Precise: ON"
-          : "Precise: OFF";
-        preciseBtn.style.backgroundColor = preciseSelection
-          ? COLOR_BUTTON_ACTIVE
-          : COLOR_BUTTON_DISABLED;
-
+    const preciseBtn = createToggleButton(
+      preciseSelection,
+      "Precise: ON",
+      "Precise: OFF",
+      (newState) => {
+        preciseSelection = newState;
         // Update all images with perPixelTargetFind
         images.forEach((img) => {
           if (img) {
             img.set("perPixelTargetFind", preciseSelection);
           }
         });
-
         fabricInstance.renderAll();
       },
       rotationPreciseContainer
     );
 
-    // Override default styling for precise button based on initial state
-    preciseBtn.style.backgroundColor = preciseSelection
-      ? COLOR_BUTTON_ACTIVE
-      : COLOR_BUTTON_DISABLED;
-
-    // Override hover behavior for precise button
-    preciseBtn.onmouseover = () => {
-      preciseBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
-    };
-
-    preciseBtn.onmouseout = () => {
-      preciseBtn.style.backgroundColor = preciseSelection
-        ? COLOR_BUTTON_ACTIVE
-        : COLOR_BUTTON_DISABLED;
-    };
-
     // Create rotation label (24px height)
     rotationLabel = document.createElement("label");
     rotationLabel.textContent = "Rotate: 0°";
-    rotationLabel.style.color = COLOR_BUTTON_TEXT;
-    rotationLabel.style.fontSize = "10px";
-    rotationLabel.style.textAlign = "center";
-    rotationLabel.style.height = "24px";
-    rotationLabel.style.lineHeight = "24px";
-    rotationLabel.style.display = "flex";
-    rotationLabel.style.alignItems = "center";
-    rotationLabel.style.justifyContent = "center";
+    applyStyles(rotationLabel, {
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "10px",
+      textAlign: "center",
+      height: "24px",
+      lineHeight: "24px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    });
     rotationPreciseContainer.appendChild(rotationLabel);
 
     // Create rotation slider container (24px height)
     const rotationSliderContainer = document.createElement("div");
-    rotationSliderContainer.style.height = "24px";
-    rotationSliderContainer.style.display = "flex";
-    rotationSliderContainer.style.alignItems = "center";
+    applyStyles(rotationSliderContainer, {
+      height: "24px",
+      display: "flex",
+      alignItems: "center",
+    });
     rotationPreciseContainer.appendChild(rotationSliderContainer);
 
     rotationSlider = document.createElement("input");
@@ -783,9 +842,7 @@ const Editor = (node, fabric) => {
         fabricInstance.renderAll();
 
         // Trigger debounced save
-        queuedSave(false).then(() => {
-          updateSeedValue();
-        });
+        saveAndUpdateSeed();
       }
     };
 
@@ -796,75 +853,25 @@ const Editor = (node, fabric) => {
 
     // Create size controls container (width and height inputs, 2 rows × 24px)
     const sizeControlsContainer = document.createElement("div");
-    sizeControlsContainer.style.display = "flex";
-    sizeControlsContainer.style.flexDirection = "column";
-    sizeControlsContainer.style.gap = "2px";
-    sizeControlsContainer.style.minWidth = "80px";
+    applyStyles(sizeControlsContainer, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "2px",
+      minWidth: "80px",
+    });
     toolbarEl.appendChild(sizeControlsContainer);
 
     // Width control (24px height)
-    const widthInputContainer = document.createElement("div");
-    widthInputContainer.style.display = "flex";
-    widthInputContainer.style.gap = "3px";
-    widthInputContainer.style.alignItems = "center";
-    widthInputContainer.style.height = "24px";
-    sizeControlsContainer.appendChild(widthInputContainer);
-
-    const widthLabel = document.createElement("label");
-    widthLabel.textContent = "W:";
-    widthLabel.style.color = COLOR_BUTTON_TEXT;
-    widthLabel.style.fontSize = "10px";
-    widthLabel.style.minWidth = "15px";
-    widthInputContainer.appendChild(widthLabel);
-
-    const widthInput = document.createElement("input");
-    widthInput.type = "number";
-    widthInput.value = "0";
-    widthInput.disabled = true;
-    widthInput.style.width = "60px";
-    widthInput.style.height = "20px";
-    widthInput.style.fontSize = "10px";
-    widthInput.style.padding = "2px";
-    widthInput.style.backgroundColor = COLOR_BUTTON_BG;
-    widthInput.style.color = COLOR_BUTTON_TEXT;
-    widthInput.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
-    widthInput.style.borderRadius = "3px";
-    widthInput.style.boxSizing = "border-box";
-    widthInput.style.MozAppearance = "textfield"; // Firefox
-    widthInput.style.appearance = "textfield"; // Standard
-    widthInputContainer.appendChild(widthInput);
+    const { input: widthInput } = createNumberInput(
+      "W:",
+      sizeControlsContainer
+    );
 
     // Height control (24px height)
-    const heightInputContainer = document.createElement("div");
-    heightInputContainer.style.display = "flex";
-    heightInputContainer.style.gap = "3px";
-    heightInputContainer.style.alignItems = "center";
-    heightInputContainer.style.height = "24px";
-    sizeControlsContainer.appendChild(heightInputContainer);
-
-    const heightLabel = document.createElement("label");
-    heightLabel.textContent = "H:";
-    heightLabel.style.color = COLOR_BUTTON_TEXT;
-    heightLabel.style.fontSize = "10px";
-    heightLabel.style.minWidth = "15px";
-    heightInputContainer.appendChild(heightLabel);
-
-    const heightInput = document.createElement("input");
-    heightInput.type = "number";
-    heightInput.value = "0";
-    heightInput.disabled = true;
-    heightInput.style.width = "60px";
-    heightInput.style.height = "20px";
-    heightInput.style.fontSize = "10px";
-    heightInput.style.padding = "2px";
-    heightInput.style.backgroundColor = COLOR_BUTTON_BG;
-    heightInput.style.color = COLOR_BUTTON_TEXT;
-    heightInput.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
-    heightInput.style.borderRadius = "3px";
-    heightInput.style.boxSizing = "border-box";
-    heightInput.style.MozAppearance = "textfield"; // Firefox
-    heightInput.style.appearance = "textfield"; // Standard
-    heightInputContainer.appendChild(heightInput);
+    const { input: heightInput } = createNumberInput(
+      "H:",
+      sizeControlsContainer
+    );
 
     // Add CSS to hide number input spinners (webkit browsers)
     const styleId = `compositor-spinner-hide-${node.id}`;
@@ -913,9 +920,7 @@ const Editor = (node, fabric) => {
       heightInput.value = Math.round(activeObject.getScaledHeight());
 
       // Trigger save
-      queuedSave(false).then(() => {
-        updateSeedValue();
-      });
+      saveAndUpdateSeed();
     };
 
     // Height input change handler
@@ -946,9 +951,7 @@ const Editor = (node, fabric) => {
       widthInput.value = Math.round(activeObject.getScaledWidth());
 
       // Trigger save
-      queuedSave(false).then(() => {
-        updateSeedValue();
-      });
+      saveAndUpdateSeed();
     };
   };
 
@@ -1159,41 +1162,41 @@ const Editor = (node, fabric) => {
   const createLayersPanel = () => {
     // Create main content wrapper (canvas + layers side by side)
     const contentWrapper = document.createElement("div");
-    contentWrapper.style.display = "flex";
-    contentWrapper.style.flexDirection = "row";
-    contentWrapper.style.gap = "10px";
-    contentWrapper.style.width = "100%";
+    applyStyles(contentWrapper, {
+      display: "flex",
+      flexDirection: "row",
+      gap: "10px",
+      width: "100%",
+    });
 
     containerEl.appendChild(contentWrapper);
 
     // Create layers panel
     layersPanelEl = document.createElement("div");
-    layersPanelEl.style.width = "150px";
-    layersPanelEl.style.height =
-      HEIGHT - 8 + PADDING * 2 + COMPOSITION_BORDER_SIZE * 2 + "px";
-    layersPanelEl.style.backgroundColor = COLOR_TOOLBAR_BG;
-    layersPanelEl.style.borderRadius = "8px";
-    layersPanelEl.style.padding = "4px";
-    layersPanelEl.style.boxSizing = "border-box";
-    layersPanelEl.style.overflowY = "auto";
-    layersPanelEl.style.display = "flex";
-    layersPanelEl.style.flexDirection = "column";
-    layersPanelEl.style.marginTop = "8px";
-    layersPanelEl.style.gap = "4px";
-    layersPanelEl.style.boxShadow = "inset 0 0 5px rgba(0, 0, 0, 0.2)";
+    applyStyles(layersPanelEl, {
+      width: "150px",
+      height: HEIGHT - 8 + PADDING * 2 + COMPOSITION_BORDER_SIZE * 2 + "px",
+      backgroundColor: COLOR_TOOLBAR_BG,
+      borderRadius: "8px",
+      padding: "4px",
+      boxSizing: "border-box",
+      overflowY: "auto",
+      display: "flex",
+      flexDirection: "column",
+      marginTop: "8px",
+      gap: "4px",
+      boxShadow: "inset 0 0 5px rgba(0, 0, 0, 0.2)",
+    });
 
     // Add title
     const title = createLayersPanelTitle();
     layersPanelEl.appendChild(title);
 
     // Create layer items in order based on imagePositions (highest position first)
-    const indexPositionPairs = imagePositions.map((position, index) => ({
-      index,
-      position,
-    }));
-
-    // Sort by position (higher position = higher in UI list)
-    indexPositionPairs.sort((a, b) => b.position - a.position);
+    const indexPositionPairs = createSortedIndexPositionPairs(
+      imagePositions,
+      true
+    );
 
     indexPositionPairs.forEach(({ index }) => {
       const layerItem = createLayerItem(index);
@@ -1289,9 +1292,7 @@ const Editor = (node, fabric) => {
     fabricInstance.renderAll();
 
     // Save the changes (same as object:modified event)
-    queuedSave(false).then(() => {
-      updateSeedValue();
-    });
+    saveAndUpdateSeed();
   };
 
   const swapLayerPositions = (fromIndex, toIndex) => {
@@ -1309,20 +1310,15 @@ const Editor = (node, fabric) => {
     updateCanvasZOrder();
 
     // Save the changes
-    queuedSave(false).then(() => {
-      updateSeedValue();
-    });
+    saveAndUpdateSeed();
   };
 
   const updateLayerPanelOrder = () => {
     // Create array of [index, position] pairs and sort by position (highest first for UI)
-    const indexPositionPairs = imagePositions.map((position, index) => ({
-      index,
-      position,
-    }));
-
-    // Sort by position (higher position = higher in UI list, since higher = more forward)
-    indexPositionPairs.sort((a, b) => b.position - a.position);
+    const indexPositionPairs = createSortedIndexPositionPairs(
+      imagePositions,
+      true
+    );
 
     // Get the title element (first child)
     const title = layersPanelEl.firstChild;
@@ -1356,13 +1352,10 @@ const Editor = (node, fabric) => {
 
   const updateCanvasZOrder = () => {
     // Create array of [index, position] pairs
-    const indexPositionPairs = imagePositions.map((position, index) => ({
-      index,
-      position,
-    }));
-
-    // Sort by position (lower position = further back)
-    indexPositionPairs.sort((a, b) => a.position - b.position);
+    const indexPositionPairs = createSortedIndexPositionPairs(
+      imagePositions,
+      false
+    );
 
     // Reorder objects on canvas
     // First, move composition area and border to back
@@ -1455,16 +1448,6 @@ const Editor = (node, fabric) => {
     fabricInstance.setHeight(height + padding * 2 + borderSize * 2);
     fabricInstance.renderAll();
   };
-
-  // const createClickableRect = (left, top, width, height) => {
-  //   clickableRect = new fabric.Rect({
-  //     left: left,
-  //     top: top,
-  //     fill: "rgba(255,0,0,0.3)",
-  //     width: width,
-  //     height: height,
-  //   });
-  // };
 
   const appendCanvasToContainer = (contentWrapper) => {
     // Append canvas to the content wrapper (left side)
@@ -1720,8 +1703,6 @@ const Editor = (node, fabric) => {
   };
 
   const calculateNodeSize = () => {
-    //const toolbarSize = toolbarEl.getBoundingClientRect();
-    //console.log("Compositor3Debug: toolbar size", toolbarSize);
     const ch = fabricInstance.getHeight();
     const cw = fabricInstance.getWidth();
     // Added 150px for layers panel + 10px gap
@@ -2149,9 +2130,7 @@ const Editor = (node, fabric) => {
     // Save after object is modified
     fabricInstance.on("object:modified", function (opt) {
       updateSizeInputs();
-      queuedSave(false).then(() => {
-        updateSeedValue();
-      });
+      saveAndUpdateSeed();
     });
 
     // Add keyboard navigation for selected objects
@@ -2236,9 +2215,7 @@ const Editor = (node, fabric) => {
     fabricInstance.renderAll();
 
     // Save the changes
-    queuedSave(false).then(() => {
-      updateSeedValue();
-    });
+    saveAndUpdateSeed();
   };
 
   const cleanup = () => {
@@ -2397,9 +2374,7 @@ const Editor = (node, fabric) => {
     fabricInstance.renderAll();
 
     // Save the changes
-    queuedSave(false).then(() => {
-      updateSeedValue();
-    });
+    saveAndUpdateSeed();
   };
 
   const isImageObject = (obj) => {
@@ -2407,326 +2382,164 @@ const Editor = (node, fabric) => {
     return images.includes(obj);
   };
 
-  const stretchHorizontally = () => {
+  // Helper function to apply transformation and save
+  const applyTransformation = (obj, transformation) => {
+    obj.set(transformation);
+    obj.setCoords();
+    fabricInstance.renderAll();
+    saveAndUpdateSeed();
+  };
+
+  // Helper function to stretch image by dimension
+  const stretchByDimension = (targetDimension, getCurrentDimension) => {
     const activeObject = fabricInstance.getActiveObject();
     if (!activeObject || !isImageObject(activeObject)) {
       return;
     }
 
-    // Calculate scale to make scaled width equal to composition width
-    const targetWidth = canvasWidth;
-    const currentScaledWidth = activeObject.getScaledWidth();
-    const scaleFactor = targetWidth / currentScaledWidth;
+    const currentDimension = getCurrentDimension(activeObject);
+    const scaleFactor = targetDimension / currentDimension;
 
-    // Apply the scale factor to both scaleX and scaleY to maintain proportions
-    activeObject.set({
+    applyTransformation(activeObject, {
       scaleX: activeObject.scaleX * scaleFactor,
       scaleY: activeObject.scaleY * scaleFactor,
     });
+  };
 
-    activeObject.setCoords();
-    fabricInstance.renderAll();
-
-    // Save the changes
-    queuedSave(false).then(() => {
-      updateSeedValue();
-    });
+  const stretchHorizontally = () => {
+    stretchByDimension(canvasWidth, (obj) => obj.getScaledWidth());
   };
 
   const stretchVertically = () => {
+    stretchByDimension(canvasHeight, (obj) => obj.getScaledHeight());
+  };
+
+  // Helper function to equalize dimension for multiple objects
+  const equalizeDimension = (getDimension) => {
     const activeObject = fabricInstance.getActiveObject();
-    if (!activeObject || !isImageObject(activeObject)) {
+    if (!activeObject || activeObject.type !== "activeSelection") {
       return;
     }
 
-    // Calculate scale to make scaled height equal to composition height
-    const targetHeight = canvasHeight;
-    const currentScaledHeight = activeObject.getScaledHeight();
-    const scaleFactor = targetHeight / currentScaledHeight;
+    const objects = activeObject._objects.filter((obj) => isImageObject(obj));
+    if (objects.length < 2) {
+      return;
+    }
 
-    // Apply the scale factor to both scaleX and scaleY to maintain proportions
-    activeObject.set({
-      scaleX: activeObject.scaleX * scaleFactor,
-      scaleY: activeObject.scaleY * scaleFactor,
+    // Use the first object's dimension as reference
+    const referenceDimension = getDimension(objects[0]);
+
+    objects.forEach((obj, index) => {
+      if (index === 0) return; // Skip the reference object
+      const scale =
+        referenceDimension /
+        (getDimension === ((o) => o.getScaledHeight())
+          ? obj.height
+          : obj.width);
+      obj.set({
+        scaleX: scale,
+        scaleY: scale,
+      });
+      obj.setCoords();
     });
 
-    activeObject.setCoords();
     fabricInstance.renderAll();
-
-    // Save the changes
-    queuedSave(false).then(() => {
-      updateSeedValue();
-    });
+    saveAndUpdateSeed();
   };
 
   const equalizeHeight = () => {
-    const activeObject = fabricInstance.getActiveObject();
-    if (!activeObject) {
-      return;
-    }
-
-    // Check if it's a multi-selection (ActiveSelection in Fabric.js 4.6)
-    if (activeObject.type !== "activeSelection") {
-      return;
-    }
-
-    const objects = activeObject._objects.filter((obj) => isImageObject(obj));
-
-    if (objects.length < 2) {
-      return;
-    }
-
-    // Use the first object's scaled height as reference
-    const referenceHeight = objects[0].getScaledHeight();
-
-    objects.forEach((obj, index) => {
-      if (index === 0) return; // Skip the reference object
-
-      const scale = referenceHeight / obj.height;
-      obj.set({
-        scaleX: scale,
-        scaleY: scale,
-      });
-      obj.setCoords();
-    });
-
-    fabricInstance.renderAll();
-
-    // Save the changes
-    queuedSave(false).then(() => {
-      updateSeedValue();
-    });
+    equalizeDimension((obj) => obj.getScaledHeight());
   };
 
   const equalizeWidth = () => {
-    const activeObject = fabricInstance.getActiveObject();
-    if (!activeObject) {
-      return;
-    }
+    equalizeDimension((obj) => obj.getScaledWidth());
+  };
 
-    // Check if it's a multi-selection (ActiveSelection in Fabric.js 4.6)
-    if (activeObject.type !== "activeSelection") {
+  // Helper function to distribute objects along an axis
+  const distributeAlongAxis = (getCenterCoord, setPosition) => {
+    const activeObject = fabricInstance.getActiveObject();
+    if (!activeObject || activeObject.type !== "activeSelection") {
       return;
     }
 
     const objects = activeObject._objects.filter((obj) => isImageObject(obj));
-
     if (objects.length < 2) {
       return;
     }
 
-    // Use the first object's scaled width as reference
-    const referenceWidth = objects[0].getScaledWidth();
+    // Sort objects by their center position
+    objects.sort((a, b) => getCenterCoord(a) - getCenterCoord(b));
+
+    const firstCoord = getCenterCoord(objects[0]);
+    const lastCoord = getCenterCoord(objects[objects.length - 1]);
+    const spacing = (lastCoord - firstCoord) / (objects.length - 1);
 
     objects.forEach((obj, index) => {
-      if (index === 0) return; // Skip the reference object
-
-      const scale = referenceWidth / obj.width;
-      obj.set({
-        scaleX: scale,
-        scaleY: scale,
-      });
+      const newCoord = firstCoord + spacing * index;
+      const currentCoord = getCenterCoord(obj);
+      const delta = newCoord - currentCoord;
+      setPosition(obj, delta);
       obj.setCoords();
     });
 
     fabricInstance.renderAll();
-
-    // Save the changes
-    queuedSave(false).then(() => {
-      updateSeedValue();
-    });
+    saveAndUpdateSeed();
   };
 
   const distributeVertically = () => {
-    const activeObject = fabricInstance.getActiveObject();
-    if (!activeObject) {
-      return;
-    }
-
-    // Check if it's a multi-selection (ActiveSelection in Fabric.js 4.6)
-    if (activeObject.type !== "activeSelection") {
-      return;
-    }
-
-    const objects = activeObject._objects.filter((obj) => isImageObject(obj));
-
-    if (objects.length < 2) {
-      return;
-    }
-
-    // Sort objects by their center Y position
-    objects.sort((a, b) => {
-      const aCenterY = a.getCenterPoint().y;
-      const bCenterY = b.getCenterPoint().y;
-      return aCenterY - bCenterY;
-    });
-
-    const firstObj = objects[0];
-    const lastObj = objects[objects.length - 1];
-
-    // Get center Y positions of first and last objects
-    const firstCenterY = firstObj.getCenterPoint().y;
-    const lastCenterY = lastObj.getCenterPoint().y;
-
-    // Calculate even spacing between centers
-    const totalSpace = lastCenterY - firstCenterY;
-    const spacing = totalSpace / (objects.length - 1);
-
-    // Distribute objects by their centers
-    objects.forEach((obj, index) => {
-      const newCenterY = firstCenterY + spacing * index;
-      const currentCenter = obj.getCenterPoint();
-
-      // Calculate the offset needed to move center to new position
-      const deltaY = newCenterY - currentCenter.y;
-
-      obj.set({
-        top: snapToGrid(obj.top + deltaY),
-      });
-      obj.setCoords();
-    });
-
-    fabricInstance.renderAll();
-
-    // Save the changes
-    queuedSave(false).then(() => {
-      updateSeedValue();
-    });
+    distributeAlongAxis(
+      (obj) => obj.getCenterPoint().y,
+      (obj, delta) => obj.set({ top: snapToGrid(obj.top + delta) })
+    );
   };
 
   const distributeHorizontally = () => {
+    distributeAlongAxis(
+      (obj) => obj.getCenterPoint().x,
+      (obj, delta) => obj.set({ left: snapToGrid(obj.left + delta) })
+    );
+  };
+
+  // Helper function to flip object along axis
+  const flipAlongAxis = (scaleProperty) => {
     const activeObject = fabricInstance.getActiveObject();
     if (!activeObject) {
       return;
     }
 
-    // Check if it's a multi-selection (ActiveSelection in Fabric.js 4.6)
-    if (activeObject.type !== "activeSelection") {
-      return;
-    }
+    // Store original origin settings
+    const originalOriginX = activeObject.originX;
+    const originalOriginY = activeObject.originY;
 
-    const objects = activeObject._objects.filter((obj) => isImageObject(obj));
-
-    if (objects.length < 2) {
-      return;
-    }
-
-    // Sort objects by their center X position
-    objects.sort((a, b) => {
-      const aCenterX = a.getCenterPoint().x;
-      const bCenterX = b.getCenterPoint().x;
-      return aCenterX - bCenterX;
+    // Temporarily set origin to center for proper flipping
+    activeObject.set({
+      originX: "center",
+      originY: "center",
     });
 
-    const firstObj = objects[0];
-    const lastObj = objects[objects.length - 1];
+    // Flip by inverting scale
+    const transformation = {
+      [scaleProperty]: -activeObject[scaleProperty],
+    };
+    activeObject.set(transformation);
 
-    // Get center X positions of first and last objects
-    const firstCenterX = firstObj.getCenterPoint().x;
-    const lastCenterX = lastObj.getCenterPoint().x;
-
-    // Calculate even spacing between centers
-    const totalSpace = lastCenterX - firstCenterX;
-    const spacing = totalSpace / (objects.length - 1);
-
-    // Distribute objects by their centers
-    objects.forEach((obj, index) => {
-      const newCenterX = firstCenterX + spacing * index;
-      const currentCenter = obj.getCenterPoint();
-
-      // Calculate the offset needed to move center to new position
-      const deltaX = newCenterX - currentCenter.x;
-
-      obj.set({
-        left: snapToGrid(obj.left + deltaX),
-      });
-      obj.setCoords();
+    // Restore original origin settings
+    activeObject.set({
+      originX: originalOriginX,
+      originY: originalOriginY,
     });
 
+    activeObject.setCoords();
     fabricInstance.renderAll();
-
-    // Save the changes
-    queuedSave(false).then(() => {
-      updateSeedValue();
-    });
+    saveAndUpdateSeed();
   };
 
   const flipHorizontally = () => {
-    const activeObject = fabricInstance.getActiveObject();
-    if (!activeObject) {
-      return;
-    }
-
-    // Store original origin settings
-    const originalOriginX = activeObject.originX;
-    const originalOriginY = activeObject.originY;
-
-    // Get the center point before flipping
-    const center = activeObject.getCenterPoint();
-
-    // Temporarily set origin to center for proper flipping
-    activeObject.set({
-      originX: "center",
-      originY: "center",
-    });
-
-    // Flip by inverting scaleX
-    activeObject.set({
-      scaleX: -activeObject.scaleX,
-    });
-
-    // Restore original origin settings
-    activeObject.set({
-      originX: originalOriginX,
-      originY: originalOriginY,
-    });
-
-    activeObject.setCoords();
-    fabricInstance.renderAll();
-
-    // Save the changes
-    queuedSave(false).then(() => {
-      updateSeedValue();
-    });
+    flipAlongAxis("scaleX");
   };
 
   const flipVertically = () => {
-    const activeObject = fabricInstance.getActiveObject();
-    if (!activeObject) {
-      return;
-    }
-
-    // Store original origin settings
-    const originalOriginX = activeObject.originX;
-    const originalOriginY = activeObject.originY;
-
-    // Get the center point before flipping
-    const center = activeObject.getCenterPoint();
-
-    // Temporarily set origin to center for proper flipping
-    activeObject.set({
-      originX: "center",
-      originY: "center",
-    });
-
-    // Flip by inverting scaleY
-    activeObject.set({
-      scaleY: -activeObject.scaleY,
-    });
-
-    // Restore original origin settings
-    activeObject.set({
-      originX: originalOriginX,
-      originY: originalOriginY,
-    });
-
-    activeObject.setCoords();
-    fabricInstance.renderAll();
-
-    // Save the changes
-    queuedSave(false).then(() => {
-      updateSeedValue();
-    });
+    flipAlongAxis("scaleY");
   };
 
   const setSaveFolder = (folder) => {

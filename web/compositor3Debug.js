@@ -441,6 +441,7 @@ const Editor = (node, fabric) => {
   let canvasHeight = HEIGHT;
   let canvasPadding = PADDING;
   let saveFolder = "output"; // Default folder for saving images
+  let preciseSelection = false; // perPixelTargetFind for precise selection
 
   // Store keyboard handler reference for cleanup
   let keyboardHandler = null;
@@ -625,11 +626,16 @@ const Editor = (node, fabric) => {
     );
     distributeVBtn.title = "Distribute selected images vertically";
 
-    // Add separator before grid controls
+    // Add separator before grid and precision controls
     createSeparator(toolbarEl);
 
-    // Create vertical group for grid controls (Snap button and Grid slider)
-    const gridControlGroup = createVerticalButtonGroup(toolbarEl);
+    // Create horizontal container for Snap button and Grid slider (in one row)
+    const snapGridContainer = document.createElement("div");
+    snapGridContainer.style.display = "flex";
+    snapGridContainer.style.flexDirection = "row";
+    snapGridContainer.style.gap = "5px";
+    snapGridContainer.style.alignItems = "center";
+    toolbarEl.appendChild(snapGridContainer);
 
     // Create and append Snap button with special toggle behavior
     snapBtn = createToolbarButton(
@@ -642,7 +648,7 @@ const Editor = (node, fabric) => {
           : COLOR_BUTTON_DISABLED;
         console.log("Snap to grid:", snapEnabled);
       },
-      gridControlGroup
+      snapGridContainer
     );
 
     // Override default styling for snap button based on initial state
@@ -663,13 +669,13 @@ const Editor = (node, fabric) => {
         : COLOR_BUTTON_DISABLED;
     };
 
-    // Create grid size slider control
+    // Create grid size slider control (in same row as Snap)
     const gridSizeContainer = document.createElement("div");
     gridSizeContainer.style.display = "flex";
     gridSizeContainer.style.flexDirection = "column";
     gridSizeContainer.style.gap = "2px";
     gridSizeContainer.style.minWidth = "80px";
-    gridControlGroup.appendChild(gridSizeContainer);
+    snapGridContainer.appendChild(gridSizeContainer);
 
     gridSizeLabel = document.createElement("label");
     gridSizeLabel.textContent = `Grid: ${gridSize}px`;
@@ -693,14 +699,24 @@ const Editor = (node, fabric) => {
 
     gridSizeContainer.appendChild(gridSizeSlider);
 
+    // Add separator before rotation and precision controls
+    createSeparator(toolbarEl);
+
+    // Create horizontal container for Rotation and Precise Selection (in one row)
+    const rotationPreciseContainer = document.createElement("div");
+    rotationPreciseContainer.style.display = "flex";
+    rotationPreciseContainer.style.flexDirection = "row";
+    rotationPreciseContainer.style.gap = "5px";
+    rotationPreciseContainer.style.alignItems = "center";
+    toolbarEl.appendChild(rotationPreciseContainer);
+
     // Create rotation slider control
     const rotationContainer = document.createElement("div");
     rotationContainer.style.display = "flex";
     rotationContainer.style.flexDirection = "column";
     rotationContainer.style.gap = "2px";
     rotationContainer.style.minWidth = "80px";
-    rotationContainer.style.marginTop = "4px";
-    gridControlGroup.appendChild(rotationContainer);
+    rotationPreciseContainer.appendChild(rotationContainer);
 
     rotationLabel = document.createElement("label");
     rotationLabel.textContent = "Rotate: 0°";
@@ -721,7 +737,18 @@ const Editor = (node, fabric) => {
     rotationSlider.oninput = (e) => {
       if (isUpdatingRotationSlider) return; // Prevent circular updates
 
-      const angle = parseInt(e.target.value);
+      let angle = parseInt(e.target.value);
+
+      // Constrain to 5-degree steps if Shift is pressed (only values divisible by 5)
+      if (e.shiftKey) {
+        angle = Math.round(angle / 5) * 5;
+        // Ensure angle is exactly divisible by 5
+        if (angle % 5 !== 0) {
+          angle = Math.round(angle / 5) * 5;
+        }
+        rotationSlider.value = angle; // Update slider to snapped value
+      }
+
       rotationLabel.textContent = `Rotate: ${angle}°`;
 
       const activeObject = fabricInstance.getActiveObject();
@@ -740,10 +767,213 @@ const Editor = (node, fabric) => {
 
         activeObject.setCoords();
         fabricInstance.renderAll();
+
+        // Trigger debounced save
+        queuedSave(false).then(() => {
+          updateSeedValue();
+        });
       }
     };
 
     rotationContainer.appendChild(rotationSlider);
+
+    // Create Precise Selection toggle button
+    const preciseBtn = createToolbarButton(
+      preciseSelection ? "Precise: ON" : "Precise: OFF",
+      () => {
+        preciseSelection = !preciseSelection;
+        preciseBtn.textContent = preciseSelection
+          ? "Precise: ON"
+          : "Precise: OFF";
+        preciseBtn.style.backgroundColor = preciseSelection
+          ? COLOR_BUTTON_ACTIVE
+          : COLOR_BUTTON_DISABLED;
+
+        // Update all images with perPixelTargetFind
+        images.forEach((img) => {
+          if (img) {
+            img.set("perPixelTargetFind", preciseSelection);
+          }
+        });
+
+        fabricInstance.renderAll();
+        console.log(
+          "Precise selection (perPixelTargetFind):",
+          preciseSelection
+        );
+      },
+      rotationPreciseContainer
+    );
+
+    // Override default styling for precise button based on initial state
+    preciseBtn.style.backgroundColor = preciseSelection
+      ? COLOR_BUTTON_ACTIVE
+      : COLOR_BUTTON_DISABLED;
+
+    // Override hover behavior for precise button
+    preciseBtn.onmouseover = () => {
+      preciseBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
+    };
+
+    preciseBtn.onmouseout = () => {
+      preciseBtn.style.backgroundColor = preciseSelection
+        ? COLOR_BUTTON_ACTIVE
+        : COLOR_BUTTON_DISABLED;
+    };
+
+    // Add separator before size controls
+    createSeparator(toolbarEl);
+
+    // Create size controls container (width and height inputs)
+    const sizeControlsContainer = document.createElement("div");
+    sizeControlsContainer.style.display = "flex";
+    sizeControlsContainer.style.flexDirection = "column";
+    sizeControlsContainer.style.gap = "3px";
+    sizeControlsContainer.style.minWidth = "80px";
+    toolbarEl.appendChild(sizeControlsContainer);
+
+    // Width control
+    const widthInputContainer = document.createElement("div");
+    widthInputContainer.style.display = "flex";
+    widthInputContainer.style.gap = "3px";
+    widthInputContainer.style.alignItems = "center";
+    sizeControlsContainer.appendChild(widthInputContainer);
+
+    const widthLabel = document.createElement("label");
+    widthLabel.textContent = "W:";
+    widthLabel.style.color = COLOR_BUTTON_TEXT;
+    widthLabel.style.fontSize = "10px";
+    widthLabel.style.minWidth = "15px";
+    widthInputContainer.appendChild(widthLabel);
+
+    const widthInput = document.createElement("input");
+    widthInput.type = "number";
+    widthInput.value = "0";
+    widthInput.disabled = true;
+    widthInput.style.width = "60px";
+    widthInput.style.fontSize = "10px";
+    widthInput.style.padding = "2px";
+    widthInput.style.backgroundColor = COLOR_BUTTON_BG;
+    widthInput.style.color = COLOR_BUTTON_TEXT;
+    widthInput.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
+    widthInput.style.borderRadius = "3px";
+    widthInput.style.MozAppearance = "textfield"; // Firefox
+    widthInput.style.appearance = "textfield"; // Standard
+    widthInputContainer.appendChild(widthInput);
+
+    // Height control
+    const heightInputContainer = document.createElement("div");
+    heightInputContainer.style.display = "flex";
+    heightInputContainer.style.gap = "3px";
+    heightInputContainer.style.alignItems = "center";
+    sizeControlsContainer.appendChild(heightInputContainer);
+
+    const heightLabel = document.createElement("label");
+    heightLabel.textContent = "H:";
+    heightLabel.style.color = COLOR_BUTTON_TEXT;
+    heightLabel.style.fontSize = "10px";
+    heightLabel.style.minWidth = "15px";
+    heightInputContainer.appendChild(heightLabel);
+
+    const heightInput = document.createElement("input");
+    heightInput.type = "number";
+    heightInput.value = "0";
+    heightInput.disabled = true;
+    heightInput.style.width = "60px";
+    heightInput.style.fontSize = "10px";
+    heightInput.style.padding = "2px";
+    heightInput.style.backgroundColor = COLOR_BUTTON_BG;
+    heightInput.style.color = COLOR_BUTTON_TEXT;
+    heightInput.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
+    heightInput.style.borderRadius = "3px";
+    heightInput.style.MozAppearance = "textfield"; // Firefox
+    heightInput.style.appearance = "textfield"; // Standard
+    heightInputContainer.appendChild(heightInput);
+
+    // Add CSS to hide number input spinners (webkit browsers)
+    const styleId = `compositor-spinner-hide-${node.id}`;
+    if (!document.getElementById(styleId)) {
+      const style = document.createElement("style");
+      style.id = styleId;
+      style.textContent = `
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+          -webkit-appearance: none;
+          margin: 0;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+
+    // Store references for later use
+    node.widthInput = widthInput;
+    node.heightInput = heightInput;
+
+    // Width input change handler
+    widthInput.onchange = (e) => {
+      const activeObject = fabricInstance.getActiveObject();
+      if (!activeObject || activeObject.type === "activeSelection") return;
+
+      const targetWidth = parseFloat(e.target.value);
+      if (isNaN(targetWidth) || targetWidth <= 0) {
+        // Reset to current value if invalid
+        widthInput.value = Math.round(activeObject.getScaledWidth());
+        return;
+      }
+
+      // Calculate new scale to achieve target width
+      const currentWidth = activeObject.width;
+      const newScaleX = targetWidth / currentWidth;
+
+      activeObject.set({
+        scaleX: newScaleX,
+        scaleY: newScaleX, // Maintain aspect ratio
+      });
+
+      activeObject.setCoords();
+      fabricInstance.renderAll();
+
+      // Update height input to reflect new size
+      heightInput.value = Math.round(activeObject.getScaledHeight());
+
+      // Trigger save
+      queuedSave(false).then(() => {
+        updateSeedValue();
+      });
+    };
+
+    // Height input change handler
+    heightInput.onchange = (e) => {
+      const activeObject = fabricInstance.getActiveObject();
+      if (!activeObject || activeObject.type === "activeSelection") return;
+
+      const targetHeight = parseFloat(e.target.value);
+      if (isNaN(targetHeight) || targetHeight <= 0) {
+        // Reset to current value if invalid
+        heightInput.value = Math.round(activeObject.getScaledHeight());
+        return;
+      }
+
+      // Calculate new scale to achieve target height
+      const currentHeight = activeObject.height;
+      const newScaleY = targetHeight / currentHeight;
+
+      activeObject.set({
+        scaleX: newScaleY, // Maintain aspect ratio
+        scaleY: newScaleY,
+      });
+
+      activeObject.setCoords();
+      fabricInstance.renderAll();
+
+      // Update width input to reflect new size
+      widthInput.value = Math.round(activeObject.getScaledWidth());
+
+      // Trigger save
+      queuedSave(false).then(() => {
+        updateSeedValue();
+      });
+    };
   };
 
   const createLayerThumbnail = (index) => {
@@ -1544,6 +1774,7 @@ const Editor = (node, fabric) => {
       top: canvasPadding + COMPOSITION_BORDER_SIZE,
       selectable: true,
       evented: true,
+      perPixelTargetFind: preciseSelection, // Set precise selection
     });
 
     let currentTransform = null;
@@ -1933,19 +2164,36 @@ const Editor = (node, fabric) => {
     // Update rotation slider when object is rotated
     fabricInstance.on("object:rotating", function (opt) {
       updateRotationSlider();
+
+      // Constrain rotation to 5-degree steps if Shift is pressed (only values divisible by 5)
+      if (opt.e && opt.e.shiftKey) {
+        const target = opt.target;
+        let snappedAngle = Math.round(target.angle / 5) * 5;
+        // Ensure angle is exactly divisible by 5
+        if (snappedAngle % 5 !== 0) {
+          snappedAngle = Math.round(snappedAngle / 5) * 5;
+        }
+        target.set({ angle: snappedAngle });
+      }
     });
 
     // Update rotation slider when selection changes
     fabricInstance.on("selection:created", function (opt) {
       updateRotationSlider();
       updateLayerSelectionHighlight();
+      updateSizeInputs();
       if (rotationSlider) rotationSlider.disabled = false;
+      if (node.widthInput) node.widthInput.disabled = false;
+      if (node.heightInput) node.heightInput.disabled = false;
     });
 
     fabricInstance.on("selection:updated", function (opt) {
       updateRotationSlider();
       updateLayerSelectionHighlight();
+      updateSizeInputs();
       if (rotationSlider) rotationSlider.disabled = false;
+      if (node.widthInput) node.widthInput.disabled = false;
+      if (node.heightInput) node.heightInput.disabled = false;
     });
 
     fabricInstance.on("selection:cleared", function (opt) {
@@ -1957,11 +2205,25 @@ const Editor = (node, fabric) => {
       if (rotationLabel) {
         rotationLabel.textContent = "Rotate: 0°";
       }
+      if (node.widthInput) {
+        node.widthInput.disabled = true;
+        node.widthInput.value = "0";
+      }
+      if (node.heightInput) {
+        node.heightInput.disabled = true;
+        node.heightInput.value = "0";
+      }
+    });
+
+    // Update size inputs when object is scaled or modified
+    fabricInstance.on("object:scaling", function (opt) {
+      updateSizeInputs();
     });
 
     // Save after object is modified
     fabricInstance.on("object:modified", function (opt) {
       console.log("compositor3Debug: async object modified event");
+      updateSizeInputs();
       queuedSave(false).then(() => {
         updateSeedValue();
       });
@@ -2091,6 +2353,20 @@ const Editor = (node, fabric) => {
       rotationLabel.textContent = `Rotate: ${Math.round(angle)}°`;
 
       isUpdatingRotationSlider = false;
+    }
+  };
+
+  const updateSizeInputs = () => {
+    if (!node.widthInput || !node.heightInput) return;
+
+    const activeObject = fabricInstance.getActiveObject();
+    if (activeObject && activeObject.type !== "activeSelection") {
+      // Update inputs with current scaled dimensions
+      const scaledWidth = Math.round(activeObject.getScaledWidth());
+      const scaledHeight = Math.round(activeObject.getScaledHeight());
+
+      node.widthInput.value = scaledWidth;
+      node.heightInput.value = scaledHeight;
     }
   };
 

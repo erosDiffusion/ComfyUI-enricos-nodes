@@ -292,9 +292,11 @@ function executedMessageHandler(event, a, b) {
     // Handle configuration change scenarios
     // onConfigChanged is a boolean: true = "grab and continue", false = "stop"
     if (configChanged) {
-      console.log("Compositor3Debug: ⚠️ CONFIG CHANGE DETECTED - Handling mode...");
+      console.log(
+        "Compositor3Debug: ⚠️ CONFIG CHANGE DETECTED - Handling mode..."
+      );
       debugger; // Pause execution here to inspect state
-      
+
       if (onConfigChanged === true) {
         // Grab mode: save snapshot after initialization completes, then re-enqueue
         console.log(
@@ -326,7 +328,9 @@ function executedMessageHandler(event, a, b) {
         });
       }
     } else {
-      console.log("Compositor3Debug: ℹ️ No config change detected, skipping auto-save/interrupt");
+      console.log(
+        "Compositor3Debug: ℹ️ No config change detected, skipping auto-save/interrupt"
+      );
     }
   }
 }

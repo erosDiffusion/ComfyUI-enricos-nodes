@@ -8,6 +8,8 @@ import torch
 import torch.nn.functional as F
 import math
 import os
+import hashlib
+import time
 from comfy.utils import common_upscale
 
 MAX_RESOLUTION = nodes.MAX_RESOLUTION
@@ -193,6 +195,29 @@ class CompositorConfig3:
         masks = [mask1, mask2, mask3, mask4, mask5, mask6, mask7, mask8, ]
         input_images = []
 
+        # Generate a hash that represents the current state of all inputs
+        # This hash will change whenever any input (image, mask, or parameter) changes
+        hash_input = f"{width}_{height}_{padding}_{invertMask}_{normalizeHeight}_{saveFormat}_{saveFolder}_{onConfigChanged}"
+        
+        # Add image/mask presence to hash (True/False for each slot)
+        for img, mask in zip(images, masks):
+            hash_input += f"_img:{img is not None}_mask:{mask is not None}"
+        
+        # Add tensor data hashes for images that are present
+        for idx, img in enumerate(images):
+            if img is not None:
+                # Use a small sample of tensor data to detect different images
+                tensor_hash = hashlib.md5(img.cpu().numpy().tobytes()[:10000]).hexdigest()[:8]
+                hash_input += f"_imgdata{idx}:{tensor_hash}"
+        
+        # Add timestamp to ensure uniqueness on each execution
+        hash_input += f"_t:{time.time()}"
+        
+        # Generate final hash
+        config_signature = hashlib.md5(hash_input.encode()).hexdigest()
+        
+        print(f"CompositorConfig3 - Generated config signature: {config_signature}")
+
         # apply the masks to the images if any so that we get a rgba
         # then pass the rgba in the return value
         for index, (img, mask) in enumerate(zip(images, masks)):
@@ -247,6 +272,7 @@ class CompositorConfig3:
             "normalizeHeight": normalizeHeight,
             "invertMask": invertMask,
             "saveFolder": saveFolder,
+            "configSignature": config_signature,  # Hash that changes on every execution
         }        
         return (res, all_inputs)
 

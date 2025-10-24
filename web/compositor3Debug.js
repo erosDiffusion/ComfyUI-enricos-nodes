@@ -274,8 +274,60 @@ function executedMessageHandler(event, a, b) {
       editor.setSaveFolder(e.saveFolder);
     }
 
-    // e.names -> array of image filenames or base64
+    // Store onConfigChanged flag and configChanged state
+    const onConfigChanged = e.onConfigChanged ? e.onConfigChanged[0] : false;
+    const configChanged = e.configChanged ? e.configChanged[0] : false;
+
+    console.log(
+      "Compositor3Debug: onConfigChanged =",
+      onConfigChanged,
+      "configChanged =",
+      configChanged
+    );
+    console.log("Compositor3Debug: Full event data:", e);
+
+    // Load images
     e.names.map((name, index) => editor.appendImage(name, index));
+
+    // Handle configuration change scenarios
+    // onConfigChanged is a boolean: true = "grab and continue", false = "stop"
+    if (configChanged) {
+      console.log("Compositor3Debug: ⚠️ CONFIG CHANGE DETECTED - Handling mode...");
+      debugger; // Pause execution here to inspect state
+      
+      if (onConfigChanged === true) {
+        // Grab mode: save snapshot after initialization completes, then re-enqueue
+        console.log(
+          "Compositor3Debug: 🎯 Config changed with 'grab and continue' mode - will save and re-enqueue"
+        );
+
+        // Wait for images to load, then save and re-enqueue
+        const reEnqueue = () => {
+          console.log("Compositor3Debug: 🔄 Starting re-enqueue process...");
+          interrupt().then(() => {
+            console.log("Compositor3Debug: ✅ Interrupted, now queuing prompt");
+            app.queuePrompt(0, 1);
+          });
+        };
+
+        // Queue the save with re-enqueue callback
+        console.log("Compositor3Debug: 💾 Queueing save...");
+        editor.queuedSave(false).then(reEnqueue);
+      } else {
+        // Stop mode: interrupt workflow and wait for user input
+        console.log(
+          "Compositor3Debug: 🛑 Config changed with 'stop' mode - interrupting workflow"
+        );
+        debugger; // Pause execution here too
+        interrupt().then(() => {
+          console.log(
+            "Compositor3Debug: ⏸️ Workflow interrupted, waiting for user input"
+          );
+        });
+      }
+    } else {
+      console.log("Compositor3Debug: ℹ️ No config change detected, skipping auto-save/interrupt");
+    }
   }
 }
 
@@ -2915,5 +2967,24 @@ const Editor = (node, fabric) => {
     setSaveFolder,
     restoreState,
     cleanup,
+    queuedSave, // Expose for configuration change handling
   };
 };
+
+// Utility function to interrupt the current workflow execution
+async function interrupt() {
+  try {
+    const response = await fetch("/interrupt", {
+      method: "POST",
+      cache: "no-cache",
+      headers: {
+        "Content-Type": "text/html",
+      },
+    });
+    console.log("Compositor3Debug: Workflow interrupted");
+    return response;
+  } catch (error) {
+    console.error("Compositor3Debug: Failed to interrupt workflow", error);
+    throw error;
+  }
+}

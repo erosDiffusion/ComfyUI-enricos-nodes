@@ -24,7 +24,7 @@ const OVERWRITE = true;
 // UI Color Constants
 const COLOR_TOOLBAR_BG = "rgba(50, 50, 50, 0.9)";
 const COLOR_BUTTON_BG = "rgba(70, 70, 70, 0.9)";
-const COLOR_BUTTON_HOVER = "rgba(90, 90, 90, 0.9)";
+const COLOR_BUTTON_HOVER = "rgba(200, 162, 255, 0.7)"; // Pastel purple for hover state
 const COLOR_BUTTON_DISABLED = "rgba(100, 100, 100, 0.7)";
 const COLOR_BUTTON_BORDER = "rgba(100, 100, 100, 0.5)";
 const COLOR_BUTTON_TEXT = "white";

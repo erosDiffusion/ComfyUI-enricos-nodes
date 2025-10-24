@@ -8,6 +8,10 @@ from .CompositorColorPicker import CompositorColorPicker
 from .ImageColorSampler import ImageColorSampler
 from .Compositor3Debug import Compositor3Debug
 
+# Test nodes for debugging config change detection
+from .TestNodeA import TestNodeA
+from .TestNodeB import TestNodeB
+
 # V1-style registration (kept for backward compatibility)
 # V3 nodes also have comfy_entrypoint() for modern registration
 NODE_CLASS_MAPPINGS = {
@@ -19,6 +23,10 @@ NODE_CLASS_MAPPINGS = {
     "CompositorColorPicker": CompositorColorPicker,
     "ImageColorSampler": ImageColorSampler,
     "Compositor3Debug": Compositor3Debug,
+    
+    # Test nodes
+    "TestNodeA": TestNodeA,
+    "TestNodeB": TestNodeB,
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
@@ -30,6 +38,10 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CompositorColorPicker": "💜 Compositor Color Picker",
     "ImageColorSampler": "💜 Image Color Sampler",
     "Compositor3Debug": "💜 Compositor Debug",
+    
+    # Test nodes
+    "TestNodeA": "🧪 Test Node A (Config)",
+    "TestNodeB": "🧪 Test Node B (Blocker)",
 }
 
 EXTENSION_NAME = "Enrico"

@@ -239,8 +239,38 @@ function executedMessageHandler(event, a, b) {
       rawOnConfigChangedContinue: e.onConfigChangedContinue,
     });
 
+    // Generic wait utility function
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+    // If config changed, IMMEDIATELY update the seed to invalidate cache
+    // This must happen synchronously before any user action
+    if (configChanged) {
+      console.log(
+        "[Compositor3Debug] Config changed - updating seed with configSignature:",
+        e.configSignature
+      );
+      editor.updateSeedValue(e.configSignature);
+    }
+
+    // If in "grab and continue" mode, auto-save and re-queue
     if (configChanged && onConfigChangedContinue) {
-      editor.saveBtn.click();
+      console.log("[Compositor3Debug] Auto-save mode triggered");
+
+      // In "grab and continue" mode: auto-save snapshot and re-queue
+      // Sequence: wait for images to load -> save -> wait -> enqueue
+      wait(100)
+        .then(() => {
+          console.log("[Compositor3Debug] Starting auto-save");
+          return editor.queuedSave(false);
+        })
+        .then(() => wait(100))
+        .then(() => {
+          console.log("[Compositor3Debug] Re-queueing workflow");
+          app.queuePrompt(0, 1);
+        })
+        .catch((error) => {
+          console.error("[Compositor3Debug] Auto-save sequence failed:", error);
+        });
     }
   }
 }
@@ -2652,6 +2682,7 @@ const Editor = (node, fabric) => {
     cleanup,
     queuedSave, // Expose for configuration change handling
     saveAndUpdateSeed,
+    updateSeedValue, // Expose for auto-save with configSignature
     saveBtn,
   };
 };

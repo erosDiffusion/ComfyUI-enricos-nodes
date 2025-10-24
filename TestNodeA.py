@@ -25,10 +25,16 @@ class TestNodeA(io.ComfyNode):
             description="Test config node - saves image and returns seed that changes only when image input changes",
             inputs=[
                 io.Image.Input("image", tooltip="Input image to monitor for changes"),
+                io.Boolean.Input(
+                    "grab_and_continue", 
+                    default=True,
+                    tooltip="If true, auto-continues after blocking in TestNodeB"
+                ),
             ],
             outputs=[
                 io.String.Output(display_name="seed", tooltip="Random seed that changes when image changes"),
                 io.String.Output(display_name="filename", tooltip="Fixed filename where image is saved"),
+                io.Boolean.Output(display_name="grab_and_continue", tooltip="Pass-through grab_and_continue setting"),
             ],
             hidden=[
                 io.Hidden.unique_id,
@@ -36,11 +42,12 @@ class TestNodeA(io.ComfyNode):
         )
 
     @classmethod
-    def execute(cls, image) -> io.NodeOutput:
+    def execute(cls, image, grab_and_continue) -> io.NodeOutput:
         node_id = cls.hidden.unique_id
         
         print(f"\n[TestNodeA] ========== EXECUTE ==========")
         print(f"[TestNodeA] node_id={node_id}")
+        print(f"[TestNodeA] grab_and_continue={grab_and_continue}")
         
         
         
@@ -65,10 +72,10 @@ class TestNodeA(io.ComfyNode):
         pil_image.save(input_path)
         print(f"[TestNodeA] Saved input image to: {input_path}")
         
-        print(f"[TestNodeA] Returning: seed={seed}, filename={fixed_filename}")
+        print(f"[TestNodeA] Returning: seed={seed}, filename={fixed_filename}, grab_and_continue={grab_and_continue}")
         print(f"[TestNodeA] =============================\n")
         
-        return io.NodeOutput(seed, fixed_filename)
+        return io.NodeOutput(seed, fixed_filename, grab_and_continue)
 
 
 class TestNodeAExtension(ComfyExtension):

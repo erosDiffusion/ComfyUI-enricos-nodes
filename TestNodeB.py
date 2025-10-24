@@ -27,13 +27,11 @@ class TestNodeB(io.ComfyNode):
             category="test",
             description="Test blocker node - blocks when seed changes, auto-continues via frontend",
             inputs=[
-                
                 io.String.Input("seed", tooltip="Seed from TestNodeA"),
                 io.String.Input("filename", tooltip="Original filename from TestNodeA"),
                 io.Boolean.Input(
                     "grab_and_continue", 
-                    default=True,
-                    tooltip="If true, auto-continues after blocking"
+                    tooltip="Auto-continue setting from TestNodeA"
                 ),
                 io.String.Input(
                     "uploaded_image",

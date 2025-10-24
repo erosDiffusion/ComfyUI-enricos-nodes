@@ -629,15 +629,15 @@ const Editor = (node, fabric) => {
     // Add separator before grid and precision controls
     createSeparator(toolbarEl);
 
-    // Create horizontal container for Snap button and Grid slider (in one row)
+    // Create vertical container for Snap button and Grid slider (3 rows: Snap 24px, Label 24px, Slider 24px)
     const snapGridContainer = document.createElement("div");
     snapGridContainer.style.display = "flex";
-    snapGridContainer.style.flexDirection = "row";
-    snapGridContainer.style.gap = "5px";
-    snapGridContainer.style.alignItems = "center";
+    snapGridContainer.style.flexDirection = "column";
+    snapGridContainer.style.gap = "2px";
+    snapGridContainer.style.minWidth = "80px";
     toolbarEl.appendChild(snapGridContainer);
 
-    // Create and append Snap button with special toggle behavior
+    // Create and append Snap button with special toggle behavior (24px height)
     snapBtn = createToolbarButton(
       snapEnabled ? "Snap: ON" : "Snap: OFF",
       () => {
@@ -669,20 +669,25 @@ const Editor = (node, fabric) => {
         : COLOR_BUTTON_DISABLED;
     };
 
-    // Create grid size slider control (in same row as Snap)
-    const gridSizeContainer = document.createElement("div");
-    gridSizeContainer.style.display = "flex";
-    gridSizeContainer.style.flexDirection = "column";
-    gridSizeContainer.style.gap = "2px";
-    gridSizeContainer.style.minWidth = "80px";
-    snapGridContainer.appendChild(gridSizeContainer);
-
+    // Create grid size label (24px height)
     gridSizeLabel = document.createElement("label");
     gridSizeLabel.textContent = `Grid: ${gridSize}px`;
     gridSizeLabel.style.color = COLOR_BUTTON_TEXT;
     gridSizeLabel.style.fontSize = "10px";
     gridSizeLabel.style.textAlign = "center";
-    gridSizeContainer.appendChild(gridSizeLabel);
+    gridSizeLabel.style.height = "24px";
+    gridSizeLabel.style.lineHeight = "24px";
+    gridSizeLabel.style.display = "flex";
+    gridSizeLabel.style.alignItems = "center";
+    gridSizeLabel.style.justifyContent = "center";
+    snapGridContainer.appendChild(gridSizeLabel);
+
+    // Create grid size slider container (24px height)
+    const gridSliderContainer = document.createElement("div");
+    gridSliderContainer.style.height = "24px";
+    gridSliderContainer.style.display = "flex";
+    gridSliderContainer.style.alignItems = "center";
+    snapGridContainer.appendChild(gridSliderContainer);
 
     gridSizeSlider = document.createElement("input");
     gridSizeSlider.type = "range";
@@ -697,33 +702,82 @@ const Editor = (node, fabric) => {
       gridSizeLabel.textContent = `Grid: ${gridSize}px`;
     };
 
-    gridSizeContainer.appendChild(gridSizeSlider);
+    gridSliderContainer.appendChild(gridSizeSlider);
 
     // Add separator before rotation and precision controls
     createSeparator(toolbarEl);
 
-    // Create horizontal container for Rotation and Precise Selection (in one row)
+    // Create vertical container for Rotation and Precise Selection (3 rows: Precise button 24px, Label 24px, Slider 24px)
     const rotationPreciseContainer = document.createElement("div");
     rotationPreciseContainer.style.display = "flex";
-    rotationPreciseContainer.style.flexDirection = "row";
-    rotationPreciseContainer.style.gap = "5px";
-    rotationPreciseContainer.style.alignItems = "center";
+    rotationPreciseContainer.style.flexDirection = "column";
+    rotationPreciseContainer.style.gap = "2px";
+    rotationPreciseContainer.style.minWidth = "80px";
     toolbarEl.appendChild(rotationPreciseContainer);
 
-    // Create rotation slider control
-    const rotationContainer = document.createElement("div");
-    rotationContainer.style.display = "flex";
-    rotationContainer.style.flexDirection = "column";
-    rotationContainer.style.gap = "2px";
-    rotationContainer.style.minWidth = "80px";
-    rotationPreciseContainer.appendChild(rotationContainer);
+    // Create Precise Selection toggle button (24px height) - now at the top
+    const preciseBtn = createToolbarButton(
+      preciseSelection ? "Precise: ON" : "Precise: OFF",
+      () => {
+        preciseSelection = !preciseSelection;
+        preciseBtn.textContent = preciseSelection
+          ? "Precise: ON"
+          : "Precise: OFF";
+        preciseBtn.style.backgroundColor = preciseSelection
+          ? COLOR_BUTTON_ACTIVE
+          : COLOR_BUTTON_DISABLED;
 
+        // Update all images with perPixelTargetFind
+        images.forEach((img) => {
+          if (img) {
+            img.set("perPixelTargetFind", preciseSelection);
+          }
+        });
+
+        fabricInstance.renderAll();
+        console.log(
+          "Precise selection (perPixelTargetFind):",
+          preciseSelection
+        );
+      },
+      rotationPreciseContainer
+    );
+
+    // Override default styling for precise button based on initial state
+    preciseBtn.style.backgroundColor = preciseSelection
+      ? COLOR_BUTTON_ACTIVE
+      : COLOR_BUTTON_DISABLED;
+
+    // Override hover behavior for precise button
+    preciseBtn.onmouseover = () => {
+      preciseBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
+    };
+
+    preciseBtn.onmouseout = () => {
+      preciseBtn.style.backgroundColor = preciseSelection
+        ? COLOR_BUTTON_ACTIVE
+        : COLOR_BUTTON_DISABLED;
+    };
+
+    // Create rotation label (24px height)
     rotationLabel = document.createElement("label");
     rotationLabel.textContent = "Rotate: 0°";
     rotationLabel.style.color = COLOR_BUTTON_TEXT;
     rotationLabel.style.fontSize = "10px";
     rotationLabel.style.textAlign = "center";
-    rotationContainer.appendChild(rotationLabel);
+    rotationLabel.style.height = "24px";
+    rotationLabel.style.lineHeight = "24px";
+    rotationLabel.style.display = "flex";
+    rotationLabel.style.alignItems = "center";
+    rotationLabel.style.justifyContent = "center";
+    rotationPreciseContainer.appendChild(rotationLabel);
+
+    // Create rotation slider container (24px height)
+    const rotationSliderContainer = document.createElement("div");
+    rotationSliderContainer.style.height = "24px";
+    rotationSliderContainer.style.display = "flex";
+    rotationSliderContainer.style.alignItems = "center";
+    rotationPreciseContainer.appendChild(rotationSliderContainer);
 
     rotationSlider = document.createElement("input");
     rotationSlider.type = "range";
@@ -775,68 +829,25 @@ const Editor = (node, fabric) => {
       }
     };
 
-    rotationContainer.appendChild(rotationSlider);
-
-    // Create Precise Selection toggle button
-    const preciseBtn = createToolbarButton(
-      preciseSelection ? "Precise: ON" : "Precise: OFF",
-      () => {
-        preciseSelection = !preciseSelection;
-        preciseBtn.textContent = preciseSelection
-          ? "Precise: ON"
-          : "Precise: OFF";
-        preciseBtn.style.backgroundColor = preciseSelection
-          ? COLOR_BUTTON_ACTIVE
-          : COLOR_BUTTON_DISABLED;
-
-        // Update all images with perPixelTargetFind
-        images.forEach((img) => {
-          if (img) {
-            img.set("perPixelTargetFind", preciseSelection);
-          }
-        });
-
-        fabricInstance.renderAll();
-        console.log(
-          "Precise selection (perPixelTargetFind):",
-          preciseSelection
-        );
-      },
-      rotationPreciseContainer
-    );
-
-    // Override default styling for precise button based on initial state
-    preciseBtn.style.backgroundColor = preciseSelection
-      ? COLOR_BUTTON_ACTIVE
-      : COLOR_BUTTON_DISABLED;
-
-    // Override hover behavior for precise button
-    preciseBtn.onmouseover = () => {
-      preciseBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
-    };
-
-    preciseBtn.onmouseout = () => {
-      preciseBtn.style.backgroundColor = preciseSelection
-        ? COLOR_BUTTON_ACTIVE
-        : COLOR_BUTTON_DISABLED;
-    };
+    rotationSliderContainer.appendChild(rotationSlider);
 
     // Add separator before size controls
     createSeparator(toolbarEl);
 
-    // Create size controls container (width and height inputs)
+    // Create size controls container (width and height inputs, 2 rows × 24px)
     const sizeControlsContainer = document.createElement("div");
     sizeControlsContainer.style.display = "flex";
     sizeControlsContainer.style.flexDirection = "column";
-    sizeControlsContainer.style.gap = "3px";
+    sizeControlsContainer.style.gap = "2px";
     sizeControlsContainer.style.minWidth = "80px";
     toolbarEl.appendChild(sizeControlsContainer);
 
-    // Width control
+    // Width control (24px height)
     const widthInputContainer = document.createElement("div");
     widthInputContainer.style.display = "flex";
     widthInputContainer.style.gap = "3px";
     widthInputContainer.style.alignItems = "center";
+    widthInputContainer.style.height = "24px";
     sizeControlsContainer.appendChild(widthInputContainer);
 
     const widthLabel = document.createElement("label");
@@ -851,21 +862,24 @@ const Editor = (node, fabric) => {
     widthInput.value = "0";
     widthInput.disabled = true;
     widthInput.style.width = "60px";
+    widthInput.style.height = "20px";
     widthInput.style.fontSize = "10px";
     widthInput.style.padding = "2px";
     widthInput.style.backgroundColor = COLOR_BUTTON_BG;
     widthInput.style.color = COLOR_BUTTON_TEXT;
     widthInput.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
     widthInput.style.borderRadius = "3px";
+    widthInput.style.boxSizing = "border-box";
     widthInput.style.MozAppearance = "textfield"; // Firefox
     widthInput.style.appearance = "textfield"; // Standard
     widthInputContainer.appendChild(widthInput);
 
-    // Height control
+    // Height control (24px height)
     const heightInputContainer = document.createElement("div");
     heightInputContainer.style.display = "flex";
     heightInputContainer.style.gap = "3px";
     heightInputContainer.style.alignItems = "center";
+    heightInputContainer.style.height = "24px";
     sizeControlsContainer.appendChild(heightInputContainer);
 
     const heightLabel = document.createElement("label");
@@ -880,12 +894,14 @@ const Editor = (node, fabric) => {
     heightInput.value = "0";
     heightInput.disabled = true;
     heightInput.style.width = "60px";
+    heightInput.style.height = "20px";
     heightInput.style.fontSize = "10px";
     heightInput.style.padding = "2px";
     heightInput.style.backgroundColor = COLOR_BUTTON_BG;
     heightInput.style.color = COLOR_BUTTON_TEXT;
     heightInput.style.border = `1px solid ${COLOR_BUTTON_BORDER}`;
     heightInput.style.borderRadius = "3px";
+    heightInput.style.boxSizing = "border-box";
     heightInput.style.MozAppearance = "textfield"; // Firefox
     heightInput.style.appearance = "textfield"; // Standard
     heightInputContainer.appendChild(heightInput);

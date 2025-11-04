@@ -37,6 +37,13 @@ function testNodeBInitHandler(event) {
     grabAndContinue,
   });
 
+  // Get current snapshot_data widget value
+  const snapshotDataWidget = node.widgets?.find(
+    (w) => w.name === "snapshot_data"
+  );
+  const currentSnapshotData = snapshotDataWidget?.value || "{}";
+  console.log("[TestNodeB] Current snapshot_data:", currentSnapshotData);
+
   if (seedChanged && grabAndContinue) {
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -67,7 +74,7 @@ function testNodeBInitHandler(event) {
           ctx.drawImage(img, -canvas.width, 0);
           ctx.restore();
 
-          // Add text showing the seed
+          // Add text showing the seed and snapshot_data
           ctx.fillStyle = "red";
           ctx.strokeStyle = "white";
           ctx.lineWidth = 3;
@@ -75,8 +82,14 @@ function testNodeBInitHandler(event) {
           ctx.textAlign = "center";
 
           // Stroke (outline) and fill the text
-          ctx.strokeText(`Seed: ${seed}`, canvas.width / 2, 60);
+          //ctx.strokeText(`Seed: ${seed}`, canvas.width / 2, 60);
           ctx.fillText(`Seed: ${seed}`, canvas.width / 2, 60);
+          console.log("writing snapshot data", currentSnapshotData);
+          ctx.fillText(
+            `snapshot_data: ${currentSnapshotData}`,
+            canvas.width / 2,
+            110
+          );
 
           resolve(canvas);
         };

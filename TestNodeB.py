@@ -14,6 +14,7 @@ class TestNodeB(io.ComfyNode):
     """
     Test Node B: Receives image and seed, saves image to fixed location,
     blocks execution when seed changes, and auto-continues via frontend.
+    the seed is given by the config node TestNodeA.
     """
     
     # Cache: node_id -> last_seed

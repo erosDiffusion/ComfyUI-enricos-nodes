@@ -142,11 +142,11 @@ class Compositor4(io.ComfyNode):
                 io.Custom("COMPOSITOR_CONFIG").Input("config", tooltip="Configuration from CompositorConfig4 containing canvas size, images, masks, raw tensors, and settings"),
             ],
             outputs=[
+                io.Image.Output(display_name="image", tooltip="Final composed image rendered from the compositor canvas"),
                 io.String.Output(display_name="fabricData_output", tooltip="Compositor state data (transforms, positions, etc.)"),
                 io.String.Output(display_name="imageName_output", tooltip="Filename of the saved composition snapshot"),
-                io.Image.Output(display_name="image", tooltip="Final composed image rendered from the compositor canvas"),
-                io.String.Output(display_name="transforms", tooltip="JSON transform data for Compositor4TransformsOut node"),
-                io.Custom("COMPOSITOR_OUTPUT_MASKS").Output(display_name="layer_outputs", tooltip="Layer outputs (images and masks) for Compositor4MasksOutput node"),
+                # io.String.Output(display_name="transforms", tooltip="JSON transform data for Compositor4TransformsOut node"),
+                # io.Custom("COMPOSITOR_OUTPUT_MASKS").Output(display_name="layer_outputs", tooltip="Layer outputs (images and masks) for Compositor4MasksOutput node"),
             ],
             hidden=[
                 io.Hidden.extra_pnginfo,
@@ -171,7 +171,7 @@ class Compositor4(io.ComfyNode):
         if not config or not isinstance(config, dict):
             print(f"[Compositor4] Config invalid or missing")
             # If config is missing or invalid, we can't proceed
-            blocker_result = tuple([ExecutionBlocker(None)] * 5)  # V4: 5 outputs now
+            blocker_result = tuple([ExecutionBlocker(None)] * 3)  # V4: 3 outputs now
             ui = {"error": ["Config input required from CompositorConfig4 node"]}
             return io.NodeOutput(*blocker_result, ui=ui)
         
@@ -223,7 +223,7 @@ class Compositor4(io.ComfyNode):
         # when config changes, will always stop, frontend decides what to do next
         # this sends an executed event , with blocker
         if configChanged:
-            blocker_result = tuple([ExecutionBlocker(None)] * 5)  # V4: 5 outputs now
+            blocker_result = tuple([ExecutionBlocker(None)] * 3)  # V4: 3 outputs now
             print(f"[Compositor4] Config changed, blocking execution for user interaction, user decides what to do next")
             return io.NodeOutput(*blocker_result, ui=ui)
 
@@ -233,7 +233,7 @@ class Compositor4(io.ComfyNode):
         # Check if imageName is valid (not default/empty)
         if not imageName or imageName == "default" or imageName.strip() == "":
             print(f"[Compositor4] No valid imageName - this is first run or widget not set, blocking")
-            blocker_result = tuple([ExecutionBlocker(None)] * 5)  # V4: 5 outputs now
+            blocker_result = tuple([ExecutionBlocker(None)] * 3)  # V4: 3 outputs now
             return io.NodeOutput(*blocker_result, ui=ui)
         
         # Construct path based on saveFolder
@@ -242,7 +242,7 @@ class Compositor4(io.ComfyNode):
         if not imageExists:
             # Return ExecutionBlocker for all outputs if blocked
             print(f"[Compositor4] Image not found: {folder_path}")
-            blocker_result = tuple([ExecutionBlocker(None)] * 5)  # V4: 5 outputs now
+            blocker_result = tuple([ExecutionBlocker(None)] * 3)  # V4: 3 outputs now
             return io.NodeOutput(*blocker_result, ui=ui)
         image_path = folder_paths.get_annotated_filepath(folder_path)
         print(f"[Compositor4] Loading image: {image_path}")
@@ -375,7 +375,7 @@ class Compositor4(io.ComfyNode):
             }
             
             print(f"[Compositor4] Returning image with {sum(1 for img in rotated_images if img is not None)} processed layers")
-            return io.NodeOutput(fabricData, imageName, image, transforms_output, layer_outputs, ui=ui)
+            return io.NodeOutput(image, fabricData, imageName, ui=ui)
             
         except json.JSONDecodeError:
             print("[Compositor4] Error parsing fabricData JSON. Returning empty layer outputs.")
@@ -385,7 +385,7 @@ class Compositor4(io.ComfyNode):
                 "canvas_width": canvas_width,
                 "canvas_height": canvas_height
             }
-            return io.NodeOutput(fabricData, imageName, image, transforms_output, empty_output, ui=ui)
+            return io.NodeOutput(image, fabricData, imageName, ui=ui)
         except Exception as e:
             print(f"[Compositor4] Unexpected error during layer processing: {e}")
             empty_output = {
@@ -394,7 +394,7 @@ class Compositor4(io.ComfyNode):
                 "canvas_width": canvas_width,
                 "canvas_height": canvas_height
             }
-            return io.NodeOutput(fabricData, imageName, image, transforms_output, empty_output, ui=ui)
+            return io.NodeOutput(image, fabricData, imageName, ui=ui)
 
 
 class Compositor4Extension(ComfyExtension):

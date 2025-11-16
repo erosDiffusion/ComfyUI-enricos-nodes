@@ -1148,8 +1148,8 @@ const Editor = (node, fabric) => {
     applyStyles(toolbarEl, {
       width: "100%",
       minWidth: "400px",
-      minHeight: "118px",
-      height: "118px",
+      minHeight: "80px",
+      height: "80px",
       backgroundColor: COLOR_TOOLBAR_BG,
       display: "flex",
       alignItems: "center",
@@ -1268,40 +1268,42 @@ const Editor = (node, fabric) => {
       "Stretch selected image vertically (keeping proportions)";
 
     // Row 2: Equalize buttons (= symbol for equalize)
-    const equalizeRow = createButtonRow(transformButtonGroup);
+    // COMMENTED OUT: Not reliable, but functionality is kept
+    // const equalizeRow = createButtonRow(transformButtonGroup);
 
-    const equalizeWidthBtn = createIconButton(
-      "=W",
-      () => equalizeWidth(),
-      equalizeRow
-    );
-    equalizeWidthBtn.title =
-      "Equalize width of all selected images (keeping proportions)";
+    // const equalizeWidthBtn = createIconButton(
+    //   "=W",
+    //   () => equalizeWidth(),
+    //   equalizeRow
+    // );
+    // equalizeWidthBtn.title =
+    //   "Equalize width of all selected images (keeping proportions)";
 
-    const equalizeHeightBtn = createIconButton(
-      "=H",
-      () => equalizeHeight(),
-      equalizeRow
-    );
-    equalizeHeightBtn.title =
-      "Equalize height of all selected images (keeping proportions)";
+    // const equalizeHeightBtn = createIconButton(
+    //   "=H",
+    //   () => equalizeHeight(),
+    //   equalizeRow
+    // );
+    // equalizeHeightBtn.title =
+    //   "Equalize height of all selected images (keeping proportions)";
 
     // Row 3: Distribute buttons (⋮ ⋯ symbols for distribute)
-    const distributeRow = createButtonRow(transformButtonGroup);
+    // COMMENTED OUT: Not reliable, but functionality is kept
+    // const distributeRow = createButtonRow(transformButtonGroup);
 
-    const distributeHBtn = createIconButton(
-      "⋯",
-      () => distributeHorizontally(),
-      distributeRow
-    );
-    distributeHBtn.title = "Distribute selected images horizontally";
+    // const distributeHBtn = createIconButton(
+    //   "⋯",
+    //   () => distributeHorizontally(),
+    //   distributeRow
+    // );
+    // distributeHBtn.title = "Distribute selected images horizontally";
 
-    const distributeVBtn = createIconButton(
-      "⋮",
-      () => distributeVertically(),
-      distributeRow
-    );
-    distributeVBtn.title = "Distribute selected images vertically";
+    // const distributeVBtn = createIconButton(
+    //   "⋮",
+    //   () => distributeVertically(),
+    //   distributeRow
+    // );
+    // distributeVBtn.title = "Distribute selected images vertically";
 
     // Add separator before grid and precision controls
     createSeparator(toolbarEl);
@@ -1326,6 +1328,7 @@ const Editor = (node, fabric) => {
       },
       snapGridContainer
     );
+    snapBtn.title = "Toggle snap-to-grid for precise alignment";
 
     // Create grid size slider
     const gridControl = createControl({
@@ -1373,6 +1376,8 @@ const Editor = (node, fabric) => {
       },
       rotationPreciseContainer
     );
+    preciseBtn.title =
+      "Toggle precise pixel-level selection (ignores transparent areas)";
 
     // Create rotation slider
     const rotationControl = createControl({
@@ -1573,16 +1578,24 @@ const Editor = (node, fabric) => {
       () => setToolMode("select"),
       toolModeGroup
     );
+    selectModeBtn.title =
+      "Select and transform images (hold Ctrl to temporarily switch modes)";
+
     drawModeBtn = createToolbarButton(
       "Draw",
       () => setToolMode("draw"),
       toolModeGroup
     );
+    drawModeBtn.title =
+      "Draw on foreground layer with brush (hold Ctrl to temporarily erase)";
+
     eraseModeBtn = createToolbarButton(
       "Erase",
       () => setToolMode("erase"),
       toolModeGroup
     );
+    eraseModeBtn.title =
+      "Erase from foreground layer (hold Ctrl to temporarily draw)";
 
     // Make buttons more compact
     applyStyles(selectModeBtn, { minWidth: "50px", padding: "0 6px" });
@@ -1707,6 +1720,7 @@ const Editor = (node, fabric) => {
       },
       eraseControlsContainer
     );
+    clearFgBtn.title = "Clear all drawings from the foreground layer";
 
     // Row 3: Brush width slider (for both draw and erase)
     const brushWidthControl = createControl({
@@ -1778,11 +1792,14 @@ const Editor = (node, fabric) => {
       () => setBrushShape("circle"),
       brushShapeGroup
     );
+    circleShapeBtn.title = "Round brush shape";
+
     squareShapeBtn = createIconButton(
       "■",
       () => setBrushShape("square"),
       brushShapeGroup
     );
+    squareShapeBtn.title = "Square brush shape";
 
     // Setup hover behavior for shape buttons
     const setupShapeButtonHover = (btn) => {
@@ -2444,14 +2461,17 @@ const Editor = (node, fabric) => {
 
   const createCompositionBorder = () => {
     // a border around (and external to) the composition area
-    // p, w, h, node
+    // The stroke is centered on the rectangle edge, so we need to account for half the stroke width
+    // to ensure the inner edge aligns perfectly with the export area
 
     compositionBorder = new fabric.Rect({
-      left: canvasPadding - COMPOSITION_BORDER_SIZE,
-      top: canvasPadding - COMPOSITION_BORDER_SIZE,
+      left:
+        canvasPadding + COMPOSITION_BORDER_SIZE - COMPOSITION_BORDER_SIZE / 2,
+      top:
+        canvasPadding + COMPOSITION_BORDER_SIZE - COMPOSITION_BORDER_SIZE / 2,
       fill: "transparent",
-      width: canvasWidth + COMPOSITION_BORDER_SIZE * 2,
-      height: canvasHeight + COMPOSITION_BORDER_SIZE * 2,
+      width: canvasWidth,
+      height: canvasHeight,
       selectable: false,
       evented: false,
     });
@@ -3651,7 +3671,6 @@ const Editor = (node, fabric) => {
               fabricInstance.isDrawingMode = false;
               setupCanvasEraser();
             }
-            updateToolModeButtons();
           }
         }
       }
@@ -3688,7 +3707,6 @@ const Editor = (node, fabric) => {
               fabricInstance.isDrawingMode = false;
               setupCanvasEraser();
             }
-            updateToolModeButtons();
           }
         }
       }

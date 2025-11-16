@@ -483,11 +483,14 @@ const Editor = (node, fabric) => {
   let foregroundVisibilityButton = null;
   let isDrawingMode = false; // Track if drawing mode is active
   let foregroundIsVisible = true; // Track if FG layer is visible
-  let brushMode = "pencil"; // 'pencil' or 'eraser'
+  let toolMode = "select"; // 'select', 'draw', or 'erase'
   let brushColor = "#ff0000"; // Red by default
   let brushWidth = 3; // 3px by default
   let isCanvasDrawing = false; // Track if using canvas primitives for eraser
   let canvasDrawingPath = []; // Store path points for canvas drawing
+  let storedSelectedLayerIndex = null; // Store layer selection when switching to draw/erase
+  let isCtrlPressed = false; // Track Ctrl key for temporary mode switching
+  let tempToolMode = null; // Temporary tool mode when Ctrl is held
 
   // Canvas dimensions - can be updated from config
   let canvasWidth = WIDTH;
@@ -941,54 +944,187 @@ const Editor = (node, fabric) => {
     // Add separator before brush controls
     createSeparator(toolbarEl);
 
-    // Create vertical container for brush controls (3 rows: Tool toggle, Color, Width slider)
+    // Create tool mode container (always visible)
+    const toolModeContainer = document.createElement("div");
+    applyStyles(toolModeContainer, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "2px",
+      minWidth: "80px",
+    });
+    toolbarEl.appendChild(toolModeContainer);
+
+    // Tool mode buttons stacked vertically
+    const toolModeGroup = createVerticalButtonGroup(toolModeContainer);
+
+    // Create three mutually exclusive tool mode buttons
+    let selectModeBtn, drawModeBtn, eraseModeBtn;
+
+    const updateToolModeButtons = () => {
+      const activeMode = tempToolMode || toolMode;
+      // Update button styles and text based on active mode
+      selectModeBtn.textContent = "Select";
+      drawModeBtn.textContent = "Draw";
+      eraseModeBtn.textContent = "Erase";
+
+      selectModeBtn.style.backgroundColor =
+        activeMode === "select" ? COLOR_BUTTON_ACTIVE : COLOR_BUTTON_BG;
+      drawModeBtn.style.backgroundColor =
+        activeMode === "draw" ? COLOR_BUTTON_ACTIVE : COLOR_BUTTON_BG;
+      eraseModeBtn.style.backgroundColor =
+        activeMode === "erase" ? COLOR_BUTTON_ACTIVE : COLOR_BUTTON_BG;
+    };
+
+    const setToolMode = (newMode) => {
+      if (toolMode === newMode) return;
+
+      const previousMode = toolMode;
+      toolMode = newMode;
+      tempToolMode = null;
+
+      if (fabricInstance) {
+        if (toolMode === "select") {
+          // Select mode: enable layer selection, disable drawing
+          isDrawingMode = false;
+          fabricInstance.isDrawingMode = false;
+          cleanupCanvasEraser();
+
+          // Make image layers selectable
+          fabricInstance.getObjects().forEach((obj) => {
+            if (obj !== foregroundLayer && obj.type === "image") {
+              obj.set({ selectable: true, evented: true });
+            }
+          });
+
+          // Restore previously selected layer if stored
+          if (storedSelectedLayerIndex !== null) {
+            const layerToSelect = images[storedSelectedLayerIndex];
+            if (layerToSelect) {
+              fabricInstance.setActiveObject(layerToSelect);
+            }
+          }
+
+          // Hide brush controls
+          brushControlsContainer.style.display = "none";
+        } else {
+          // Draw or Erase mode
+          // Store current selection if coming from select mode
+          if (previousMode === "select") {
+            const activeObj = fabricInstance.getActiveObject();
+            if (
+              activeObj &&
+              activeObj.type === "image" &&
+              activeObj !== foregroundLayer
+            ) {
+              storedSelectedLayerIndex = images.indexOf(activeObj);
+            }
+            fabricInstance.discardActiveObject();
+          }
+
+          // Make image layers non-selectable
+          fabricInstance.getObjects().forEach((obj) => {
+            if (obj !== foregroundLayer && obj.type === "image") {
+              obj.set({ selectable: false, evented: false });
+            }
+          });
+
+          // Select foreground layer automatically
+          if (foregroundLayer) {
+            fabricInstance.setActiveObject(foregroundLayer);
+          }
+
+          // Enable drawing mode
+          isDrawingMode = true;
+
+          if (toolMode === "draw") {
+            // Pencil mode: use Fabric drawing
+            cleanupCanvasEraser();
+            fabricInstance.isDrawingMode = true;
+            if (fabricInstance.freeDrawingBrush) {
+              fabricInstance.freeDrawingBrush.color = brushColor;
+              fabricInstance.freeDrawingBrush.width = brushWidth;
+              fabricInstance.freeDrawingBrush.globalCompositeOperation =
+                "source-over";
+            }
+          } else {
+            // Erase mode: use canvas primitives
+            fabricInstance.isDrawingMode = false;
+            setupCanvasEraser();
+          }
+
+          // Show brush controls
+          brushControlsContainer.style.display = "flex";
+        }
+
+        updateToolModeButtons();
+        fabricInstance.renderAll();
+      }
+    };
+
+    selectModeBtn = createToolbarButton(
+      "Select",
+      () => setToolMode("select"),
+      toolModeGroup
+    );
+    drawModeBtn = createToolbarButton(
+      "Draw",
+      () => setToolMode("draw"),
+      toolModeGroup
+    );
+    eraseModeBtn = createToolbarButton(
+      "Erase",
+      () => setToolMode("erase"),
+      toolModeGroup
+    );
+
+    // Make buttons more compact
+    applyStyles(selectModeBtn, { minWidth: "50px", padding: "0 6px" });
+    applyStyles(drawModeBtn, { minWidth: "50px", padding: "0 6px" });
+    applyStyles(eraseModeBtn, { minWidth: "50px", padding: "0 6px" });
+
+    // Override hover behavior to maintain active state
+    const setupModeButtonHover = (btn) => {
+      btn.onmouseover = () => {
+        btn.style.backgroundColor = COLOR_BUTTON_HOVER;
+      };
+      btn.onmouseout = () => {
+        const activeMode = tempToolMode || toolMode;
+        const isActive =
+          (btn === selectModeBtn && activeMode === "select") ||
+          (btn === drawModeBtn && activeMode === "draw") ||
+          (btn === eraseModeBtn && activeMode === "erase");
+        btn.style.backgroundColor = isActive
+          ? COLOR_BUTTON_ACTIVE
+          : COLOR_BUTTON_BG;
+      };
+    };
+
+    setupModeButtonHover(selectModeBtn);
+    setupModeButtonHover(drawModeBtn);
+    setupModeButtonHover(eraseModeBtn);
+
+    // Initialize button states
+    updateToolModeButtons();
+
+    // Add separator before brush controls
+    createSeparator(toolbarEl);
+
+    // Create brush controls container (color, width - shown only in draw/erase mode)
     const brushControlsContainer = document.createElement("div");
     applyStyles(brushControlsContainer, {
-      display: "flex",
+      display: "none",
       flexDirection: "column",
       gap: "2px",
       minWidth: "80px",
     });
     toolbarEl.appendChild(brushControlsContainer);
 
-    // Row 1: Horizontal group with toggle button and color picker
-    const horizontalGroup = createHorizontalButtonGroup(brushControlsContainer);
-
-    // Compact brush tool toggle button (Pencil/Eraser)
-    const brushToolBtn = createToggleButton(
-      brushMode === "pencil",
-      "Pencil",
-      "Eraser",
-      (isPencil) => {
-        brushMode = isPencil ? "pencil" : "eraser";
-        // Switch between Fabric drawing and canvas primitives
-        if (isDrawingMode && fabricInstance) {
-          if (brushMode === "eraser") {
-            // Switch to canvas eraser
-            fabricInstance.isDrawingMode = false;
-            setupCanvasEraser();
-          } else {
-            // Switch to Fabric pencil
-            cleanupCanvasEraser();
-            fabricInstance.isDrawingMode = true;
-            if (fabricInstance.freeDrawingBrush) {
-              fabricInstance.freeDrawingBrush.color = brushColor;
-              fabricInstance.freeDrawingBrush.globalCompositeOperation =
-                "source-over";
-            }
-          }
-        }
-      },
-      horizontalGroup
+    // Row 1: Color picker (for draw mode)
+    const colorPickerGroup = createHorizontalButtonGroup(
+      brushControlsContainer
     );
-    // Make toggle button more compact
-    applyStyles(brushToolBtn, {
-      minWidth: "50px",
-      fontSize: "9px",
-      padding: "2px 4px",
-    });
 
-    // Brush color picker (in same horizontal row)
+    // Brush color picker
     const brushColorContainer = document.createElement("div");
     applyStyles(brushColorContainer, {
       display: "flex",
@@ -996,14 +1132,14 @@ const Editor = (node, fabric) => {
       alignItems: "center",
       height: "24px",
     });
-    horizontalGroup.appendChild(brushColorContainer);
+    colorPickerGroup.appendChild(brushColorContainer);
 
     const brushColorLabel = document.createElement("label");
-    brushColorLabel.textContent = "Color:";
+    brushColorLabel.textContent = "Draw Color:";
     applyStyles(brushColorLabel, {
       color: COLOR_BUTTON_TEXT,
       fontSize: "9px",
-      minWidth: "30px",
+      minWidth: "55px",
     });
     brushColorContainer.appendChild(brushColorLabel);
 
@@ -1019,7 +1155,7 @@ const Editor = (node, fabric) => {
     brushColorInput.oninput = (e) => {
       brushColor = e.target.value;
       if (
-        brushMode === "pencil" &&
+        toolMode === "draw" &&
         fabricInstance &&
         fabricInstance.freeDrawingBrush
       ) {
@@ -1028,7 +1164,7 @@ const Editor = (node, fabric) => {
     };
     brushColorContainer.appendChild(brushColorInput);
 
-    // Row 2: Brush width slider (stacked vertically below)
+    // Row 3: Brush width slider (stacked vertically below)
     const brushWidthLabel = document.createElement("label");
     brushWidthLabel.textContent = `Width: ${brushWidth}px`;
     applyStyles(brushWidthLabel, {
@@ -2959,6 +3095,11 @@ const Editor = (node, fabric) => {
     // Try to load existing foreground drawing using simplified filename
     const fgImageName = `fg_${node.id}.png`;
     loadForegroundLayer(fgImageName);
+
+    // Initialize tool mode (start in select mode with brush controls hidden)
+    if (brushControlsContainer) {
+      brushControlsContainer.style.display = "none";
+    }
   };
 
   const saveForegroundLayer = async () => {
@@ -3193,10 +3334,11 @@ const Editor = (node, fabric) => {
     fabricInstance.on("path:created", function (opt) {
       // Tag the path with current brush mode for processing during save
       if (opt.path) {
+        const activeMode = tempToolMode || toolMode;
         opt.path.set({
           selectable: false,
           evented: false,
-          isEraserStroke: brushMode === "eraser",
+          isEraserStroke: activeMode === "erase",
         });
       }
 
@@ -3214,6 +3356,68 @@ const Editor = (node, fabric) => {
     // Add keyboard navigation for selected objects
     keyboardHandler = handleKeyboardNavigation;
     document.addEventListener("keydown", keyboardHandler);
+
+    // Add Ctrl key handler for temporary mode switching
+    const handleCtrlKeyDown = (e) => {
+      if (e.key === "Control" && !isCtrlPressed) {
+        isCtrlPressed = true;
+        // Only switch if we're in draw or erase mode
+        if (toolMode === "draw" || toolMode === "erase") {
+          tempToolMode = toolMode === "draw" ? "erase" : "draw";
+
+          if (fabricInstance) {
+            if (tempToolMode === "draw") {
+              // Temporarily switch to pencil
+              cleanupCanvasEraser();
+              fabricInstance.isDrawingMode = true;
+              if (fabricInstance.freeDrawingBrush) {
+                fabricInstance.freeDrawingBrush.color = brushColor;
+                fabricInstance.freeDrawingBrush.width = brushWidth;
+                fabricInstance.freeDrawingBrush.globalCompositeOperation =
+                  "source-over";
+              }
+            } else {
+              // Temporarily switch to eraser
+              fabricInstance.isDrawingMode = false;
+              setupCanvasEraser();
+            }
+            updateToolModeButtons();
+          }
+        }
+      }
+    };
+
+    const handleCtrlKeyUp = (e) => {
+      if (e.key === "Control" && isCtrlPressed) {
+        isCtrlPressed = false;
+        if (tempToolMode) {
+          // Restore original mode
+          tempToolMode = null;
+
+          if (fabricInstance) {
+            if (toolMode === "draw") {
+              // Restore pencil mode
+              cleanupCanvasEraser();
+              fabricInstance.isDrawingMode = true;
+              if (fabricInstance.freeDrawingBrush) {
+                fabricInstance.freeDrawingBrush.color = brushColor;
+                fabricInstance.freeDrawingBrush.width = brushWidth;
+                fabricInstance.freeDrawingBrush.globalCompositeOperation =
+                  "source-over";
+              }
+            } else {
+              // Restore eraser mode
+              fabricInstance.isDrawingMode = false;
+              setupCanvasEraser();
+            }
+            updateToolModeButtons();
+          }
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleCtrlKeyDown);
+    document.addEventListener("keyup", handleCtrlKeyUp);
   };
 
   const handleKeyboardNavigation = (e) => {

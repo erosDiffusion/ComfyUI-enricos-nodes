@@ -275,19 +275,9 @@ Images to replicate are in the assets folder.
 - **tools** new tools only show up on load, so if you add them, reload page with browser reload
 - **known issue**: the compositing is not scaled, so if you want a 5k image well... I hope you have a big enough monitor, but it's not (yet) the goal of this node...
 
-**Now go put a fairy in a forest!**
+**Now go put a zombie in a Gui !**
 
-## 🤖 NEW: Qwen2.5-VL Vision Language Models
 
-This package now includes support for Qwen2.5-VL vision-language models for image captioning, visual question answering, and OCR tasks!
-
-### Features:
-
-- **Multiple Model Sizes**: Support for 3B, 7B, 32B, and 72B parameter models
-- **Memory Optimization**: 4-bit/8-bit quantization and CPU offload options
-- **Dual Implementation**: Both transformers (GPU) and GGUF (CPU) support
-- **ComfyUI Integration**: Proper model management and caching
-- **Flexible Usage**: Image captioning, VQA, OCR, creative descriptions
 
 ### Quick Start:
 

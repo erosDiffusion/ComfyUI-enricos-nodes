@@ -798,6 +798,133 @@ const createLayerUI = (config) => {
   return { layerItem, thumbnail, visibilityButton, colorInput, dragHandle };
 };
 
+// Proposal 7: Input Control Factory
+const createControl = (config) => {
+  const {
+    type = "slider", // 'slider', 'number'
+    label = "",
+    min = 0,
+    max = 100,
+    value = 0,
+    disabled = false,
+    onChange,
+    parent,
+    unit = "",
+  } = config;
+
+  if (type === "slider") {
+    // Create slider with label
+    const container = document.createElement("div");
+    applyStyles(container, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "2px",
+      minWidth: "80px",
+    });
+
+    // Label element
+    const labelElement = document.createElement("label");
+    labelElement.textContent = `${label}: ${value}${unit}`;
+    applyStyles(labelElement, {
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "10px",
+      textAlign: "center",
+      height: "24px",
+      lineHeight: "24px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    });
+    container.appendChild(labelElement);
+
+    // Slider container
+    const sliderContainer = document.createElement("div");
+    applyStyles(sliderContainer, {
+      height: "24px",
+      display: "flex",
+      alignItems: "center",
+    });
+    container.appendChild(sliderContainer);
+
+    // Slider input
+    const slider = document.createElement("input");
+    slider.type = "range";
+    slider.min = min.toString();
+    slider.max = max.toString();
+    slider.value = value.toString();
+    slider.disabled = disabled;
+    applyStyles(slider, {
+      width: "100%",
+      cursor: disabled ? "not-allowed" : "pointer",
+    });
+
+    slider.oninput = (e) => {
+      const newValue =
+        type === "number"
+          ? parseInt(e.target.value)
+          : parseFloat(e.target.value);
+      labelElement.textContent = `${label}: ${newValue}${unit}`;
+      if (onChange) onChange(newValue, e);
+    };
+
+    sliderContainer.appendChild(slider);
+
+    if (parent) {
+      parent.appendChild(container);
+    }
+
+    return { container, slider, label: labelElement };
+  } else if (type === "number") {
+    // Create number input with label
+    const container = document.createElement("div");
+    applyStyles(container, {
+      display: "flex",
+      gap: "3px",
+      alignItems: "center",
+      height: "24px",
+    });
+
+    const labelElement = document.createElement("label");
+    labelElement.textContent = label;
+    applyStyles(labelElement, {
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "10px",
+      minWidth: "15px",
+    });
+    container.appendChild(labelElement);
+
+    const input = document.createElement("input");
+    input.type = "number";
+    input.value = value.toString();
+    input.disabled = disabled;
+    applyStyles(input, {
+      width: "60px",
+      height: "20px",
+      fontSize: "10px",
+      padding: "2px",
+      backgroundColor: COLOR_BUTTON_BG,
+      color: COLOR_BUTTON_TEXT,
+      border: `1px solid ${COLOR_BUTTON_BORDER}`,
+      borderRadius: "3px",
+      boxSizing: "border-box",
+      MozAppearance: "textfield",
+      appearance: "textfield",
+    });
+
+    if (onChange) {
+      input.onchange = (e) => onChange(parseFloat(e.target.value), e);
+    }
+
+    container.appendChild(input);
+
+    if (parent) {
+      parent.appendChild(container);
+    }
+
+    return { container, input, label: labelElement };
+  }
+};
+
 // ============================================================================
 // END REFACTORED UTILITIES
 // ============================================================================
@@ -908,49 +1035,9 @@ const Editor = (node, fabric) => {
     });
 
   // Helper function to create number input
-  const createNumberInput = (labelText, parent) => {
-    const container = document.createElement("div");
-    applyStyles(container, {
-      display: "flex",
-      gap: "3px",
-      alignItems: "center",
-      height: "24px",
-    });
-
-    const label = document.createElement("label");
-    label.textContent = labelText;
-    applyStyles(label, {
-      color: COLOR_BUTTON_TEXT,
-      fontSize: "10px",
-      minWidth: "15px",
-    });
-    container.appendChild(label);
-
-    const input = document.createElement("input");
-    input.type = "number";
-    input.value = "0";
-    input.disabled = true;
-    applyStyles(input, {
-      width: "60px",
-      height: "20px",
-      fontSize: "10px",
-      padding: "2px",
-      backgroundColor: COLOR_BUTTON_BG,
-      color: COLOR_BUTTON_TEXT,
-      border: `1px solid ${COLOR_BUTTON_BORDER}`,
-      borderRadius: "3px",
-      boxSizing: "border-box",
-      MozAppearance: "textfield",
-      appearance: "textfield",
-    });
-    container.appendChild(input);
-
-    if (parent) {
-      parent.appendChild(container);
-    }
-
-    return { container, input };
-  };
+  // Legacy wrapper for backward compatibility
+  const createNumberInput = (labelText, parent) =>
+    createControl({ type: "number", label: labelText, parent, disabled: true });
 
   const createContainer = () => {
     containerEl = document.createElement("div");
@@ -1141,44 +1228,21 @@ const Editor = (node, fabric) => {
       snapGridContainer
     );
 
-    // Create grid size label (24px height)
-    gridSizeLabel = document.createElement("label");
-    gridSizeLabel.textContent = `Grid: ${gridSize}px`;
-    applyStyles(gridSizeLabel, {
-      color: COLOR_BUTTON_TEXT,
-      fontSize: "10px",
-      textAlign: "center",
-      height: "24px",
-      lineHeight: "24px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
+    // Create grid size slider
+    const gridControl = createControl({
+      type: "slider",
+      label: "Grid",
+      min: 1,
+      max: 50,
+      value: gridSize,
+      unit: "px",
+      onChange: (newValue) => {
+        gridSize = newValue;
+      },
     });
-    snapGridContainer.appendChild(gridSizeLabel);
-
-    // Create grid size slider container (24px height)
-    const gridSliderContainer = document.createElement("div");
-    applyStyles(gridSliderContainer, {
-      height: "24px",
-      display: "flex",
-      alignItems: "center",
-    });
-    snapGridContainer.appendChild(gridSliderContainer);
-
-    gridSizeSlider = document.createElement("input");
-    gridSizeSlider.type = "range";
-    gridSizeSlider.min = "1";
-    gridSizeSlider.max = "50";
-    gridSizeSlider.value = gridSize;
-    gridSizeSlider.style.width = "100%";
-    gridSizeSlider.style.cursor = "pointer";
-
-    gridSizeSlider.oninput = (e) => {
-      gridSize = parseInt(e.target.value);
-      gridSizeLabel.textContent = `Grid: ${gridSize}px`;
-    };
-
-    gridSliderContainer.appendChild(gridSizeSlider);
+    snapGridContainer.appendChild(gridControl.container);
+    gridSizeSlider = gridControl.slider;
+    gridSizeLabel = gridControl.label;
 
     // Add separator before rotation and precision controls
     createSeparator(toolbarEl);
@@ -1211,81 +1275,46 @@ const Editor = (node, fabric) => {
       rotationPreciseContainer
     );
 
-    // Create rotation label (24px height)
-    rotationLabel = document.createElement("label");
-    rotationLabel.textContent = "Rotate: 0°";
-    applyStyles(rotationLabel, {
-      color: COLOR_BUTTON_TEXT,
-      fontSize: "10px",
-      textAlign: "center",
-      height: "24px",
-      lineHeight: "24px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    });
-    rotationPreciseContainer.appendChild(rotationLabel);
+    // Create rotation slider
+    const rotationControl = createControl({
+      type: "slider",
+      label: "Rotate",
+      min: 0,
+      max: 360,
+      value: 0,
+      unit: "°",
+      disabled: true,
+      onChange: (angle, e) => {
+        if (isUpdatingRotationSlider) return; // Prevent circular updates
 
-    // Create rotation slider container (24px height)
-    const rotationSliderContainer = document.createElement("div");
-    applyStyles(rotationSliderContainer, {
-      height: "24px",
-      display: "flex",
-      alignItems: "center",
-    });
-    rotationPreciseContainer.appendChild(rotationSliderContainer);
-
-    rotationSlider = document.createElement("input");
-    rotationSlider.type = "range";
-    rotationSlider.min = "0";
-    rotationSlider.max = "360";
-    rotationSlider.value = "0";
-    rotationSlider.style.width = "100%";
-    rotationSlider.style.cursor = "pointer";
-    rotationSlider.disabled = true; // Disabled until an object is selected
-
-    rotationSlider.oninput = (e) => {
-      if (isUpdatingRotationSlider) return; // Prevent circular updates
-
-      let angle = parseInt(e.target.value);
-
-      // Constrain to 5-degree steps if Shift is pressed (only values divisible by 5)
-      if (e.shiftKey) {
-        angle = Math.round(angle / 5) * 5;
-        // Ensure angle is exactly divisible by 5
-        if (angle % 5 !== 0) {
+        // Constrain to 5-degree steps if Shift is pressed
+        if (e.shiftKey) {
           angle = Math.round(angle / 5) * 5;
+          rotationSlider.value = angle; // Update slider to snapped value
+          rotationLabel.textContent = `Rotate: ${angle}°`;
         }
-        rotationSlider.value = angle; // Update slider to snapped value
-      }
 
-      rotationLabel.textContent = `Rotate: ${angle}°`;
-
-      const activeObject = fabricInstance.getActiveObject();
-      if (activeObject) {
-        // Get the center point to maintain position during rotation
-        const center = activeObject.getCenterPoint();
-
-        // Set the rotation angle with center as origin
-        activeObject.set({
-          angle: angle,
-          originX: "center",
-          originY: "center",
-          left: center.x,
-          top: center.y,
-        });
-
-        activeObject.setCoords();
-        fabricInstance.renderAll();
-
-        // Trigger debounced save
-        saveAndUpdateSeed().then(() => {
-          api.enqueuePrompt(0, 1);
-        });
-      }
-    };
-
-    rotationSliderContainer.appendChild(rotationSlider);
+        const activeObject = fabricInstance.getActiveObject();
+        if (activeObject) {
+          const center = activeObject.getCenterPoint();
+          activeObject.set({
+            angle: angle,
+            originX: "center",
+            originY: "center",
+            left: center.x,
+            top: center.y,
+          });
+          activeObject.setCoords();
+          fabricInstance.renderAll();
+          saveAndUpdateSeed().then(() => {
+            api.enqueuePrompt(0, 1);
+          });
+        }
+      },
+    });
+    rotationPreciseContainer.appendChild(rotationControl.container);
+    rotationSlider = rotationControl.slider;
+    rotationLabel = rotationControl.label;
 
     // Add separator before brush controls
     createSeparator(toolbarEl);
@@ -1580,43 +1609,21 @@ const Editor = (node, fabric) => {
     );
 
     // Row 3: Brush width slider (for both draw and erase)
-    const brushWidthLabel = document.createElement("label");
-    brushWidthLabel.textContent = `Width: ${brushWidth}px`;
-    applyStyles(brushWidthLabel, {
-      color: COLOR_BUTTON_TEXT,
-      fontSize: "10px",
-      textAlign: "center",
-      height: "24px",
-      lineHeight: "24px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
+    const brushWidthControl = createControl({
+      type: "slider",
+      label: "Width",
+      min: 1,
+      max: 50,
+      value: brushWidth,
+      unit: "px",
+      onChange: (newValue) => {
+        brushWidth = newValue;
+        if (fabricInstance && fabricInstance.freeDrawingBrush) {
+          fabricInstance.freeDrawingBrush.width = brushWidth;
+        }
+      },
+      parent: tools1Container,
     });
-    tools1Container.appendChild(brushWidthLabel);
-
-    const brushWidthSliderContainer = document.createElement("div");
-    applyStyles(brushWidthSliderContainer, {
-      height: "24px",
-      display: "flex",
-      alignItems: "center",
-    });
-    tools1Container.appendChild(brushWidthSliderContainer);
-
-    const brushWidthSlider = document.createElement("input");
-    brushWidthSlider.type = "range";
-    brushWidthSlider.min = "1";
-    brushWidthSlider.max = "50";
-    brushWidthSlider.value = brushWidth;
-    brushWidthSlider.style.width = "100%";
-    brushWidthSlider.style.cursor = "pointer";
-    brushWidthSlider.oninput = (e) => {
-      brushWidth = parseInt(e.target.value);
-      brushWidthLabel.textContent = `Width: ${brushWidth}px`;
-      if (fabricInstance && fabricInstance.freeDrawingBrush) {
-        fabricInstance.freeDrawingBrush.width = brushWidth;
-      }
-    };
-    brushWidthSliderContainer.appendChild(brushWidthSlider);
 
     // Add separator before tools2
     const tools2Separator = createSeparator(toolbarEl);
@@ -2213,18 +2220,25 @@ const Editor = (node, fabric) => {
       true
     );
 
-    // Get the title element (first child)
-    const title = layersPanelEl.firstChild;
+    // Store references to fixed layers (title, FG, BG)
+    const title = layersPanelEl.children[0]; // Title
+    const fgLayer = layersPanelEl.children[1]; // Foreground layer (always second)
 
-    // Remove all layer items but keep the title
-    while (layersPanelEl.children.length > 1) {
-      layersPanelEl.removeChild(layersPanelEl.lastChild);
+    // Remove only the image layer items (not title, FG, or BG)
+    // Keep removing the 3rd child until we hit the BG layer at the end
+    while (layersPanelEl.children.length > 3) {
+      // Remove the element after FG layer (index 2)
+      layersPanelEl.removeChild(layersPanelEl.children[2]);
     }
 
-    // Re-append layer items in the new order
+    // Store BG layer reference (now it should be the last child)
+    const bgLayer = layersPanelEl.lastChild;
+
+    // Re-insert image layer items in the new order (between FG and BG)
     indexPositionPairs.forEach(({ index }) => {
       const layerItem = createLayerItem(index);
-      layersPanelEl.appendChild(layerItem);
+      // Insert before BG layer
+      layersPanelEl.insertBefore(layerItem, bgLayer);
 
       // Update thumbnail in case it was already loaded
       updateLayerThumbnail(index);
@@ -3192,10 +3206,8 @@ const Editor = (node, fabric) => {
     const fgImageName = `fg_${node.id}.png`;
     loadForegroundLayer(fgImageName);
 
-    // Initialize tool mode (start in select mode with brush controls hidden)
-    if (brushControlsContainer) {
-      brushControlsContainer.style.display = "none";
-    }
+    // Tool mode is initialized to "select" by default in setToolMode function
+    // which automatically hides brush controls (tools1Container and tools2Container)
   };
 
   const saveForegroundLayer = async () => {

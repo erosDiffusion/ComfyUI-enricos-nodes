@@ -387,6 +387,22 @@ const createVerticalButtonGroup = (parent) => {
   return group;
 };
 
+const createHorizontalButtonGroup = (parent) => {
+  const group = document.createElement("div");
+  applyStyles(group, {
+    display: "flex",
+    flexDirection: "row",
+    gap: "2px",
+    alignItems: "center",
+  });
+
+  if (parent) {
+    parent.appendChild(group);
+  }
+
+  return group;
+};
+
 // Utility function to apply multiple styles at once
 const applyStyles = (element, styles) => {
   Object.entries(styles).forEach(([key, value]) => {
@@ -935,11 +951,14 @@ const Editor = (node, fabric) => {
     });
     toolbarEl.appendChild(brushControlsContainer);
 
-    // Row 1: Brush tool toggle button (Pencil/Eraser)
+    // Row 1: Horizontal group with toggle button and color picker
+    const horizontalGroup = createHorizontalButtonGroup(brushControlsContainer);
+
+    // Compact brush tool toggle button (Pencil/Eraser)
     const brushToolBtn = createToggleButton(
       brushMode === "pencil",
-      "✏ Pencil",
-      "🧹 Eraser",
+      "Pencil",
+      "Eraser",
       (isPencil) => {
         brushMode = isPencil ? "pencil" : "eraser";
         // Switch between Fabric drawing and canvas primitives
@@ -960,10 +979,16 @@ const Editor = (node, fabric) => {
           }
         }
       },
-      brushControlsContainer
+      horizontalGroup
     );
+    // Make toggle button more compact
+    applyStyles(brushToolBtn, {
+      minWidth: "50px",
+      fontSize: "9px",
+      padding: "2px 4px",
+    });
 
-    // Row 2: Brush color picker
+    // Brush color picker (in same horizontal row)
     const brushColorContainer = document.createElement("div");
     applyStyles(brushColorContainer, {
       display: "flex",
@@ -971,14 +996,14 @@ const Editor = (node, fabric) => {
       alignItems: "center",
       height: "24px",
     });
-    brushControlsContainer.appendChild(brushColorContainer);
+    horizontalGroup.appendChild(brushColorContainer);
 
     const brushColorLabel = document.createElement("label");
     brushColorLabel.textContent = "Color:";
     applyStyles(brushColorLabel, {
       color: COLOR_BUTTON_TEXT,
-      fontSize: "10px",
-      minWidth: "35px",
+      fontSize: "9px",
+      minWidth: "30px",
     });
     brushColorContainer.appendChild(brushColorLabel);
 
@@ -986,7 +1011,7 @@ const Editor = (node, fabric) => {
     brushColorInput.type = "color";
     brushColorInput.value = brushColor;
     applyStyles(brushColorInput, {
-      width: "40px",
+      width: "30px",
       height: "20px",
       border: "none",
       cursor: "pointer",
@@ -1003,7 +1028,7 @@ const Editor = (node, fabric) => {
     };
     brushColorContainer.appendChild(brushColorInput);
 
-    // Row 3: Brush width slider
+    // Row 2: Brush width slider (stacked vertically below)
     const brushWidthLabel = document.createElement("label");
     brushWidthLabel.textContent = `Width: ${brushWidth}px`;
     applyStyles(brushWidthLabel, {

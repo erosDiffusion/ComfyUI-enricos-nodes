@@ -228,6 +228,11 @@ function executedMessageHandler(event, a, b) {
       e.names.forEach((name, index) => editor.appendImage(name, index));
     }
 
+    // Load mask filenames if available
+    if (e.maskNames && Array.isArray(e.maskNames)) {
+      editor.loadMasks(e.maskNames);
+    }
+
     // Handle auto-save for "grab and continue" mode
     const onConfigChangedContinue = Boolean(e.onConfigChangedContinue?.[0]);
     const configChanged = Boolean(e.configChanged?.[0]);
@@ -785,6 +790,31 @@ const createLayerUI = (config) => {
     layerItem.appendChild(thumbnail);
   }
 
+  // Mask preview (only for image layers)
+  let maskThumbnail = null;
+  if (type === "image") {
+    maskThumbnail = document.createElement("div");
+    applyStyles(maskThumbnail, {
+      width: "30px",
+      height: "30px",
+      backgroundColor: "rgba(0, 0, 0, 0.3)",
+      borderRadius: "2px",
+      backgroundSize: "contain",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "8px",
+      flexShrink: "0",
+      border: `1px solid ${COLOR_BUTTON_BORDER}`,
+      pointerEvents: "none", // Non-interactive
+    });
+    maskThumbnail.textContent = "M";
+    layerItem.appendChild(maskThumbnail);
+  }
+
   // Info container with label and visibility button
   const infoContainer = document.createElement("div");
   applyStyles(infoContainer, {
@@ -822,7 +852,14 @@ const createLayerUI = (config) => {
     layerItem.onclick = onSelect;
   }
 
-  return { layerItem, thumbnail, visibilityButton, colorInput, dragHandle };
+  return {
+    layerItem,
+    thumbnail,
+    maskThumbnail,
+    visibilityButton,
+    colorInput,
+    dragHandle,
+  };
 };
 
 // Proposal 7: Input Control Factory
@@ -982,6 +1019,7 @@ const Editor = (node, fabric) => {
   let backgroundColor = COMPOSITION_BACKGROUND_COLOR; // Background color for composition area
   const IMAGE_COUNT = 9;
   let images = createNullArray(IMAGE_COUNT);
+  let maskNames = createNullArray(IMAGE_COUNT); // Store mask filenames for each layer
   let imagePositions = Array.from({ length: IMAGE_COUNT }, (_, i) => i); // Z-index stacking order (0=bottom, 8=top)
   let draggedLayerIndex = null; // Track which layer is being dragged
   let pendingTransforms = createNullArray(IMAGE_COUNT); // Store transforms to apply during restoration
@@ -989,6 +1027,7 @@ const Editor = (node, fabric) => {
   // Store direct references to layer UI elements (avoids getElementById issues with multiple nodes)
   let layerItems = createNullArray(IMAGE_COUNT);
   let layerThumbnails = createNullArray(IMAGE_COUNT);
+  let layerMaskThumbnails = createNullArray(IMAGE_COUNT); // Store mask preview elements
   let layerVisibilityButtons = createNullArray(IMAGE_COUNT);
 
   // Store references to background layer UI elements
@@ -1839,54 +1878,60 @@ const Editor = (node, fabric) => {
   };
 
   const createLayerItem = (index) => {
-    const { layerItem, thumbnail, visibilityButton, dragHandle } =
-      createLayerUI({
-        index,
-        type: "image",
-        label: `Image ${index + 1}`,
-        isDraggable: true,
-        onVisibilityToggle: () => toggleImageVisibility(index),
-        onSelect: () => selectImageByIndex(index),
-        onDragStart: (e) => {
-          draggedLayerIndex = index;
-          dragHandle.style.cursor = "grabbing";
-          if (layerItems[index]) {
-            layerItems[index].style.opacity = "0.5";
-          }
-          e.dataTransfer.effectAllowed = "move";
-        },
-        onDragEnd: (e) => {
-          dragHandle.style.cursor = "grab";
-          if (layerItems[index]) {
-            layerItems[index].style.opacity = "1";
-          }
-          draggedLayerIndex = null;
-        },
-        onDragOver: (e) => {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
-          if (draggedLayerIndex !== null && draggedLayerIndex !== index) {
-            layerItem.style.borderColor = COLOR_BUTTON_ACTIVE;
-            layerItem.style.borderWidth = "2px";
-          }
-        },
-        onDragLeave: (e) => {
-          layerItem.style.borderColor = COLOR_BUTTON_BORDER;
-          layerItem.style.borderWidth = "1px";
-        },
-        onDrop: (e) => {
-          e.preventDefault();
-          layerItem.style.borderColor = COLOR_BUTTON_BORDER;
-          layerItem.style.borderWidth = "1px";
-          if (draggedLayerIndex !== null && draggedLayerIndex !== index) {
-            swapLayerPositions(draggedLayerIndex, index);
-          }
-        },
-      });
+    const {
+      layerItem,
+      thumbnail,
+      maskThumbnail,
+      visibilityButton,
+      dragHandle,
+    } = createLayerUI({
+      index,
+      type: "image",
+      label: `${index + 1}`,
+      isDraggable: true,
+      onVisibilityToggle: () => toggleImageVisibility(index),
+      onSelect: () => selectImageByIndex(index),
+      onDragStart: (e) => {
+        draggedLayerIndex = index;
+        dragHandle.style.cursor = "grabbing";
+        if (layerItems[index]) {
+          layerItems[index].style.opacity = "0.5";
+        }
+        e.dataTransfer.effectAllowed = "move";
+      },
+      onDragEnd: (e) => {
+        dragHandle.style.cursor = "grab";
+        if (layerItems[index]) {
+          layerItems[index].style.opacity = "1";
+        }
+        draggedLayerIndex = null;
+      },
+      onDragOver: (e) => {
+        e.preventDefault();
+        e.dataTransfer.dropEffect = "move";
+        if (draggedLayerIndex !== null && draggedLayerIndex !== index) {
+          layerItem.style.borderColor = COLOR_BUTTON_ACTIVE;
+          layerItem.style.borderWidth = "2px";
+        }
+      },
+      onDragLeave: (e) => {
+        layerItem.style.borderColor = COLOR_BUTTON_BORDER;
+        layerItem.style.borderWidth = "1px";
+      },
+      onDrop: (e) => {
+        e.preventDefault();
+        layerItem.style.borderColor = COLOR_BUTTON_BORDER;
+        layerItem.style.borderWidth = "1px";
+        if (draggedLayerIndex !== null && draggedLayerIndex !== index) {
+          swapLayerPositions(draggedLayerIndex, index);
+        }
+      },
+    });
 
     // Store references in arrays
     layerItems[index] = layerItem;
     layerThumbnails[index] = thumbnail;
+    layerMaskThumbnails[index] = maskThumbnail;
     layerVisibilityButtons[index] = visibilityButton;
 
     return layerItem;
@@ -3001,10 +3046,7 @@ const Editor = (node, fabric) => {
 
       return data;
     } catch (e) {
-      console.error(
-        "Compositor4: could not deserialize compositor data",
-        e
-      );
+      console.error("Compositor4: could not deserialize compositor data", e);
       return null;
     }
   };
@@ -3889,6 +3931,34 @@ const Editor = (node, fabric) => {
     saveFolder = folder;
   };
 
+  const loadMasks = (maskFilenames) => {
+    // Load mask filenames and update layer panel previews
+    maskFilenames.forEach((maskName, index) => {
+      if (index < IMAGE_COUNT) {
+        maskNames[index] = maskName;
+        updateMaskThumbnail(index);
+      }
+    });
+  };
+
+  const updateMaskThumbnail = (index) => {
+    const maskThumbnail = layerMaskThumbnails[index];
+    if (!maskThumbnail) return;
+
+    if (maskNames[index]) {
+      // Load mask image preview
+      const maskUrl = `/view?filename=${encodeURIComponent(
+        maskNames[index]
+      )}&subfolder=${STORE_FOLDER}&type=${saveFolder}`;
+      maskThumbnail.style.backgroundImage = `url(${maskUrl})`;
+      maskThumbnail.textContent = ""; // Clear the "M" placeholder
+    } else {
+      // No mask - show placeholder
+      maskThumbnail.style.backgroundImage = "none";
+      maskThumbnail.textContent = "M";
+    }
+  };
+
   const restoreState = (dataString) => {
     // Deserialize and restore the entire compositor state
     // This should be called from loadedGraphNode when widget values are available
@@ -3979,6 +4049,7 @@ const Editor = (node, fabric) => {
     selectImageByIndex,
     updateCanvasDimensions,
     setSaveFolder,
+    loadMasks,
     restoreState,
     cleanup,
     queuedSave, // Expose for configuration change handling

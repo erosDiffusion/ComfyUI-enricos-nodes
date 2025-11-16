@@ -2734,40 +2734,44 @@ const Editor = (node, fabric) => {
       fgImageName
     )}&type=${saveFolder}&subfolder=compositor&t=${Date.now()}`;
 
-    fabric.Image.fromURL(
-      fgImageUrl,
-      (img) => {
-        // Check if image loaded successfully
-        if (!img || !img.getElement() || img.getElement().naturalWidth === 0) {
-          // Image doesn't exist or failed to load
-          return;
-        }
+    // Load the image
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.onload = () => {
+      // Check if image loaded successfully
+      if (img.naturalWidth === 0) {
+        return;
+      }
 
-        // Remove old foreground layer if it exists
-        if (foregroundLayer) {
-          fabricInstance.remove(foregroundLayer);
-        }
-
-        foregroundLayer = img;
-        img.set({
-          left: canvasPadding + COMPOSITION_BORDER_SIZE,
-          top: canvasPadding + COMPOSITION_BORDER_SIZE,
-          selectable: false,
-          evented: false,
-          visible: foregroundIsVisible,
-          opacity: foregroundIsVisible ? 1 : 0,
-          scaleX: 1,
-          scaleY: 1,
-        });
-        fabricInstance.add(img);
-
-        // Ensure proper z-order: FG above images but below border
-        updateCanvasZOrder();
-
+      if (foregroundLayer) {
+        // Update existing layer (no flash)
+        foregroundLayer.setElement(img);
         fabricInstance.renderAll();
-      },
-      { crossOrigin: "anonymous" }
-    );
+      } else {
+        // Create new layer
+        fabric.Image.fromURL(
+          fgImageUrl,
+          (fabricImg) => {
+            foregroundLayer = fabricImg;
+            fabricImg.set({
+              left: canvasPadding + COMPOSITION_BORDER_SIZE,
+              top: canvasPadding + COMPOSITION_BORDER_SIZE,
+              selectable: false,
+              evented: false,
+              visible: foregroundIsVisible,
+              opacity: foregroundIsVisible ? 1 : 0,
+              scaleX: 1,
+              scaleY: 1,
+            });
+            fabricInstance.add(fabricImg);
+            updateCanvasZOrder();
+            fabricInstance.renderAll();
+          },
+          { crossOrigin: "anonymous" }
+        );
+      }
+    };
+    img.src = fgImageUrl;
   };
 
   const setupCanvasEraser = () => {
@@ -3020,8 +3024,34 @@ const Editor = (node, fabric) => {
       foregroundThumbnail.style.backgroundImage = `url(${dataUrl})`;
     }
 
-    // Load the saved image as the foreground layer
-    loadForegroundLayer(fgImageName);
+    // Update foreground layer optimistically (prevents flash)
+    if (foregroundLayer) {
+      // Create new image from dataUrl and update existing layer
+      const img = new Image();
+      img.onload = () => {
+        foregroundLayer.setElement(img);
+        fabricInstance.renderAll();
+      };
+      img.src = dataUrl;
+    } else {
+      // Create new foreground layer if it doesn't exist
+      fabric.Image.fromURL(dataUrl, (img) => {
+        foregroundLayer = img;
+        img.set({
+          left: canvasPadding + COMPOSITION_BORDER_SIZE,
+          top: canvasPadding + COMPOSITION_BORDER_SIZE,
+          selectable: false,
+          evented: false,
+          visible: foregroundIsVisible,
+          opacity: foregroundIsVisible ? 1 : 0,
+          scaleX: 1,
+          scaleY: 1,
+        });
+        fabricInstance.add(img);
+        updateCanvasZOrder();
+        fabricInstance.renderAll();
+      });
+    }
   };
 
   const addCanvasEventListeners = () => {

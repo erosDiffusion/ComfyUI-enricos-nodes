@@ -470,6 +470,8 @@ const Editor = (node, fabric) => {
   let brushMode = "pencil"; // 'pencil' or 'eraser'
   let brushColor = "#ff0000"; // Red by default
   let brushWidth = 3; // 3px by default
+  let isCanvasDrawing = false; // Track if using canvas primitives for eraser
+  let canvasDrawingPath = []; // Store path points for canvas drawing
 
   // Canvas dimensions - can be updated from config
   let canvasWidth = WIDTH;
@@ -940,18 +942,22 @@ const Editor = (node, fabric) => {
       "🧹 Eraser",
       (isPencil) => {
         brushMode = isPencil ? "pencil" : "eraser";
-        // Update brush settings immediately if drawing mode is active
-        if (
-          isDrawingMode &&
-          fabricInstance &&
-          fabricInstance.freeDrawingBrush
-        ) {
-          fabricInstance.freeDrawingBrush.color =
-            brushMode === "eraser" ? "rgba(254, 0, 254, 1)" : brushColor;
-          fabricInstance.freeDrawingBrush.globalCompositeOperation =
-            "source-over";
-          // Disable smoothing for clean edges
-          fabricInstance.contextTop.imageSmoothingEnabled = false;
+        // Switch between Fabric drawing and canvas primitives
+        if (isDrawingMode && fabricInstance) {
+          if (brushMode === "eraser") {
+            // Switch to canvas eraser
+            fabricInstance.isDrawingMode = false;
+            setupCanvasEraser();
+          } else {
+            // Switch to Fabric pencil
+            cleanupCanvasEraser();
+            fabricInstance.isDrawingMode = true;
+            if (fabricInstance.freeDrawingBrush) {
+              fabricInstance.freeDrawingBrush.color = brushColor;
+              fabricInstance.freeDrawingBrush.globalCompositeOperation =
+                "source-over";
+            }
+          }
         }
       },
       brushControlsContainer
@@ -1420,20 +1426,17 @@ const Editor = (node, fabric) => {
       isDrawingMode = !isDrawingMode;
 
       if (isDrawingMode) {
-        // Enable drawing mode first to create the brush
-        fabricInstance.isDrawingMode = true;
-
-        // Now configure the brush properties (brush is created after isDrawingMode = true)
-        // For eraser, use a very specific marker color that's unlikely to be in user content
-        fabricInstance.freeDrawingBrush.color =
-          brushMode === "eraser" ? "rgba(254, 0, 254, 1)" : brushColor;
-        fabricInstance.freeDrawingBrush.globalCompositeOperation =
-          "source-over";
-        fabricInstance.freeDrawingBrush.width = brushWidth;
-        
-        // Disable anti-aliasing/smoothing for cleaner edges (especially for eraser)
-        if (fabricInstance.freeDrawingBrush.color) {
-          fabricInstance.contextTop.imageSmoothingEnabled = false;
+        if (brushMode === "eraser") {
+          // Use canvas primitives for eraser (perfect pixel removal)
+          fabricInstance.isDrawingMode = false;
+          setupCanvasEraser();
+        } else {
+          // Use Fabric drawing mode for pencil
+          fabricInstance.isDrawingMode = true;
+          fabricInstance.freeDrawingBrush.color = brushColor;
+          fabricInstance.freeDrawingBrush.globalCompositeOperation =
+            "source-over";
+          fabricInstance.freeDrawingBrush.width = brushWidth;
         }
 
         // Disable selection on all other objects
@@ -1450,6 +1453,7 @@ const Editor = (node, fabric) => {
       } else {
         // Disable drawing mode
         fabricInstance.isDrawingMode = false;
+        cleanupCanvasEraser();
 
         // Re-enable selection on visible objects
         images.forEach((img) => {
@@ -2766,51 +2770,160 @@ const Editor = (node, fabric) => {
     );
   };
 
-  const applyEraserMarkerRemoval = async (dataUrl) => {
-    // Remove eraser marker color (254, 0, 254) and make those areas transparent
-    return new Promise((resolve) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext("2d");
+  const setupCanvasEraser = () => {
+    // Use canvas primitives for true pixel erasing with destination-out
+    if (!fabricInstance) return;
 
-        ctx.drawImage(img, 0, 0);
-        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        const data = imageData.data;
+    // First, flatten the foreground layer if it exists into a temporary offscreen canvas
+    let fgCanvas = null;
+    if (foregroundLayer) {
+      fgCanvas = document.createElement("canvas");
+      fgCanvas.width = foregroundLayer.width;
+      fgCanvas.height = foregroundLayer.height;
+      const fgCtx = fgCanvas.getContext("2d");
+      fgCtx.drawImage(foregroundLayer.getElement(), 0, 0);
+    } else {
+      // Create empty canvas for FG layer
+      fgCanvas = document.createElement("canvas");
+      fgCanvas.width = canvasWidth;
+      fgCanvas.height = canvasHeight;
+    }
 
-        // Find and remove eraser marker color pixels
-        // Target: (254, 0, 254) but catch anti-aliased edges carefully
-        for (let i = 0; i < data.length; i += 4) {
-          const r = data[i];
-          const g = data[i + 1];
-          const b = data[i + 2];
-          const a = data[i + 3];
+    const fgCtx = fgCanvas.getContext("2d");
+    const previewCtx = fabricInstance.contextTop;
 
-          if (a === 0) continue; // Skip already transparent pixels
+    // Mouse down - start erasing
+    const onMouseDown = (opt) => {
+      isCanvasDrawing = true;
+      const p = fabricInstance.getPointer(opt.e);
+      canvasDrawingPath = [p];
 
-          // Calculate how "close" this pixel is to the marker color (254, 0, 254)
-          // Using distance formula in RGB space
-          const distanceToMarker = Math.sqrt(
-            Math.pow(r - 254, 2) + 
-            Math.pow(g - 0, 2) + 
-            Math.pow(b - 254, 2)
-          );
-          
-          // Remove if very close to marker color (within threshold)
-          // Threshold of ~50 catches anti-aliased edges but not user magenta
-          if (distanceToMarker < 50) {
-            // Make it transparent
-            data[i + 3] = 0;
-          }
-        }
+      fgCtx.beginPath();
+      fgCtx.moveTo(
+        p.x - (canvasPadding + COMPOSITION_BORDER_SIZE),
+        p.y - (canvasPadding + COMPOSITION_BORDER_SIZE)
+      );
 
-        ctx.putImageData(imageData, 0, 0);
-        resolve(canvas.toDataURL("image/png"));
-      };
-      img.src = dataUrl;
-    });
+      previewCtx.clearRect(0, 0, fabricInstance.width, fabricInstance.height);
+    };
+
+    // Mouse move - erase and show preview
+    const onMouseMove = (opt) => {
+      if (!isCanvasDrawing) return;
+      const p = fabricInstance.getPointer(opt.e);
+      canvasDrawingPath.push(p);
+
+      // Draw preview
+      previewCtx.clearRect(0, 0, fabricInstance.width, fabricInstance.height);
+      previewCtx.strokeStyle = "rgba(255, 0, 0, 0.5)";
+      previewCtx.lineWidth = brushWidth;
+      previewCtx.lineCap = "round";
+      previewCtx.lineJoin = "round";
+      previewCtx.globalCompositeOperation = "source-over";
+
+      previewCtx.beginPath();
+      previewCtx.moveTo(canvasDrawingPath[0].x, canvasDrawingPath[0].y);
+      for (let i = 1; i < canvasDrawingPath.length; i++) {
+        previewCtx.lineTo(canvasDrawingPath[i].x, canvasDrawingPath[i].y);
+      }
+      previewCtx.stroke();
+
+      // Actually erase on FG canvas with destination-out
+      fgCtx.globalCompositeOperation = "destination-out";
+      fgCtx.lineWidth = brushWidth;
+      fgCtx.lineCap = "round";
+      fgCtx.lineJoin = "round";
+      fgCtx.lineTo(
+        p.x - (canvasPadding + COMPOSITION_BORDER_SIZE),
+        p.y - (canvasPadding + COMPOSITION_BORDER_SIZE)
+      );
+      fgCtx.stroke();
+
+      // Update foreground layer image with erased version
+      if (foregroundLayer) {
+        foregroundLayer.setElement(fgCanvas);
+        fabricInstance.renderAll();
+      }
+    };
+
+    // Mouse up - finalize erasing
+    const onMouseUp = async () => {
+      if (!isCanvasDrawing) return;
+      isCanvasDrawing = false;
+
+      // Clear preview
+      previewCtx.clearRect(0, 0, fabricInstance.width, fabricInstance.height);
+
+      // Reset composite operation
+      fgCtx.globalCompositeOperation = "source-over";
+
+      // Update foreground layer with final erased image
+      if (foregroundLayer) {
+        foregroundLayer.setElement(fgCanvas);
+      } else {
+        // Create new foreground layer from erased canvas
+        const dataUrl = fgCanvas.toDataURL("image/png");
+        fabric.Image.fromURL(dataUrl, (img) => {
+          foregroundLayer = img;
+          img.set({
+            left: canvasPadding + COMPOSITION_BORDER_SIZE,
+            top: canvasPadding + COMPOSITION_BORDER_SIZE,
+            selectable: false,
+            evented: false,
+            scaleX: 1,
+            scaleY: 1,
+          });
+          fabricInstance.add(img);
+          updateCanvasZOrder();
+          fabricInstance.renderAll();
+        });
+      }
+
+      canvasDrawingPath = [];
+      fabricInstance.renderAll();
+
+      // Trigger save
+      if (colorChangeDebounceTimeout) {
+        clearTimeout(colorChangeDebounceTimeout);
+      }
+      colorChangeDebounceTimeout = setTimeout(async () => {
+        colorChangeDebounceTimeout = null;
+        await saveForegroundLayer();
+        saveAndUpdateSeed();
+      }, COLOR_CHANGE_DEBOUNCE_DELAY);
+    };
+
+    // Attach event handlers
+    fabricInstance.on("mouse:down", onMouseDown);
+    fabricInstance.on("mouse:move", onMouseMove);
+    fabricInstance.on("mouse:up", onMouseUp);
+
+    // Store handlers and canvas for cleanup
+    fabricInstance._eraserHandlers = { onMouseDown, onMouseMove, onMouseUp };
+    fabricInstance._eraserCanvas = fgCanvas;
+  };
+
+  const cleanupCanvasEraser = () => {
+    if (!fabricInstance || !fabricInstance._eraserHandlers) return;
+
+    const { onMouseDown, onMouseMove, onMouseUp } =
+      fabricInstance._eraserHandlers;
+    fabricInstance.off("mouse:down", onMouseDown);
+    fabricInstance.off("mouse:move", onMouseMove);
+    fabricInstance.off("mouse:up", onMouseUp);
+
+    // Clear preview context
+    fabricInstance.contextTop.clearRect(
+      0,
+      0,
+      fabricInstance.width,
+      fabricInstance.height
+    );
+
+    delete fabricInstance._eraserHandlers;
+    delete fabricInstance._eraserCanvas;
+    isCanvasDrawing = false;
+    canvasDrawingPath = [];
   };
 
   const initializeForegroundLayer = async () => {
@@ -2822,22 +2935,15 @@ const Editor = (node, fabric) => {
   const saveForegroundLayer = async () => {
     if (!fabricInstance) return;
 
-    // Export only the drawing layer (excluding composition area, border, and images)
+    // Export only the drawing layer (pencil paths)
     const drawingObjects = fabricInstance
       .getObjects()
-      .filter((obj) => obj.type === "path");
+      .filter((obj) => obj.type === "path" && !obj.isEraserStroke);
 
-    if (drawingObjects.length === 0) {
-      // No drawings, remove foreground layer if it exists
-      if (foregroundLayer) {
-        fabricInstance.remove(foregroundLayer);
-        foregroundLayer = null;
-      }
+    // Check if we have any content (foreground layer or paths)
+    if (!foregroundLayer && drawingObjects.length === 0) {
       return;
     }
-
-    // Check if we have any eraser strokes
-    const hasEraserStrokes = drawingObjects.some((obj) => obj.isEraserStroke);
 
     // Create a temporary canvas for the drawing layer
     const tempCanvas = new fabric.StaticCanvas(null, {
@@ -2845,7 +2951,7 @@ const Editor = (node, fabric) => {
       height: canvasHeight,
     });
 
-    // Load existing foreground layer as background (to make drawing additive)
+    // Load existing foreground layer (already has erasing applied)
     if (foregroundLayer) {
       await new Promise((resolve) => {
         foregroundLayer.clone((clonedBg) => {
@@ -2862,34 +2968,31 @@ const Editor = (node, fabric) => {
       });
     }
 
-    // Clone and add ALL paths to temp canvas
-    const clonePromises = drawingObjects.map((path) => {
-      return new Promise((resolve) => {
-        path.clone((cloned) => {
-          // Adjust position: subtract padding and border offset
-          cloned.set({
-            left: cloned.left - (canvasPadding + COMPOSITION_BORDER_SIZE),
-            top: cloned.top - (canvasPadding + COMPOSITION_BORDER_SIZE),
+    // Clone and add pencil paths to temp canvas
+    if (drawingObjects.length > 0) {
+      const clonePromises = drawingObjects.map((path) => {
+        return new Promise((resolve) => {
+          path.clone((cloned) => {
+            // Adjust position: subtract padding and border offset
+            cloned.set({
+              left: cloned.left - (canvasPadding + COMPOSITION_BORDER_SIZE),
+              top: cloned.top - (canvasPadding + COMPOSITION_BORDER_SIZE),
+            });
+            tempCanvas.add(cloned);
+            resolve();
           });
-          tempCanvas.add(cloned);
-          resolve();
         });
       });
-    });
+      await Promise.all(clonePromises);
+    }
 
-    await Promise.all(clonePromises);
     tempCanvas.renderAll();
 
     // Export as data URL
-    let dataUrl = tempCanvas.toDataURL({
+    const dataUrl = tempCanvas.toDataURL({
       format: "png",
       quality: 1,
     });
-
-    // If there were eraser strokes, remove the marker color
-    if (hasEraserStrokes) {
-      dataUrl = await applyEraserMarkerRemoval(dataUrl);
-    }
 
     // Upload the foreground layer with simplified filename
     const fgImageName = `fg_${node.id}.png`;

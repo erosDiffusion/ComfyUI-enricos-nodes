@@ -817,7 +817,7 @@ const createLayerUI = (config) => {
       flexShrink: "0",
       // No border by default - matches image thumbnail
     });
-    maskThumbnail.textContent = "M";
+    maskThumbnail.textContent = "";
 
     // Add click handler for mask toggle
     if (onMaskToggle) {
@@ -898,7 +898,7 @@ const createControl = (config) => {
       display: "flex",
       flexDirection: "column",
       gap: "2px",
-      minWidth: "80px",
+      //minWidth: "80px",
     });
 
     // Label element

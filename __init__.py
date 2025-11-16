@@ -13,27 +13,7 @@ from .CompositorConfig4 import CompositorConfig4
 from .Compositor4TransformsOut import Compositor4TransformsOut
 from .Compositor4MasksOutput import Compositor4MasksOutput
 
-# Test nodes for debugging config change detection
-from .TestNodeA import TestNodeA
-from .TestNodeB import TestNodeB
 
-# Qwen Vision Language nodes
-try:
-    from .QwenVisionLoader import QwenVisionLoader, QwenVisionProcessor
-    QWEN_AVAILABLE = True
-except ImportError as e:
-    print(f"Qwen Vision nodes not available: {e}")
-    print("Install dependencies with: pip install -r requirements_qwen.txt")
-    QWEN_AVAILABLE = False
-
-# Qwen GGUF nodes (separate import for optional llama-cpp-python dependency)
-try:
-    from .QwenGGUFLoader import QwenGGUFLoader, QwenGGUFProcessor
-    QWEN_GGUF_AVAILABLE = True
-except ImportError as e:
-    print(f"Qwen GGUF nodes not available: {e}")
-    print("Install llama-cpp-python for GGUF support: pip install llama-cpp-python")
-    QWEN_GGUF_AVAILABLE = False
 
 # V1-style registration (kept for backward compatibility)
 # V3 nodes also have comfy_entrypoint() for modern registration

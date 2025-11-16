@@ -87,6 +87,10 @@ function getFabricDataWidget(node) {
   return getWidget(node, "fabricData");
 }
 
+function getSeedWidget(node) {
+  return getWidget(node, "seed");
+}
+
 const initializeCustomCanvasWidget = (node) => {
   if (isCorrectType(node)) {
     // Note: Widget hiding functionality is commented out as it doesn't work as expected
@@ -1092,6 +1096,7 @@ const Editor = (node, fabric) => {
 
   const imageNameWidget = getImageNameWidget(node);
   const fabricDataWidget = getFabricDataWidget(node);
+  const seedWidget = getSeedWidget(node);
 
   // Helper function to save and update seed
   const saveAndUpdateSeed = () => {
@@ -1695,7 +1700,7 @@ const Editor = (node, fabric) => {
     const clearFgBtn = createToolbarButton(
       "Clear FG",
       async () => {
-        if (!fabricInstance || !foregroundLayer) return;
+        if (!fabricInstance) return;
 
         // Remove all drawing paths
         const pathsToRemove = ArrayUtils.filterByType(
@@ -1706,15 +1711,29 @@ const Editor = (node, fabric) => {
           fabricInstance.remove(path);
         });
 
-        // Clear the foreground layer image
+        // Create a completely empty transparent canvas
         const emptyCanvas = document.createElement("canvas");
         emptyCanvas.width = canvasWidth;
         emptyCanvas.height = canvasHeight;
-        foregroundLayer.setElement(emptyCanvas);
 
-        fabricInstance.renderAll();
+        // CRITICAL: Update the eraser canvas if it exists (keeps them synchronized)
+        if (fabricInstance._eraserCanvas) {
+          const eraserCtx = fabricInstance._eraserCanvas.getContext("2d");
+          eraserCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+        }
 
-        // Save the cleared state
+        // Update foreground layer with empty canvas element (no need for dataUrl/Image)
+        if (foregroundLayer) {
+          foregroundLayer.setElement(emptyCanvas);
+          fabricInstance.renderAll();
+        }
+
+        // Update thumbnail to show empty state
+        if (foregroundThumbnail) {
+          foregroundThumbnail.style.backgroundImage = "none";
+        }
+
+        // Save the cleared state (this will persist the empty canvas)
         await saveForegroundLayer();
         saveAndUpdateSeed();
       },
@@ -1749,12 +1768,13 @@ const Editor = (node, fabric) => {
       display: "none",
       flexDirection: "column",
       gap: "2px",
-      minWidth: "80px",
+      maxWidth: "fit-content",
     });
     toolbarEl.appendChild(tools2Container);
 
     // Brush shape selector (circle/square) - applies to both draw and erase
     const brushShapeGroup = createVerticalButtonGroup(tools2Container);
+    brushShapeGroup.style.maxWidth = "fit-content";
 
     let circleShapeBtn, squareShapeBtn;
 
@@ -3137,11 +3157,13 @@ const Editor = (node, fabric) => {
   const loadForegroundLayer = (fgImageName) => {
     if (!fgImageName || !fabricInstance) return;
 
+    // Add timestamp and random param to break browser cache completely
+    const cacheBuster = `t=${Date.now()}&r=${Math.random()}`;
     const fgImageUrl = `/view?filename=${encodeURIComponent(
       fgImageName
-    )}&type=${saveFolder}&subfolder=compositor&t=${Date.now()}`;
+    )}&type=${saveFolder}&subfolder=compositor&${cacheBuster}`;
 
-    // Load the image
+    // Load the image with cache-busting
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
@@ -3430,18 +3452,20 @@ const Editor = (node, fabric) => {
       fabricInstance.remove(path);
     });
 
-    // Update thumbnail preview with the saved FG layer
-    if (foregroundThumbnail) {
-      foregroundThumbnail.style.backgroundImage = `url(${dataUrl})`;
-    }
-
-    // Update foreground layer optimistically (prevents flash)
+    // CRITICAL: Immediately update foreground layer with the new dataUrl
+    // This ensures the in-memory state matches what was saved to disk
+    // and breaks browser cache on the blob URL
     if (foregroundLayer) {
       // Create new image from dataUrl and update existing layer
       const img = new Image();
       img.onload = () => {
         foregroundLayer.setElement(img);
         fabricInstance.renderAll();
+
+        // Update thumbnail after layer is updated
+        if (foregroundThumbnail) {
+          foregroundThumbnail.style.backgroundImage = `url(${dataUrl})`;
+        }
       };
       img.src = dataUrl;
     } else {
@@ -3461,6 +3485,11 @@ const Editor = (node, fabric) => {
         fabricInstance.add(img);
         updateCanvasZOrder();
         fabricInstance.renderAll();
+
+        // Update thumbnail after layer is created
+        if (foregroundThumbnail) {
+          foregroundThumbnail.style.backgroundImage = `url(${dataUrl})`;
+        }
       });
     }
   };
@@ -3819,8 +3848,14 @@ const Editor = (node, fabric) => {
   const updateSeedValue = (signature = false) => {
     // Store custom compositor data with a random seed to trigger update
     const compositorData = serializeCompositorData();
-    compositorData.seed = signature != false ? signature : Math.random(); // Add seed to trigger change detection
+    const seedValue = signature != false ? signature : Math.random();
+    compositorData.seed = seedValue; // Add seed to trigger change detection
     fabricDataWidget.value = JSON.stringify(compositorData);
+
+    // Update the seed widget to trigger node re-execution
+    if (seedWidget) {
+      seedWidget.value = seedValue;
+    }
   };
 
   const updateRotationSlider = () => {

@@ -355,16 +355,38 @@ const createButtonRow = (parent) => {
   return row;
 };
 
-// Utility function to create a null-filled array
-const createNullArray = (length) => Array(length).fill(null);
+// Proposal 9: Array/Collection Utilities
+const ArrayUtils = {
+  // Create array filled with null values
+  createNullArray: (length) => Array(length).fill(null),
 
-// Utility function to create sorted index-position pairs
-const createSortedIndexPositionPairs = (positions, descending = false) => {
-  const pairs = positions.map((position, index) => ({ index, position }));
-  return descending
-    ? pairs.sort((a, b) => b.position - a.position)
-    : pairs.sort((a, b) => a.position - b.position);
+  // Create sorted pairs of [index, position] for layer ordering
+  createSortedIndexPositionPairs: (positions, descending = false) => {
+    const pairs = positions.map((position, index) => ({ index, position }));
+    return descending
+      ? pairs.sort((a, b) => b.position - a.position)
+      : pairs.sort((a, b) => a.position - b.position);
+  },
+
+  // Filter objects by type
+  filterByType: (objects, type) => objects.filter((obj) => obj.type === type),
+
+  // Filter image objects from a collection
+  filterImageObjects: (objects, imageArray) => objects.filter((obj) => imageArray.includes(obj)),
+
+  // Apply function to each item with optional condition
+  forEachIf: (array, condition, callback) => {
+    array.forEach((item, index) => {
+      if (!condition || condition(item, index)) {
+        callback(item, index);
+      }
+    });
+  },
 };
+
+// Legacy wrappers for backward compatibility
+const createNullArray = ArrayUtils.createNullArray;
+const createSortedIndexPositionPairs = ArrayUtils.createSortedIndexPositionPairs;
 
 // ============================================================================
 // REFACTORED UTILITIES (Proposals 1, 2, 5)
@@ -552,11 +574,11 @@ const TransformationEngine = {
   },
 
   // Equalize operations
-  equalize: (fabricInstance, axis, isImageObject, saveCallback) => {
+  equalize: (fabricInstance, axis, imageArray, saveCallback) => {
     const activeObject = fabricInstance.getActiveObject();
     if (!activeObject || activeObject.type !== "activeSelection") return;
 
-    const objects = activeObject._objects.filter((obj) => isImageObject(obj));
+    const objects = ArrayUtils.filterImageObjects(activeObject._objects, imageArray);
     if (objects.length < 2) return;
 
     const referenceDimension =
@@ -1265,11 +1287,11 @@ const Editor = (node, fabric) => {
       (newState) => {
         preciseSelection = newState;
         // Update all images with perPixelTargetFind
-        images.forEach((img) => {
-          if (img) {
-            img.set("perPixelTargetFind", preciseSelection);
-          }
-        });
+        ArrayUtils.forEachIf(
+          images,
+          (img) => img !== null,
+          (img) => img.set("perPixelTargetFind", preciseSelection)
+        );
         fabricInstance.renderAll();
       },
       rotationPreciseContainer
@@ -1586,9 +1608,10 @@ const Editor = (node, fabric) => {
         if (!fabricInstance || !foregroundLayer) return;
 
         // Remove all drawing paths
-        const pathsToRemove = fabricInstance
-          .getObjects()
-          .filter((obj) => obj.type === "path");
+        const pathsToRemove = ArrayUtils.filterByType(
+          fabricInstance.getObjects(),
+          "path"
+        );
         pathsToRemove.forEach((path) => {
           fabricInstance.remove(path);
         });
@@ -2118,11 +2141,11 @@ const Editor = (node, fabric) => {
 
   const updateLayerSelectionHighlight = () => {
     // Clear all highlights first
-    layerItems.forEach((layerItem, idx) => {
-      if (layerItem) {
-        layerItem.style.backgroundColor = COLOR_BUTTON_BG;
-      }
-    });
+    ArrayUtils.forEachIf(
+      layerItems,
+      (item) => item !== null,
+      (item) => (item.style.backgroundColor = COLOR_BUTTON_BG)
+    );
 
     // Clear foreground layer highlight
     if (foregroundLayerItem) {
@@ -3214,9 +3237,10 @@ const Editor = (node, fabric) => {
     if (!fabricInstance) return;
 
     // Export only the drawing layer (pencil paths)
-    const drawingObjects = fabricInstance
-      .getObjects()
-      .filter((obj) => obj.type === "path" && !obj.isEraserStroke);
+    const drawingObjects = ArrayUtils.filterByType(
+      fabricInstance.getObjects(),
+      "path"
+    ).filter((obj) => !obj.isEraserStroke);
 
     // Check if we have any content (foreground layer or paths)
     if (!foregroundLayer && drawingObjects.length === 0) {

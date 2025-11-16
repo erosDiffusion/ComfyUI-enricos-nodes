@@ -946,8 +946,12 @@ const Editor = (node, fabric) => {
           fabricInstance &&
           fabricInstance.freeDrawingBrush
         ) {
-          fabricInstance.freeDrawingBrush.color = brushMode === "eraser" ? "rgba(254, 0, 254, 1)" : brushColor;
-          fabricInstance.freeDrawingBrush.globalCompositeOperation = "source-over";
+          fabricInstance.freeDrawingBrush.color =
+            brushMode === "eraser" ? "rgba(254, 0, 254, 1)" : brushColor;
+          fabricInstance.freeDrawingBrush.globalCompositeOperation =
+            "source-over";
+          // Disable smoothing for clean edges
+          fabricInstance.contextTop.imageSmoothingEnabled = false;
         }
       },
       brushControlsContainer
@@ -1426,6 +1430,11 @@ const Editor = (node, fabric) => {
         fabricInstance.freeDrawingBrush.globalCompositeOperation =
           "source-over";
         fabricInstance.freeDrawingBrush.width = brushWidth;
+        
+        // Disable anti-aliasing/smoothing for cleaner edges (especially for eraser)
+        if (fabricInstance.freeDrawingBrush.color) {
+          fabricInstance.contextTop.imageSmoothingEnabled = false;
+        }
 
         // Disable selection on all other objects
         images.forEach((img) => {
@@ -2772,15 +2781,26 @@ const Editor = (node, fabric) => {
         const data = imageData.data;
 
         // Find and remove eraser marker color pixels
+        // Target: (254, 0, 254) but catch anti-aliased edges carefully
         for (let i = 0; i < data.length; i += 4) {
           const r = data[i];
           const g = data[i + 1];
           const b = data[i + 2];
           const a = data[i + 3];
 
-          // Check if pixel is the eraser marker color (254, 0, 254)
-          // Use tolerance for anti-aliasing
-          if (r > 250 && g < 10 && b > 250 && a > 0) {
+          if (a === 0) continue; // Skip already transparent pixels
+
+          // Calculate how "close" this pixel is to the marker color (254, 0, 254)
+          // Using distance formula in RGB space
+          const distanceToMarker = Math.sqrt(
+            Math.pow(r - 254, 2) + 
+            Math.pow(g - 0, 2) + 
+            Math.pow(b - 254, 2)
+          );
+          
+          // Remove if very close to marker color (within threshold)
+          // Threshold of ~50 catches anti-aliased edges but not user magenta
+          if (distanceToMarker < 50) {
             // Make it transparent
             data[i + 3] = 0;
           }

@@ -2,7 +2,7 @@
 
 ![the compositor node](/assets/showreel1.png)
 
-How many times do you need to create something like this?
+How many times do you need want to create something like this ?
 ![the compositor node](/assets/showreel1.jpg)
 
 Well, This node was created to make the composition process quick and easy!

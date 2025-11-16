@@ -1002,10 +1002,18 @@ const Editor = (node, fabric) => {
             if (layerToSelect) {
               fabricInstance.setActiveObject(layerToSelect);
             }
+          } else {
+            fabricInstance.discardActiveObject();
           }
 
-          // Hide brush controls
+          // Hide brush controls and separators
           brushControlsContainer.style.display = "none";
+          brushControlsSeparator.style.display = "none";
+          eraseControlsContainer.style.display = "none";
+          eraseControlsSeparator.style.display = "none";
+          
+          // Update layer highlights
+          updateLayerSelectionHighlight();
         } else {
           // Draw or Erase mode
           // Store current selection if coming from select mode
@@ -1028,13 +1036,17 @@ const Editor = (node, fabric) => {
             }
           });
 
-          // Select foreground layer automatically
+          // Select foreground layer automatically (but don't show transform controls)
           if (foregroundLayer) {
             fabricInstance.setActiveObject(foregroundLayer);
+            fabricInstance.discardActiveObject(); // Don't show transform controls
           }
 
           // Enable drawing mode
           isDrawingMode = true;
+          
+          // Update layer highlights to show FG is active
+          updateLayerSelectionHighlight();
 
           if (toolMode === "draw") {
             // Pencil mode: use Fabric drawing
@@ -1052,8 +1064,25 @@ const Editor = (node, fabric) => {
             setupCanvasEraser();
           }
 
-          // Show brush controls
+          // Show brush controls and separator
           brushControlsContainer.style.display = "flex";
+          brushControlsSeparator.style.display = "block";
+          
+          // Show/hide color picker based on mode
+          if (toolMode === "draw") {
+            colorPickerGroup.style.display = "flex";
+          } else {
+            colorPickerGroup.style.display = "none";
+          }
+          
+          // Show erase controls only in erase mode
+          if (toolMode === "erase") {
+            eraseControlsContainer.style.display = "flex";
+            eraseControlsSeparator.style.display = "block";
+          } else {
+            eraseControlsContainer.style.display = "none";
+            eraseControlsSeparator.style.display = "none";
+          }
         }
 
         updateToolModeButtons();
@@ -1106,8 +1135,9 @@ const Editor = (node, fabric) => {
     // Initialize button states
     updateToolModeButtons();
 
-    // Add separator before brush controls
-    createSeparator(toolbarEl);
+    // Add separator before brush controls (hidden in select mode)
+    const brushControlsSeparator = createSeparator(toolbarEl);
+    brushControlsSeparator.style.display = "none";
 
     // Create brush controls container (color, width - shown only in draw/erase mode)
     const brushControlsContainer = document.createElement("div");
@@ -1202,6 +1232,49 @@ const Editor = (node, fabric) => {
       }
     };
     brushWidthSliderContainer.appendChild(brushWidthSlider);
+
+    // Add separator before erase controls (hidden except in erase mode)
+    const eraseControlsSeparator = createSeparator(toolbarEl);
+    eraseControlsSeparator.style.display = "none";
+
+    // Create erase controls container (shown only in erase mode)
+    const eraseControlsContainer = document.createElement("div");
+    applyStyles(eraseControlsContainer, {
+      display: "none",
+      flexDirection: "column",
+      gap: "2px",
+      minWidth: "80px",
+    });
+    toolbarEl.appendChild(eraseControlsContainer);
+
+    // Clear button (clears entire foreground layer)
+    const clearFgBtn = createToolbarButton(
+      "Clear FG",
+      async () => {
+        if (!fabricInstance || !foregroundLayer) return;
+        
+        // Remove all drawing paths
+        const pathsToRemove = fabricInstance
+          .getObjects()
+          .filter((obj) => obj.type === "path");
+        pathsToRemove.forEach((path) => {
+          fabricInstance.remove(path);
+        });
+        
+        // Clear the foreground layer image
+        const emptyCanvas = document.createElement("canvas");
+        emptyCanvas.width = canvasWidth;
+        emptyCanvas.height = canvasHeight;
+        foregroundLayer.setElement(emptyCanvas);
+        
+        fabricInstance.renderAll();
+        
+        // Save the cleared state
+        await saveForegroundLayer();
+        saveAndUpdateSeed();
+      },
+      eraseControlsContainer
+    );
 
     // Add separator before size controls
     createSeparator(toolbarEl);
@@ -2045,10 +2118,27 @@ const Editor = (node, fabric) => {
         layerItem.style.backgroundColor = COLOR_BUTTON_BG;
       }
     });
+    
+    // Clear foreground layer highlight
+    if (foregroundLayerItem) {
+      foregroundLayerItem.style.backgroundColor = COLOR_BUTTON_BG;
+    }
 
-    // Get the currently selected object
+    // In draw/erase mode, highlight foreground layer
+    if ((toolMode === "draw" || toolMode === "erase") && foregroundLayerItem) {
+      foregroundLayerItem.style.backgroundColor = COLOR_BUTTON_ACTIVE;
+      return;
+    }
+
+    // In select mode, highlight the selected object
     const activeObject = fabricInstance.getActiveObject();
     if (!activeObject) return;
+
+    // If it's the foreground layer, highlight it
+    if (activeObject === foregroundLayer && foregroundLayerItem) {
+      foregroundLayerItem.style.backgroundColor = COLOR_BUTTON_ACTIVE;
+      return;
+    }
 
     // If it's a single object, find its index and highlight it
     if (activeObject.type !== "activeSelection") {
@@ -2382,6 +2472,14 @@ const Editor = (node, fabric) => {
     initializeForegroundLayer();
 
     addCanvasEventListeners();
+
+    // Ensure select mode is active by default
+    // This must happen after fabricInstance and all layers are created
+    setTimeout(() => {
+      if (typeof setToolMode === 'function') {
+        setToolMode("select");
+      }
+    }, 100);
 
     fabricInstance.renderAll();
     node.setDirtyCanvas(true, true);
@@ -3884,6 +3982,26 @@ const Editor = (node, fabric) => {
 
           fabricInstance.renderAll();
         }
+
+        // Ensure all images are selectable after restoration (select mode is default)
+        setTimeout(() => {
+          if (fabricInstance) {
+            fabricInstance.getObjects().forEach((obj) => {
+              if (obj !== foregroundLayer && obj.type === "image") {
+                obj.set({ selectable: true, evented: true });
+              }
+            });
+            // Ensure tool mode buttons reflect correct state
+            if (typeof updateToolModeButtons === 'function') {
+              updateToolModeButtons();
+            }
+            // Update layer highlights
+            if (typeof updateLayerSelectionHighlight === 'function') {
+              updateLayerSelectionHighlight();
+            }
+            fabricInstance.renderAll();
+          }
+        }, 150);
 
         return true;
       }

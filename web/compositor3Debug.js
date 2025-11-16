@@ -1007,9 +1007,11 @@ const Editor = (node, fabric) => {
             fabricInstance.discardActiveObject();
           }
 
-          // Hide brush controls and separator
-          brushControlsContainer.style.display = "none";
-          brushControlsSeparator.style.display = "none";
+          // Hide all tool controls and separators
+          tools1Container.style.display = "none";
+          tools1Separator.style.display = "none";
+          tools2Container.style.display = "none";
+          tools2Separator.style.display = "none";
 
           // Update layer highlights
           updateLayerSelectionHighlight();
@@ -1071,19 +1073,19 @@ const Editor = (node, fabric) => {
             setupCanvasEraser();
           }
 
-          // Show brush controls and separator
-          brushControlsContainer.style.display = "flex";
-          brushControlsSeparator.style.display = "block";
+          // Show tools1 and tools2 containers
+          tools1Container.style.display = "flex";
+          tools1Separator.style.display = "block";
+          tools2Container.style.display = "flex";
+          tools2Separator.style.display = "block";
 
-          // Show/hide controls based on mode
+          // Show/hide specific controls based on mode
           if (toolMode === "draw") {
             colorPickerGroup.style.display = "flex";
-            brushShapeGroup.style.display = "flex";
             eraseControlsContainer.style.display = "none";
           } else {
             // Erase mode
             colorPickerGroup.style.display = "none";
-            brushShapeGroup.style.display = "none";
             eraseControlsContainer.style.display = "flex";
           }
         }
@@ -1138,24 +1140,22 @@ const Editor = (node, fabric) => {
     // Initialize button states
     updateToolModeButtons();
 
-    // Add separator before brush controls (hidden in select mode)
-    const brushControlsSeparator = createSeparator(toolbarEl);
-    brushControlsSeparator.style.display = "none";
+    // Add separator before tools1 (hidden in select mode)
+    const tools1Separator = createSeparator(toolbarEl);
+    tools1Separator.style.display = "none";
 
-    // Create brush controls container (color, width - shown only in draw/erase mode)
-    const brushControlsContainer = document.createElement("div");
-    applyStyles(brushControlsContainer, {
+    // Create tools1 container (color picker, clear button, width slider)
+    const tools1Container = document.createElement("div");
+    applyStyles(tools1Container, {
       display: "none",
       flexDirection: "column",
       gap: "2px",
       minWidth: "80px",
     });
-    toolbarEl.appendChild(brushControlsContainer);
+    toolbarEl.appendChild(tools1Container);
 
-    // Row 1: Color picker (for draw mode)
-    const colorPickerGroup = createHorizontalButtonGroup(
-      brushControlsContainer
-    );
+    // Row 1: Color picker (for draw mode only)
+    const colorPickerGroup = createHorizontalButtonGroup(tools1Container);
 
     // Brush color picker
     const brushColorContainer = document.createElement("div");
@@ -1197,104 +1197,15 @@ const Editor = (node, fabric) => {
     };
     brushColorContainer.appendChild(brushColorInput);
 
-    // Row 2: Brush shape selector (circle/square) - horizontal group
-    const brushShapeGroup = createHorizontalButtonGroup(brushControlsContainer);
-    
-    let circleShapeBtn, squareShapeBtn;
-    
-    const updateBrushShapeButtons = () => {
-      circleShapeBtn.style.backgroundColor = brushShape === "circle" ? COLOR_BUTTON_ACTIVE : COLOR_BUTTON_BG;
-      squareShapeBtn.style.backgroundColor = brushShape === "square" ? COLOR_BUTTON_ACTIVE : COLOR_BUTTON_BG;
-    };
-    
-    const setBrushShape = (shape) => {
-      brushShape = shape;
-      updateBrushShapeButtons();
-      
-      // Update Fabric brush if in draw mode
-      if (toolMode === "draw" && fabricInstance && fabricInstance.freeDrawingBrush) {
-        // Fabric.js doesn't have built-in square brush, but we can simulate it
-        // by setting the brush to have sharp corners (strokeLineCap)
-        if (brushShape === "square") {
-          fabricInstance.freeDrawingBrush.strokeLineCap = "square";
-          fabricInstance.freeDrawingBrush.strokeLineJoin = "miter";
-        } else {
-          fabricInstance.freeDrawingBrush.strokeLineCap = "round";
-          fabricInstance.freeDrawingBrush.strokeLineJoin = "round";
-        }
-      }
-    };
-    
-    circleShapeBtn = createIconButton("●", () => setBrushShape("circle"), brushShapeGroup);
-    squareShapeBtn = createIconButton("■", () => setBrushShape("square"), brushShapeGroup);
-    
-    // Setup hover behavior for shape buttons
-    const setupShapeButtonHover = (btn) => {
-      btn.onmouseover = () => {
-        btn.style.backgroundColor = COLOR_BUTTON_HOVER;
-      };
-      btn.onmouseout = () => {
-        const isActive = (btn === circleShapeBtn && brushShape === "circle") ||
-                        (btn === squareShapeBtn && brushShape === "square");
-        btn.style.backgroundColor = isActive ? COLOR_BUTTON_ACTIVE : COLOR_BUTTON_BG;
-      };
-    };
-    
-    setupShapeButtonHover(circleShapeBtn);
-    setupShapeButtonHover(squareShapeBtn);
-    updateBrushShapeButtons();
-
-    // Row 3: Brush width slider (stacked vertically below)
-    const brushWidthLabel = document.createElement("label");
-    brushWidthLabel.textContent = `Width: ${brushWidth}px`;
-    applyStyles(brushWidthLabel, {
-      color: COLOR_BUTTON_TEXT,
-      fontSize: "10px",
-      textAlign: "center",
-      height: "24px",
-      lineHeight: "24px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    });
-    brushControlsContainer.appendChild(brushWidthLabel);
-
-    const brushWidthSliderContainer = document.createElement("div");
-    applyStyles(brushWidthSliderContainer, {
-      height: "24px",
-      display: "flex",
-      alignItems: "center",
-    });
-    brushControlsContainer.appendChild(brushWidthSliderContainer);
-
-    const brushWidthSlider = document.createElement("input");
-    brushWidthSlider.type = "range";
-    brushWidthSlider.min = "1";
-    brushWidthSlider.max = "50";
-    brushWidthSlider.value = brushWidth;
-    brushWidthSlider.style.width = "100%";
-    brushWidthSlider.style.cursor = "pointer";
-    brushWidthSlider.oninput = (e) => {
-      brushWidth = parseInt(e.target.value);
-      brushWidthLabel.textContent = `Width: ${brushWidth}px`;
-      if (fabricInstance && fabricInstance.freeDrawingBrush) {
-        fabricInstance.freeDrawingBrush.width = brushWidth;
-      }
-    };
-    brushWidthSliderContainer.appendChild(brushWidthSlider);
-
-    // Create erase-specific controls (Clear FG button) - shown above slider in erase mode
+    // Row 2: Clear FG button (for erase mode only) - shown above slider
     const eraseControlsContainer = document.createElement("div");
     applyStyles(eraseControlsContainer, {
       display: "none",
       flexDirection: "column",
       gap: "2px",
-      minWidth: "80px",
     });
-    // Insert before the width label so it appears above the slider
-    brushControlsContainer.insertBefore(eraseControlsContainer, brushWidthLabel);
+    tools1Container.appendChild(eraseControlsContainer);
 
-    // Clear button (clears entire foreground layer)
     const clearFgBtn = createToolbarButton(
       "Clear FG",
       async () => {
@@ -1322,6 +1233,123 @@ const Editor = (node, fabric) => {
       },
       eraseControlsContainer
     );
+
+    // Row 3: Brush width slider (for both draw and erase)
+    const brushWidthLabel = document.createElement("label");
+    brushWidthLabel.textContent = `Width: ${brushWidth}px`;
+    applyStyles(brushWidthLabel, {
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "10px",
+      textAlign: "center",
+      height: "24px",
+      lineHeight: "24px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    });
+    tools1Container.appendChild(brushWidthLabel);
+
+    const brushWidthSliderContainer = document.createElement("div");
+    applyStyles(brushWidthSliderContainer, {
+      height: "24px",
+      display: "flex",
+      alignItems: "center",
+    });
+    tools1Container.appendChild(brushWidthSliderContainer);
+
+    const brushWidthSlider = document.createElement("input");
+    brushWidthSlider.type = "range";
+    brushWidthSlider.min = "1";
+    brushWidthSlider.max = "50";
+    brushWidthSlider.value = brushWidth;
+    brushWidthSlider.style.width = "100%";
+    brushWidthSlider.style.cursor = "pointer";
+    brushWidthSlider.oninput = (e) => {
+      brushWidth = parseInt(e.target.value);
+      brushWidthLabel.textContent = `Width: ${brushWidth}px`;
+      if (fabricInstance && fabricInstance.freeDrawingBrush) {
+        fabricInstance.freeDrawingBrush.width = brushWidth;
+      }
+    };
+    brushWidthSliderContainer.appendChild(brushWidthSlider);
+
+    // Add separator before tools2
+    const tools2Separator = createSeparator(toolbarEl);
+    tools2Separator.style.display = "none";
+
+    // Create tools2 container (brush shape selector - for both draw and erase)
+    const tools2Container = document.createElement("div");
+    applyStyles(tools2Container, {
+      display: "none",
+      flexDirection: "column",
+      gap: "2px",
+      minWidth: "80px",
+    });
+    toolbarEl.appendChild(tools2Container);
+
+    // Brush shape selector (circle/square) - applies to both draw and erase
+    const brushShapeGroup = createVerticalButtonGroup(tools2Container);
+
+    let circleShapeBtn, squareShapeBtn;
+
+    const updateBrushShapeButtons = () => {
+      circleShapeBtn.style.backgroundColor =
+        brushShape === "circle" ? COLOR_BUTTON_ACTIVE : COLOR_BUTTON_BG;
+      squareShapeBtn.style.backgroundColor =
+        brushShape === "square" ? COLOR_BUTTON_ACTIVE : COLOR_BUTTON_BG;
+    };
+
+    const setBrushShape = (shape) => {
+      brushShape = shape;
+      updateBrushShapeButtons();
+
+      // Update Fabric brush if in draw mode
+      if (
+        toolMode === "draw" &&
+        fabricInstance &&
+        fabricInstance.freeDrawingBrush
+      ) {
+        // Fabric.js doesn't have built-in square brush, but we can simulate it
+        // by setting the brush to have sharp corners (strokeLineCap)
+        if (brushShape === "square") {
+          fabricInstance.freeDrawingBrush.strokeLineCap = "square";
+          fabricInstance.freeDrawingBrush.strokeLineJoin = "miter";
+        } else {
+          fabricInstance.freeDrawingBrush.strokeLineCap = "round";
+          fabricInstance.freeDrawingBrush.strokeLineJoin = "round";
+        }
+      }
+    };
+
+    circleShapeBtn = createIconButton(
+      "●",
+      () => setBrushShape("circle"),
+      brushShapeGroup
+    );
+    squareShapeBtn = createIconButton(
+      "■",
+      () => setBrushShape("square"),
+      brushShapeGroup
+    );
+
+    // Setup hover behavior for shape buttons
+    const setupShapeButtonHover = (btn) => {
+      btn.onmouseover = () => {
+        btn.style.backgroundColor = COLOR_BUTTON_HOVER;
+      };
+      btn.onmouseout = () => {
+        const isActive =
+          (btn === circleShapeBtn && brushShape === "circle") ||
+          (btn === squareShapeBtn && brushShape === "square");
+        btn.style.backgroundColor = isActive
+          ? COLOR_BUTTON_ACTIVE
+          : COLOR_BUTTON_BG;
+      };
+    };
+
+    setupShapeButtonHover(circleShapeBtn);
+    setupShapeButtonHover(squareShapeBtn);
+    updateBrushShapeButtons();
 
     // Add separator before size controls
     createSeparator(toolbarEl);
@@ -1702,13 +1730,13 @@ const Editor = (node, fabric) => {
 
     // Clicking FG layer switches to select mode
     layerItem.onclick = () => {
-      if (typeof setToolMode === 'function') {
+      if (typeof setToolMode === "function") {
         setToolMode("select");
       }
     };
     drawingThumbnail.onclick = (e) => {
       e.stopPropagation();
-      if (typeof setToolMode === 'function') {
+      if (typeof setToolMode === "function") {
         setToolMode("select");
       }
     };

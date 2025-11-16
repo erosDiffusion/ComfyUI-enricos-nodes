@@ -1695,7 +1695,7 @@ const Editor = (node, fabric) => {
     const clearFgBtn = createToolbarButton(
       "Clear FG",
       async () => {
-        if (!fabricInstance || !foregroundLayer) return;
+        if (!fabricInstance) return;
 
         // Remove all drawing paths
         const pathsToRemove = ArrayUtils.filterByType(
@@ -1706,15 +1706,29 @@ const Editor = (node, fabric) => {
           fabricInstance.remove(path);
         });
 
-        // Clear the foreground layer image
+        // Create a completely empty transparent canvas
         const emptyCanvas = document.createElement("canvas");
         emptyCanvas.width = canvasWidth;
         emptyCanvas.height = canvasHeight;
-        foregroundLayer.setElement(emptyCanvas);
 
-        fabricInstance.renderAll();
+        // CRITICAL: Update the eraser canvas if it exists (keeps them synchronized)
+        if (fabricInstance._eraserCanvas) {
+          const eraserCtx = fabricInstance._eraserCanvas.getContext("2d");
+          eraserCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+        }
 
-        // Save the cleared state
+        // Update foreground layer with empty canvas element (no need for dataUrl/Image)
+        if (foregroundLayer) {
+          foregroundLayer.setElement(emptyCanvas);
+          fabricInstance.renderAll();
+        }
+
+        // Update thumbnail to show empty state
+        if (foregroundThumbnail) {
+          foregroundThumbnail.style.backgroundImage = "none";
+        }
+
+        // Save the cleared state (this will persist the empty canvas)
         await saveForegroundLayer();
         saveAndUpdateSeed();
       },
@@ -3137,11 +3151,13 @@ const Editor = (node, fabric) => {
   const loadForegroundLayer = (fgImageName) => {
     if (!fgImageName || !fabricInstance) return;
 
+    // Add timestamp and random param to break browser cache completely
+    const cacheBuster = `t=${Date.now()}&r=${Math.random()}`;
     const fgImageUrl = `/view?filename=${encodeURIComponent(
       fgImageName
-    )}&type=${saveFolder}&subfolder=compositor&t=${Date.now()}`;
+    )}&type=${saveFolder}&subfolder=compositor&${cacheBuster}`;
 
-    // Load the image
+    // Load the image with cache-busting
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.onload = () => {
@@ -3430,18 +3446,20 @@ const Editor = (node, fabric) => {
       fabricInstance.remove(path);
     });
 
-    // Update thumbnail preview with the saved FG layer
-    if (foregroundThumbnail) {
-      foregroundThumbnail.style.backgroundImage = `url(${dataUrl})`;
-    }
-
-    // Update foreground layer optimistically (prevents flash)
+    // CRITICAL: Immediately update foreground layer with the new dataUrl
+    // This ensures the in-memory state matches what was saved to disk
+    // and breaks browser cache on the blob URL
     if (foregroundLayer) {
       // Create new image from dataUrl and update existing layer
       const img = new Image();
       img.onload = () => {
         foregroundLayer.setElement(img);
         fabricInstance.renderAll();
+        
+        // Update thumbnail after layer is updated
+        if (foregroundThumbnail) {
+          foregroundThumbnail.style.backgroundImage = `url(${dataUrl})`;
+        }
       };
       img.src = dataUrl;
     } else {
@@ -3461,6 +3479,11 @@ const Editor = (node, fabric) => {
         fabricInstance.add(img);
         updateCanvasZOrder();
         fabricInstance.renderAll();
+        
+        // Update thumbnail after layer is created
+        if (foregroundThumbnail) {
+          foregroundThumbnail.style.backgroundImage = `url(${dataUrl})`;
+        }
       });
     }
   };

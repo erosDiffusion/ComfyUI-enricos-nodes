@@ -460,6 +460,16 @@ const Editor = (node, fabric) => {
   let backgroundColorOpaque = COMPOSITION_BACKGROUND_COLOR; // Store the opaque color when toggling to transparent
   let backgroundIsVisible = true; // Track if background is visible (not transparent)
 
+  // Store references to foreground drawing layer
+  let foregroundLayer = null; // Fabric image object for drawing layer
+  let foregroundLayerItem = null; // UI element
+  let foregroundVisibilityButton = null;
+  let isDrawingMode = false; // Track if drawing mode is active
+  let foregroundIsVisible = true; // Track if FG layer is visible
+  let brushMode = "pencil"; // 'pencil' or 'eraser'
+  let brushColor = "#ff0000"; // Red by default
+  let brushWidth = 3; // 3px by default
+
   // Canvas dimensions - can be updated from config
   let canvasWidth = WIDTH;
   let canvasHeight = HEIGHT;
@@ -909,6 +919,127 @@ const Editor = (node, fabric) => {
 
     rotationSliderContainer.appendChild(rotationSlider);
 
+    // Add separator before brush controls
+    createSeparator(toolbarEl);
+
+    // Create vertical container for brush controls (3 rows: Tool toggle, Color, Width slider)
+    const brushControlsContainer = document.createElement("div");
+    applyStyles(brushControlsContainer, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "2px",
+      minWidth: "80px",
+    });
+    toolbarEl.appendChild(brushControlsContainer);
+
+    // Row 1: Brush tool toggle button (Pencil/Eraser)
+    const brushToolBtn = createToggleButton(
+      brushMode === "pencil",
+      "✏ Pencil",
+      "🧹 Eraser",
+      (isPencil) => {
+        brushMode = isPencil ? "pencil" : "eraser";
+        // Update brush settings immediately if drawing mode is active
+        if (
+          isDrawingMode &&
+          fabricInstance &&
+          fabricInstance.freeDrawingBrush
+        ) {
+          if (brushMode === "eraser") {
+            // Eraser: draw with white
+            fabricInstance.freeDrawingBrush.color = "rgba(255, 255, 255, 1)";
+            fabricInstance.freeDrawingBrush.globalCompositeOperation =
+              "source-over";
+          } else {
+            // Pencil: restore normal drawing
+            fabricInstance.freeDrawingBrush.color = brushColor;
+            fabricInstance.freeDrawingBrush.globalCompositeOperation =
+              "source-over";
+          }
+        }
+      },
+      brushControlsContainer
+    );
+
+    // Row 2: Brush color picker
+    const brushColorContainer = document.createElement("div");
+    applyStyles(brushColorContainer, {
+      display: "flex",
+      gap: "3px",
+      alignItems: "center",
+      height: "24px",
+    });
+    brushControlsContainer.appendChild(brushColorContainer);
+
+    const brushColorLabel = document.createElement("label");
+    brushColorLabel.textContent = "Color:";
+    applyStyles(brushColorLabel, {
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "10px",
+      minWidth: "35px",
+    });
+    brushColorContainer.appendChild(brushColorLabel);
+
+    const brushColorInput = document.createElement("input");
+    brushColorInput.type = "color";
+    brushColorInput.value = brushColor;
+    applyStyles(brushColorInput, {
+      width: "40px",
+      height: "20px",
+      border: "none",
+      cursor: "pointer",
+    });
+    brushColorInput.oninput = (e) => {
+      brushColor = e.target.value;
+      if (
+        brushMode === "pencil" &&
+        fabricInstance &&
+        fabricInstance.freeDrawingBrush
+      ) {
+        fabricInstance.freeDrawingBrush.color = brushColor;
+      }
+    };
+    brushColorContainer.appendChild(brushColorInput);
+
+    // Row 3: Brush width slider
+    const brushWidthLabel = document.createElement("label");
+    brushWidthLabel.textContent = `Width: ${brushWidth}px`;
+    applyStyles(brushWidthLabel, {
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "10px",
+      textAlign: "center",
+      height: "24px",
+      lineHeight: "24px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+    });
+    brushControlsContainer.appendChild(brushWidthLabel);
+
+    const brushWidthSliderContainer = document.createElement("div");
+    applyStyles(brushWidthSliderContainer, {
+      height: "24px",
+      display: "flex",
+      alignItems: "center",
+    });
+    brushControlsContainer.appendChild(brushWidthSliderContainer);
+
+    const brushWidthSlider = document.createElement("input");
+    brushWidthSlider.type = "range";
+    brushWidthSlider.min = "1";
+    brushWidthSlider.max = "50";
+    brushWidthSlider.value = brushWidth;
+    brushWidthSlider.style.width = "100%";
+    brushWidthSlider.style.cursor = "pointer";
+    brushWidthSlider.oninput = (e) => {
+      brushWidth = parseInt(e.target.value);
+      brushWidthLabel.textContent = `Width: ${brushWidth}px`;
+      if (fabricInstance && fabricInstance.freeDrawingBrush) {
+        fabricInstance.freeDrawingBrush.width = brushWidth;
+      }
+    };
+    brushWidthSliderContainer.appendChild(brushWidthSlider);
+
     // Add separator before size controls
     createSeparator(toolbarEl);
 
@@ -1234,6 +1365,223 @@ const Editor = (node, fabric) => {
     return title;
   };
 
+  const createForegroundLayer = () => {
+    // Create a fixed layer at the top for drawing
+    const layerItem = document.createElement("div");
+    applyStyles(layerItem, {
+      width: "100%",
+      height: "40px",
+      backgroundColor: COLOR_BUTTON_BG,
+      border: `1px solid ${COLOR_BUTTON_BORDER}`,
+      borderRadius: "4px",
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: "5px",
+      padding: "5px",
+      boxSizing: "border-box",
+      position: "relative",
+      cursor: "pointer",
+    });
+
+    // Add empty placeholder for drag handle
+    const dragPlaceholder = document.createElement("div");
+    applyStyles(dragPlaceholder, {
+      width: "20px",
+      height: "20px",
+      flexShrink: "0",
+    });
+    layerItem.appendChild(dragPlaceholder);
+
+    // Add drawing icon thumbnail
+    const drawingThumbnail = document.createElement("div");
+    drawingThumbnail.textContent = "✏";
+    applyStyles(drawingThumbnail, {
+      width: "30px",
+      height: "30px",
+      backgroundColor: COLOR_BUTTON_BG,
+      borderRadius: "2px",
+      border: `1px solid ${COLOR_BUTTON_BORDER}`,
+      cursor: "pointer",
+      flexShrink: "0",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "16px",
+    });
+
+    // Toggle drawing mode when clicking the layer or thumbnail
+    const toggleDrawingMode = () => {
+      if (!foregroundIsVisible) return; // Can't draw if layer is hidden
+
+      isDrawingMode = !isDrawingMode;
+
+      if (isDrawingMode) {
+        // Enable drawing mode first to create the brush
+        fabricInstance.isDrawingMode = true;
+
+        // Now configure the brush properties (brush is created after isDrawingMode = true)
+        // For eraser, use a very specific marker color that's unlikely to be in user content
+        fabricInstance.freeDrawingBrush.color =
+          brushMode === "eraser" ? "rgba(254, 0, 254, 1)" : brushColor;
+        fabricInstance.freeDrawingBrush.globalCompositeOperation =
+          "source-over";
+        fabricInstance.freeDrawingBrush.width = brushWidth;
+
+        // Disable selection on all other objects
+        images.forEach((img) => {
+          if (img) img.set({ selectable: false, evented: false });
+        });
+
+        // Highlight the layer
+        layerItem.style.backgroundColor = COLOR_BUTTON_ACTIVE;
+        drawingThumbnail.style.backgroundColor = COLOR_BUTTON_ACTIVE;
+
+        // Deselect any active objects
+        fabricInstance.discardActiveObject();
+      } else {
+        // Disable drawing mode
+        fabricInstance.isDrawingMode = false;
+
+        // Re-enable selection on visible objects
+        images.forEach((img) => {
+          if (img && img.visible !== false) {
+            img.set({ selectable: true, evented: true });
+          }
+        });
+
+        // Remove highlight
+        layerItem.style.backgroundColor = COLOR_BUTTON_BG;
+        drawingThumbnail.style.backgroundColor = COLOR_BUTTON_BG;
+      }
+
+      fabricInstance.renderAll();
+    };
+
+    layerItem.onclick = toggleDrawingMode;
+    drawingThumbnail.onclick = (e) => {
+      e.stopPropagation();
+      toggleDrawingMode();
+    };
+
+    layerItem.appendChild(drawingThumbnail);
+
+    // Add visibility toggle button
+    const visibilityBtn = document.createElement("button");
+    visibilityBtn.textContent = "👁";
+    applyStyles(visibilityBtn, {
+      width: "20px",
+      height: "20px",
+      padding: "0",
+      backgroundColor: COLOR_BUTTON_BG,
+      color: COLOR_BUTTON_TEXT,
+      border: `1px solid ${COLOR_BUTTON_BORDER}`,
+      borderRadius: "3px",
+      cursor: "pointer",
+      fontSize: "12px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: "0",
+    });
+
+    visibilityBtn.onclick = (e) => {
+      e.stopPropagation();
+
+      foregroundIsVisible = !foregroundIsVisible;
+
+      if (foregroundIsVisible) {
+        visibilityBtn.textContent = "👁";
+        visibilityBtn.style.backgroundColor = COLOR_BUTTON_BG;
+        if (foregroundLayer) {
+          foregroundLayer.set({
+            visible: true,
+            opacity: 1,
+            selectable: false,
+            evented: false,
+          });
+        }
+      } else {
+        // Hide and exit drawing mode
+        visibilityBtn.textContent = "👁‍🗨";
+        visibilityBtn.style.backgroundColor = COLOR_BUTTON_DISABLED;
+        if (foregroundLayer) {
+          foregroundLayer.set({
+            visible: false,
+            opacity: 0,
+            selectable: false,
+            evented: false,
+          });
+        }
+
+        // Exit drawing mode if active
+        if (isDrawingMode) {
+          isDrawingMode = false;
+          fabricInstance.isDrawingMode = false;
+          images.forEach((img) => {
+            if (img && img.visible !== false) {
+              img.set({ selectable: true, evented: true });
+            }
+          });
+          if (foregroundLayerItem) {
+            foregroundLayerItem.style.backgroundColor = COLOR_BUTTON_BG;
+          }
+          drawingThumbnail.style.backgroundColor = COLOR_BUTTON_BG;
+        }
+      }
+
+      fabricInstance.renderAll();
+
+      // Save changes
+      if (colorChangeDebounceTimeout) {
+        clearTimeout(colorChangeDebounceTimeout);
+      }
+      colorChangeDebounceTimeout = setTimeout(() => {
+        colorChangeDebounceTimeout = null;
+        saveAndUpdateSeed();
+      }, COLOR_CHANGE_DEBOUNCE_DELAY);
+    };
+
+    visibilityBtn.onmouseover = () => {
+      visibilityBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
+    };
+
+    visibilityBtn.onmouseout = () => {
+      visibilityBtn.style.backgroundColor = foregroundIsVisible
+        ? COLOR_BUTTON_BG
+        : COLOR_BUTTON_DISABLED;
+    };
+
+    foregroundVisibilityButton = visibilityBtn;
+
+    // Add label
+    const infoContainer = document.createElement("div");
+    applyStyles(infoContainer, {
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "center",
+      flex: "1",
+      gap: "3px",
+    });
+
+    const label = document.createElement("div");
+    label.textContent = "FG";
+    applyStyles(label, {
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "10px",
+      fontWeight: "bold",
+      width: "37px",
+    });
+
+    infoContainer.appendChild(label);
+    infoContainer.appendChild(visibilityBtn);
+    layerItem.appendChild(infoContainer);
+
+    foregroundLayerItem = layerItem;
+
+    return layerItem;
+  };
+
   const createBackgroundLayer = () => {
     // Create a fixed layer at the bottom for background color control
     const layerItem = document.createElement("div");
@@ -1463,6 +1811,10 @@ const Editor = (node, fabric) => {
     const title = createLayersPanelTitle();
     layersPanelEl.appendChild(title);
 
+    // Add foreground drawing layer at the top (fixed)
+    const foregroundLayer = createForegroundLayer();
+    layersPanelEl.appendChild(foregroundLayer);
+
     // Create layer items in order based on imagePositions (highest position first)
     const indexPositionPairs = createSortedIndexPositionPairs(
       imagePositions,
@@ -1648,7 +2000,12 @@ const Editor = (node, fabric) => {
       }
     });
 
-    // Finally bring border to front
+    // Bring FG layer above images but keep it below border
+    if (foregroundLayer) {
+      fabricInstance.bringToFront(foregroundLayer);
+    }
+
+    // Finally bring border to front (above everything)
     if (compositionBorder) {
       fabricInstance.bringToFront(compositionBorder);
     }
@@ -1843,6 +2200,9 @@ const Editor = (node, fabric) => {
     fabricInstance.add(compositionBorder);
     fabricInstance.bringToFront(compositionBorder);
 
+    // Initialize foreground drawing layer
+    initializeForegroundLayer();
+
     addCanvasEventListeners();
 
     fabricInstance.renderAll();
@@ -1891,6 +2251,16 @@ const Editor = (node, fabric) => {
       ) {
         backgroundColorOpaque = "#ffffff"; // Default to white if no color was stored
       }
+    }
+
+    // Update foreground visibility button state if it exists
+    if (foregroundVisibilityButton && foregroundLayer) {
+      foregroundVisibilityButton.textContent = foregroundIsVisible
+        ? "👁"
+        : "👁‍🗨";
+      foregroundVisibilityButton.style.backgroundColor = foregroundIsVisible
+        ? COLOR_BUTTON_BG
+        : COLOR_BUTTON_DISABLED;
     }
   };
 
@@ -2235,6 +2605,9 @@ const Editor = (node, fabric) => {
       }
     }
 
+    // Get foreground image filename if it exists
+    const foregroundImageName = foregroundLayer ? `fg_${node.id}.png` : null;
+
     return {
       transforms: transforms,
       bboxes: bboxes,
@@ -2246,6 +2619,7 @@ const Editor = (node, fabric) => {
       height: canvasHeight,
       padding: canvasPadding,
       backgroundColor: backgroundColor,
+      foregroundImageName: foregroundImageName,
     };
   };
 
@@ -2283,6 +2657,11 @@ const Editor = (node, fabric) => {
       // Restore background color if available
       if (data.backgroundColor !== undefined) {
         backgroundColor = data.backgroundColor;
+      }
+
+      // Restore foreground layer if available
+      if (data.foregroundImageName) {
+        loadForegroundLayer(data.foregroundImageName);
       }
 
       // Store transforms for pending restoration
@@ -2329,6 +2708,188 @@ const Editor = (node, fabric) => {
     images[index].skewX = 0;
     // images[index].perPixelTargetFind = false;
     //  canvasInstance.preciseSelection;
+  };
+
+  const loadForegroundLayer = (fgImageName) => {
+    if (!fgImageName || !fabricInstance) return;
+
+    const fgImageUrl = `/view?filename=${encodeURIComponent(
+      fgImageName
+    )}&type=${saveFolder}&subfolder=compositor&t=${Date.now()}`;
+
+    fabric.Image.fromURL(
+      fgImageUrl,
+      (img) => {
+        // Check if image loaded successfully
+        if (!img || !img.getElement() || img.getElement().naturalWidth === 0) {
+          // Image doesn't exist or failed to load
+          return;
+        }
+
+        // Remove old foreground layer if it exists
+        if (foregroundLayer) {
+          fabricInstance.remove(foregroundLayer);
+        }
+
+        foregroundLayer = img;
+        img.set({
+          left: canvasPadding + COMPOSITION_BORDER_SIZE,
+          top: canvasPadding + COMPOSITION_BORDER_SIZE,
+          selectable: false,
+          evented: false,
+          visible: foregroundIsVisible,
+          opacity: foregroundIsVisible ? 1 : 0,
+          scaleX: 1,
+          scaleY: 1,
+        });
+        fabricInstance.add(img);
+
+        // Ensure proper z-order: FG above images but below border
+        updateCanvasZOrder();
+
+        fabricInstance.renderAll();
+      },
+      { crossOrigin: "anonymous" }
+    );
+  };
+
+  const applyEraserMarkerRemoval = async (dataUrl) => {
+    // Remove eraser marker color (254, 0, 254) and make those areas transparent
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        const ctx = canvas.getContext("2d");
+
+        ctx.drawImage(img, 0, 0);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const data = imageData.data;
+
+        // Find and remove eraser marker color pixels
+        for (let i = 0; i < data.length; i += 4) {
+          const r = data[i];
+          const g = data[i + 1];
+          const b = data[i + 2];
+          const a = data[i + 3];
+
+          // Check if pixel is the eraser marker color (254, 0, 254)
+          // Use tolerance for anti-aliasing
+          if (r > 250 && g < 10 && b > 250 && a > 0) {
+            // Make it transparent
+            data[i + 3] = 0;
+          }
+        }
+
+        ctx.putImageData(imageData, 0, 0);
+        resolve(canvas.toDataURL("image/png"));
+      };
+      img.src = dataUrl;
+    });
+  };
+
+  const initializeForegroundLayer = async () => {
+    // Try to load existing foreground drawing using simplified filename
+    const fgImageName = `fg_${node.id}.png`;
+    loadForegroundLayer(fgImageName);
+  };
+
+  const saveForegroundLayer = async () => {
+    if (!fabricInstance) return;
+
+    // Export only the drawing layer (excluding composition area, border, and images)
+    const drawingObjects = fabricInstance
+      .getObjects()
+      .filter((obj) => obj.type === "path");
+
+    if (drawingObjects.length === 0) {
+      // No drawings, remove foreground layer if it exists
+      if (foregroundLayer) {
+        fabricInstance.remove(foregroundLayer);
+        foregroundLayer = null;
+      }
+      return;
+    }
+
+    // Check if we have any eraser strokes
+    const hasEraserStrokes = drawingObjects.some((obj) => obj.isEraserStroke);
+
+    // Create a temporary canvas for the drawing layer
+    const tempCanvas = new fabric.StaticCanvas(null, {
+      width: canvasWidth,
+      height: canvasHeight,
+    });
+
+    // Load existing foreground layer as background (to make drawing additive)
+    if (foregroundLayer) {
+      await new Promise((resolve) => {
+        foregroundLayer.clone((clonedBg) => {
+          // Position at 0,0 in temp canvas (no padding offset needed)
+          clonedBg.set({
+            left: 0,
+            top: 0,
+            scaleX: 1,
+            scaleY: 1,
+          });
+          tempCanvas.add(clonedBg);
+          resolve();
+        });
+      });
+    }
+
+    // Clone and add ALL paths to temp canvas
+    const clonePromises = drawingObjects.map((path) => {
+      return new Promise((resolve) => {
+        path.clone((cloned) => {
+          // Adjust position: subtract padding and border offset
+          cloned.set({
+            left: cloned.left - (canvasPadding + COMPOSITION_BORDER_SIZE),
+            top: cloned.top - (canvasPadding + COMPOSITION_BORDER_SIZE),
+          });
+          tempCanvas.add(cloned);
+          resolve();
+        });
+      });
+    });
+
+    await Promise.all(clonePromises);
+    tempCanvas.renderAll();
+
+    // Export as data URL
+    let dataUrl = tempCanvas.toDataURL({
+      format: "png",
+      quality: 1,
+    });
+
+    // If there were eraser strokes, remove the marker color
+    if (hasEraserStrokes) {
+      dataUrl = await applyEraserMarkerRemoval(dataUrl);
+    }
+
+    // Upload the foreground layer with simplified filename
+    const fgImageName = `fg_${node.id}.png`;
+    const blob = dataURLToBlob(dataUrl);
+    const file = new File([blob], fgImageName);
+    const body = new FormData();
+
+    body.append("image", file);
+    body.append("subfolder", STORE_FOLDER);
+    body.append("type", saveFolder);
+    body.append("overwrite", "true");
+
+    await api.fetchApi(UPLOAD_ENDPOINT, {
+      method: "POST",
+      body,
+    });
+
+    // Remove all drawing paths from canvas
+    drawingObjects.forEach((path) => {
+      fabricInstance.remove(path);
+    });
+
+    // Load the saved image as the foreground layer
+    loadForegroundLayer(fgImageName);
   };
 
   const addCanvasEventListeners = () => {
@@ -2439,6 +3000,28 @@ const Editor = (node, fabric) => {
     fabricInstance.on("object:modified", function (opt) {
       updateSizeInputs();
       saveAndUpdateSeed();
+    });
+
+    // Save when user draws on foreground layer
+    fabricInstance.on("path:created", function (opt) {
+      // Tag the path with current brush mode for processing during save
+      if (opt.path) {
+        opt.path.set({
+          selectable: false,
+          evented: false,
+          isEraserStroke: brushMode === "eraser",
+        });
+      }
+
+      // Debounce the save
+      if (colorChangeDebounceTimeout) {
+        clearTimeout(colorChangeDebounceTimeout);
+      }
+      colorChangeDebounceTimeout = setTimeout(async () => {
+        colorChangeDebounceTimeout = null;
+        await saveForegroundLayer();
+        saveAndUpdateSeed();
+      }, COLOR_CHANGE_DEBOUNCE_DELAY);
     });
 
     // Add keyboard navigation for selected objects

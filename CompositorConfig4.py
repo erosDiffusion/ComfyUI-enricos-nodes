@@ -190,7 +190,6 @@ class CompositorConfig4(io.ComfyNode):
             ],
             outputs=[
                 io.Custom("COMPOSITOR_CONFIG").Output(display_name="config", tooltip="Configuration object containing compositor settings and processed images with mask filenames"),
-                io.Custom("COMPOSITOR_CONFIG").Output(display_name="extendedConfig", tooltip="Extended configuration including all raw input parameters"),
             ],
             hidden=[
                 io.Hidden.prompt,
@@ -296,9 +295,12 @@ class CompositorConfig4(io.ComfyNode):
             "invertMask": invertMask,
             "saveFolder": saveFolder,
             "configSignature": hash_input,  # Hash that changes on every execution
+            # V4: Include raw tensors for layer processing
+            "raw_images": images,
+            "raw_masks": masks,
         }
         
-        return io.NodeOutput(res, all_inputs)
+        return io.NodeOutput(res)
 
     @classmethod
     def apply_mask(cls, image: torch.Tensor, alpha: torch.Tensor, invertMask=False):

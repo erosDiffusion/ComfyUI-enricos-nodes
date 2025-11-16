@@ -4,8 +4,121 @@ from comfy_execution.graph import ExecutionBlocker
 from PIL import Image, ImageOps
 import numpy as np
 import torch
+import json
 from typing_extensions import override
 from comfy_api.latest import ComfyExtension, io
+
+
+# Helper functions for tensor/PIL conversions
+def tensor2pil(image: torch.Tensor) -> Image.Image:
+    return Image.fromarray(np.clip(255. * image.cpu().numpy().squeeze(0), 0, 255).astype(np.uint8))
+
+def pil2tensor(image: Image.Image) -> torch.Tensor:
+    return torch.from_numpy(np.array(image).astype(np.float32) / 255.0).unsqueeze(0)
+
+def create_empty_mask(width, height, inverted=False):
+    """Create an empty mask tensor with specified dimensions."""
+    try:
+        value = 255 if inverted else 0
+        empty_mask = Image.new('L', (width, height), value)
+        return pil2tensor(empty_mask)
+    except Exception as e:
+        print(f"Error creating empty mask: {e}")
+        value = 255 if inverted else 0
+        fallback_mask = Image.new('L', (1, 1), value)
+        return pil2tensor(fallback_mask)
+
+def place_on_canvas(image_tensor, canvas_width, canvas_height, left, top, scale_x=1.0, scale_y=1.0, mask_tensor=None, invert_mask=True):
+    """
+    Place an image tensor on a canvas of specified dimensions at the given position.
+    Returns: Tuple of (positioned image tensor, positioned mask tensor)
+    """
+    if image_tensor is None:
+        return None, None
+        
+    try:
+        # Convert tensor to PIL for manipulation
+        pil_image = tensor2pil(image_tensor)
+        
+        # Convert to RGBA to preserve transparency
+        if pil_image.mode != 'RGBA':
+            pil_image = pil_image.convert('RGBA')
+            
+        # Create alpha channel if not already present
+        if len(pil_image.split()) < 4:
+            r, g, b = pil_image.split()
+            alpha = Image.new('L', pil_image.size, 255)
+            pil_image = Image.merge('RGBA', (r, g, b, alpha))
+            
+        # Convert mask tensor to PIL if provided
+        pil_mask = None
+        if mask_tensor is not None:
+            pil_mask = tensor2pil(mask_tensor)
+            if pil_mask.mode != 'L':
+                pil_mask = pil_mask.convert('L')
+        
+        # Apply scaling if needed
+        original_width, original_height = pil_image.size
+        if scale_x != 1.0 or scale_y != 1.0:
+            new_width = max(1, int(original_width * scale_x))
+            new_height = max(1, int(original_height * scale_y))
+            if new_width > 0 and new_height > 0:
+                pil_image = pil_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+                if pil_mask is not None:
+                    pil_mask = pil_mask.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        
+        # Create a transparent canvas for the image
+        canvas = Image.new('RGBA', (canvas_width, canvas_height), (0, 0, 0, 0))
+        
+        # Create a mask canvas
+        mask_canvas = Image.new('L', (canvas_width, canvas_height), 255 if invert_mask else 0)
+        
+        # Calculate position with integer precision
+        pos_left = int(left)
+        pos_top = int(top)
+        
+        # Paste the image onto the canvas with transparency
+        canvas.paste(pil_image, (pos_left, pos_top), pil_image.split()[3])
+        
+        # Get the dimensions of the placed image
+        placed_width = min(pil_image.width, canvas_width - pos_left) if pos_left < canvas_width else 0
+        placed_height = min(pil_image.height, canvas_height - pos_top) if pos_top < canvas_height else 0
+        
+        # Create a bounding box mask
+        if placed_width > 0 and placed_height > 0:
+            bbox_value = 0
+            bbox_rect = Image.new('L', (placed_width, placed_height), bbox_value)
+            mask_canvas.paste(bbox_rect, (pos_left, pos_top))
+        
+        # Process the input mask if provided
+        if pil_mask is not None:
+            input_mask_canvas = Image.new('L', (canvas_width, canvas_height), 0)
+            input_mask_canvas.paste(pil_mask, (pos_left, pos_top))
+            
+            if invert_mask:
+                input_mask_canvas = ImageOps.invert(input_mask_canvas)
+            
+            mask_array = np.array(mask_canvas)
+            input_mask_array = np.array(input_mask_canvas)
+            
+            if invert_mask:
+                combined_array = np.maximum(mask_array, input_mask_array)
+            else:
+                combined_array = np.minimum(mask_array, input_mask_array)
+            
+            mask_canvas = Image.fromarray(combined_array.astype(np.uint8))
+        
+        # Convert back to tensors
+        r, g, b, a = canvas.split()
+        rgb_image = Image.merge('RGB', (r, g, b))
+        
+        positioned_image_tensor = pil2tensor(rgb_image)
+        positioned_mask_tensor = pil2tensor(mask_canvas)
+        
+        return positioned_image_tensor, positioned_mask_tensor
+    except Exception as e:
+        print(f"Error placing image on canvas: {e}")
+        return image_tensor, mask_tensor
 
 
 class Compositor4(io.ComfyNode):
@@ -26,7 +139,7 @@ class Compositor4(io.ComfyNode):
             inputs=[
                 io.String.Input("fabricData", default="", multiline=False, tooltip="JSON string containing the compositor state (transforms, positions, visibility). Auto-managed by the compositor interface"),
                 io.String.Input("imageName", default="", multiline=False, tooltip="Name of the snapshot image file. Auto-generated based on graph and node ID"),
-                io.Custom("COMPOSITOR_CONFIG").Input("config", tooltip="Configuration from CompositorConfig node containing canvas size, images, masks, and settings"),
+                io.Custom("COMPOSITOR_CONFIG").Input("config", tooltip="Configuration from CompositorConfig4 containing canvas size, images, masks, raw tensors, and settings"),
             ],
             outputs=[
                 io.String.Output(display_name="fabricData_output", tooltip="Compositor state data (transforms, positions, etc.)"),
@@ -142,16 +255,144 @@ class Compositor4(io.ComfyNode):
         # V4: Prepare transforms output (JSON string for Compositor4TransformsOut)
         transforms_output = fabricData  # fabricData already contains the transforms JSON
         
-        # V4: Prepare layer_outputs for Compositor4MasksOutput
-        # This is a dict containing individual layer images and masks
-        # For now, return empty structure - full implementation will extract layers from canvas
-        layer_outputs = {
-            "images": [],  # List of layer images as tensors
-            "masks": []    # List of layer masks as tensors
-        }
+        # V4: Process individual layer images and masks with transforms
+        rotated_images = [None] * 8
+        rotated_masks = [None] * 8
+        canvas_width = width
+        canvas_height = height
         
-        print(f"[Compositor4] Returning image successfully with transforms and layer_outputs")
-        return io.NodeOutput(fabricData, imageName, image, transforms_output, layer_outputs, ui=ui)
+        try:
+            fabric_data_parsed = json.loads(fabricData)
+            canvas_width = int(fabric_data_parsed.get("width", width))
+            canvas_height = int(fabric_data_parsed.get("height", height))
+            print(f"[Compositor4] Canvas dimensions: {canvas_width}x{canvas_height}")
+            
+            # Get transforms and bboxes arrays
+            fabric_transforms = fabric_data_parsed.get('transforms', [])
+            fabric_bboxes = fabric_data_parsed.get('bboxes', [])
+            
+            if not fabric_transforms:
+                fabric_transforms = [{} for _ in range(8)]
+            if not fabric_bboxes:
+                fabric_bboxes = [{} for _ in range(8)]
+            
+            # V4: Get raw image/mask tensors from config
+            raw_images = config.get("raw_images", [None] * 8)
+            raw_masks = config.get("raw_masks", [None] * 8)
+            
+            for idx in range(8):
+                # Get raw tensors from arrays
+                original_image_tensor = raw_images[idx] if idx < len(raw_images) else None
+                original_mask_tensor = raw_masks[idx] if idx < len(raw_masks) else None
+                
+                if original_image_tensor is not None and idx < len(fabric_transforms):
+                    # Get transformation data
+                    transform = fabric_transforms[idx]
+                    angle = transform.get('angle', 0)
+                    scale_x = transform.get('scaleX', 1.0)
+                    scale_y = transform.get('scaleY', 1.0)
+                    
+                    # Get positioning data from bboxes
+                    bbox = fabric_bboxes[idx] if idx < len(fabric_bboxes) else {'left': 0, 'top': 0}
+                    left = bbox.get('left', 0)
+                    top = bbox.get('top', 0)
+                    
+                    print(f"[Compositor4] Processing layer {idx+1}: angle={angle}, pos=({left},{top}), scale=({scale_x},{scale_y})")
+                    if original_mask_tensor is not None:
+                        print(f"[Compositor4]   - Mask found for layer {idx+1}")
+                    
+                    # Rotate if needed
+                    if angle != 0:
+                        try:
+                            pil_image = tensor2pil(original_image_tensor)
+                            rotated_pil = pil_image.rotate(-angle, expand=True, resample=Image.Resampling.BILINEAR)
+                            rotated_tensor = pil2tensor(rotated_pil)
+                            
+                            rotated_mask_tensor = None
+                            if original_mask_tensor is not None:
+                                pil_mask = tensor2pil(original_mask_tensor)
+                                rotated_pil_mask = pil_mask.rotate(-angle, expand=True, resample=Image.Resampling.BILINEAR)
+                                rotated_mask_tensor = pil2tensor(rotated_pil_mask)
+                            
+                            positioned_tensor, positioned_mask = place_on_canvas(
+                                rotated_tensor, 
+                                canvas_width, 
+                                canvas_height,
+                                left - padding,
+                                top - padding,
+                                scale_x,
+                                scale_y,
+                                rotated_mask_tensor
+                            )
+                            rotated_images[idx] = positioned_tensor
+                            rotated_masks[idx] = positioned_mask
+                        except Exception as e:
+                            print(f"[Compositor4] Error processing layer {idx+1}: {e}")
+                            positioned_tensor, positioned_mask = place_on_canvas(
+                                original_image_tensor,
+                                canvas_width,
+                                canvas_height,
+                                left,
+                                top,
+                                scale_x,
+                                scale_y,
+                                original_mask_tensor
+                            )
+                            rotated_images[idx] = positioned_tensor
+                            rotated_masks[idx] = positioned_mask
+                    else:
+                        # No rotation needed, just position and scale
+                        positioned_tensor, positioned_mask = place_on_canvas(
+                            original_image_tensor,
+                            canvas_width,
+                            canvas_height,
+                            left - padding,
+                            top - padding,
+                            scale_x,
+                            scale_y,
+                            original_mask_tensor
+                        )
+                        rotated_images[idx] = positioned_tensor
+                        rotated_masks[idx] = positioned_mask
+                elif original_image_tensor is not None:
+                    # No transform data, use original
+                    rotated_images[idx] = original_image_tensor
+                    rotated_masks[idx] = original_mask_tensor
+            
+            # Replace None masks with empty masks
+            for idx in range(8):
+                if rotated_masks[idx] is None:
+                    rotated_masks[idx] = create_empty_mask(canvas_width, canvas_height)
+            
+            # Create compositor output dict
+            layer_outputs = {
+                "images": rotated_images,
+                "masks": rotated_masks,
+                "canvas_width": canvas_width,
+                "canvas_height": canvas_height
+            }
+            
+            print(f"[Compositor4] Returning image with {sum(1 for img in rotated_images if img is not None)} processed layers")
+            return io.NodeOutput(fabricData, imageName, image, transforms_output, layer_outputs, ui=ui)
+            
+        except json.JSONDecodeError:
+            print("[Compositor4] Error parsing fabricData JSON. Returning empty layer outputs.")
+            empty_output = {
+                "images": [None] * 8,
+                "masks": [create_empty_mask(canvas_width, canvas_height) for _ in range(8)],
+                "canvas_width": canvas_width,
+                "canvas_height": canvas_height
+            }
+            return io.NodeOutput(fabricData, imageName, image, transforms_output, empty_output, ui=ui)
+        except Exception as e:
+            print(f"[Compositor4] Unexpected error during layer processing: {e}")
+            empty_output = {
+                "images": [None] * 8,
+                "masks": [create_empty_mask(canvas_width, canvas_height) for _ in range(8)],
+                "canvas_width": canvas_width,
+                "canvas_height": canvas_height
+            }
+            return io.NodeOutput(fabricData, imageName, image, transforms_output, empty_output, ui=ui)
 
 
 class Compositor4Extension(ComfyExtension):

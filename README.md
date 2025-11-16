@@ -11,26 +11,26 @@ Well, This node was created to make the composition process quick and easy!
 
 With the Compositor Node you can:
 
-- **Visual Composition**: Pass up to 8 images and visually place, rotate, scale, and flip them
-- **Layer Management**: Drag-to-reorder layers, toggle visibility, preview images and masks side-by-side
-- **Bg Color**: Easily choose the background color or keep transparent!
-- **Drawing Tools**: Sketch and annotate easily with Paint/erase on foreground layer with adjustable brush (size, color, shape)
-- **Transform Controls**: Flip H/V, stretch to fit, align selected objects, rotate with precision
-- **Smart Selection**: Precise pixel-level selection mode, snap-to-grid for alignment
-- **Direct Input**: Numerical width/height boxes for exact dimensions
-- **Auto-Save**: Automatic upload when composition changes
-- **Stable assets**: well defined outputs and temporary images.
-- **Reset & Restore**: you lost your image outside of screeen: Reset All button to restore initial configuration, select and move via layers.
-- **Mode Switching**: Select/Draw/Erase modes with Ctrl+key temporary switching
-- **Memory**: Remember positions, scaling, rotations, z-index across generations and reloads
-- **Stable input names and resources**:Choose where to save inputs so they will persist reloads
-- **Buffer Zone**: Extra padding area to park assets or reach transform handles
-- **Export Area**: Clear green border indicating the exact exported region
-- **Mask Preview**: See masks in your layers
-- **Keyboard Control**: Arrow keys for precise 1px nudging (Shift for 10px)
+- **Create quick compositions**: Pass up to 8 images and visually place, rotate, scale, and flip them
+- **Manage Layers**: Drag-to-reorder layers, toggle visibility, preview images and masks side-by-side
+- **Quickly set a background color**: Easily choose the background color or keep transparent!
+- **Draw**: Sketch and annotate easily with Paint/erase on foreground layer with adjustable brush (size, color, shape)
 - **Erase while drawing**: simply ctrl+draw to erase while in draw mode
-- **Group Operations**: Multi-select and transform multiple layers together
-- **Output Options**: Export final image, and other information
+- **Transform**: Flip H/V, stretch to fit, align selected objects, rotate with precision
+- **Perform smart selections**: Precise pixel-level selection mode, snap-to-grid for alignment
+- **Do numerical transforms**: Numerical width/height boxes for exact dimensions
+- **Auto-Save your edits**: Automatic upload when composition changes
+- **Create stable assets**: well defined outputs and temporary images.
+- **Reset your canvas**: you lost your image outside of screeen: Reset All button to restore initial configuration, select and move via layers.
+
+- **Reload with no fear**: Remember positions, scaling, rotations, z-index across generations and reloads
+- **Save on resources**: Choose where to save inputs so they will persist reloads
+- **Park your assets**: Extra padding area to park assets or reach transform handles
+- **Visualize your composition**: Clear green border indicating the exact exported region
+- **Preview Masks**: See masks in your layers
+- **Precisely move with  keyboard**: Arrow keys for precise 1px nudging (Shift for 10px)
+- **Handle multiple object easily**: Multi-select and transform multiple layers together
+- **Export more than images**: Export final image, and other information
 
 ## Changelog
 

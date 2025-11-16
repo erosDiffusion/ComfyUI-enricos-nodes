@@ -279,80 +279,12 @@ const getNodeById = (nodeId) => {
   return app.graph.getNodeById(nodeId);
 };
 
-// Utility function to create styled toolbar buttons
-const createToolbarButton = (text, onClick, parent) => {
-  const button = document.createElement("button");
-  button.textContent = text;
-  applyStyles(button, {
-    height: BUTTON_HEIGHT,
-    padding: "0 12px",
-    backgroundColor: COLOR_BUTTON_BG,
-    color: COLOR_BUTTON_TEXT,
-    border: `1px solid ${COLOR_BUTTON_BORDER}`,
-    borderRadius: "4px",
-    cursor: "pointer",
-    fontSize: BUTTON_FONT_SIZE,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    whiteSpace: "nowrap",
-  });
+// Legacy wrappers for backward compatibility (use createButton instead)
+const createToolbarButton = (text, onClick, parent) =>
+  createButton({ type: "toolbar", content: text, onClick, parent });
 
-  button.onmouseover = () => {
-    button.style.backgroundColor = COLOR_BUTTON_HOVER;
-  };
-
-  button.onmouseout = () => {
-    button.style.backgroundColor = COLOR_BUTTON_BG;
-  };
-
-  button.onclick = onClick;
-
-  if (parent) {
-    parent.appendChild(button);
-  }
-
-  return button;
-};
-
-// Utility function to create square icon buttons
-const createIconButton = (icon, onClick, parent) => {
-  const button = document.createElement("button");
-  button.textContent = icon;
-  applyStyles(button, {
-    width: ICON_BUTTON_SIZE,
-    height: ICON_BUTTON_SIZE,
-    minWidth: ICON_BUTTON_SIZE,
-    minHeight: ICON_BUTTON_SIZE,
-    padding: "0",
-    backgroundColor: COLOR_BUTTON_BG,
-    color: COLOR_BUTTON_TEXT,
-    border: `1px solid ${COLOR_BUTTON_BORDER}`,
-    borderRadius: "4px",
-    cursor: "pointer",
-    fontSize: ICON_FONT_SIZE,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    lineHeight: "1",
-  });
-
-  button.onmouseover = () => {
-    button.style.backgroundColor = COLOR_BUTTON_HOVER;
-  };
-
-  button.onmouseout = () => {
-    button.style.backgroundColor = COLOR_BUTTON_BG;
-  };
-
-  button.onclick = onClick;
-
-  if (parent) {
-    parent.appendChild(button);
-  }
-
-  return button;
-};
+const createIconButton = (icon, onClick, parent) =>
+  createButton({ type: "icon", content: icon, onClick, parent });
 
 // Utility function to create toolbar separator
 const createSeparator = (parent) => {
@@ -433,6 +365,442 @@ const createSortedIndexPositionPairs = (positions, descending = false) => {
     ? pairs.sort((a, b) => b.position - a.position)
     : pairs.sort((a, b) => a.position - b.position);
 };
+
+// ============================================================================
+// REFACTORED UTILITIES (Proposals 1, 2, 5)
+// ============================================================================
+
+// Proposal 2: Style Presets
+const STYLE_PRESETS = {
+  button: {
+    height: BUTTON_HEIGHT,
+    padding: "0 12px",
+    backgroundColor: COLOR_BUTTON_BG,
+    color: COLOR_BUTTON_TEXT,
+    border: `1px solid ${COLOR_BUTTON_BORDER}`,
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontSize: BUTTON_FONT_SIZE,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    whiteSpace: "nowrap",
+  },
+  iconButton: {
+    width: ICON_BUTTON_SIZE,
+    height: ICON_BUTTON_SIZE,
+    minWidth: ICON_BUTTON_SIZE,
+    minHeight: ICON_BUTTON_SIZE,
+    padding: "0",
+    backgroundColor: COLOR_BUTTON_BG,
+    color: COLOR_BUTTON_TEXT,
+    border: `1px solid ${COLOR_BUTTON_BORDER}`,
+    borderRadius: "4px",
+    cursor: "pointer",
+    fontSize: ICON_FONT_SIZE,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    lineHeight: "1",
+  },
+  dragHandle: {
+    width: "20px",
+    height: "20px",
+    padding: "0",
+    backgroundColor: COLOR_BUTTON_BG,
+    color: COLOR_BUTTON_TEXT,
+    border: `1px solid ${COLOR_BUTTON_BORDER}`,
+    borderRadius: "3px",
+    cursor: "grab",
+    fontSize: "14px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  visibilityButton: {
+    width: "20px",
+    height: "20px",
+    padding: "0",
+    backgroundColor: COLOR_BUTTON_BG,
+    color: COLOR_BUTTON_TEXT,
+    border: `1px solid ${COLOR_BUTTON_BORDER}`,
+    borderRadius: "3px",
+    cursor: "pointer",
+    fontSize: "12px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+};
+
+// Proposal 2: Add hover behavior to button
+const addHoverBehavior = (button, getActiveState = null) => {
+  button.onmouseover = () => {
+    button.style.backgroundColor = COLOR_BUTTON_HOVER;
+  };
+  button.onmouseout = () => {
+    if (getActiveState) {
+      const isActive = getActiveState();
+      button.style.backgroundColor = isActive
+        ? COLOR_BUTTON_ACTIVE
+        : COLOR_BUTTON_BG;
+    } else {
+      button.style.backgroundColor = COLOR_BUTTON_BG;
+    }
+  };
+};
+
+// Proposal 1: Unified Button Factory
+const createButton = (config) => {
+  const {
+    type = "toolbar", // 'toolbar', 'icon', 'toggle', 'visibility', 'drag'
+    content,
+    onClick,
+    parent,
+    initialState = false,
+    onLabel = "ON",
+    offLabel = "OFF",
+    customStyles = {},
+    title = "",
+  } = config;
+
+  const button = document.createElement("button");
+  button.textContent = content;
+  if (title) button.title = title;
+
+  // Apply preset styles based on type
+  let baseStyles = {};
+  switch (type) {
+    case "icon":
+      baseStyles = STYLE_PRESETS.iconButton;
+      break;
+    case "drag":
+      baseStyles = STYLE_PRESETS.dragHandle;
+      break;
+    case "visibility":
+      baseStyles = STYLE_PRESETS.visibilityButton;
+      break;
+    case "toggle":
+      baseStyles = {
+        ...STYLE_PRESETS.button,
+        backgroundColor: initialState
+          ? COLOR_BUTTON_ACTIVE
+          : COLOR_BUTTON_DISABLED,
+      };
+      break;
+    default:
+      baseStyles = STYLE_PRESETS.button;
+  }
+
+  applyStyles(button, { ...baseStyles, ...customStyles });
+
+  // Toggle button special behavior
+  if (type === "toggle") {
+    let state = initialState;
+    const toggleHandler = () => {
+      state = !state;
+      button.textContent = state ? onLabel : offLabel;
+      button.style.backgroundColor = state
+        ? COLOR_BUTTON_ACTIVE
+        : COLOR_BUTTON_DISABLED;
+      if (onClick) onClick(state);
+    };
+    button.onclick = toggleHandler;
+    addHoverBehavior(button, () => state);
+  } else {
+    button.onclick = onClick;
+    addHoverBehavior(button);
+  }
+
+  if (parent) {
+    parent.appendChild(button);
+  }
+
+  return button;
+};
+
+// Proposal 5: Transformation Engine
+const TransformationEngine = {
+  // Helper: Apply transformation and save
+  applyAndSave: (obj, transformation, fabricInstance, saveCallback) => {
+    obj.set(transformation);
+    obj.setCoords();
+    fabricInstance.renderAll();
+    saveCallback();
+  },
+
+  // Stretch operations
+  stretch: (fabricInstance, axis, canvasDimension, saveCallback) => {
+    const activeObject = fabricInstance.getActiveObject();
+    if (!activeObject || activeObject.type === "activeSelection") return;
+
+    const currentDimension =
+      axis === "horizontal"
+        ? activeObject.getScaledWidth()
+        : activeObject.getScaledHeight();
+    const scaleFactor = canvasDimension / currentDimension;
+
+    TransformationEngine.applyAndSave(
+      activeObject,
+      {
+        scaleX: activeObject.scaleX * scaleFactor,
+        scaleY: activeObject.scaleY * scaleFactor,
+      },
+      fabricInstance,
+      saveCallback
+    );
+  },
+
+  // Equalize operations
+  equalize: (fabricInstance, axis, isImageObject, saveCallback) => {
+    const activeObject = fabricInstance.getActiveObject();
+    if (!activeObject || activeObject.type !== "activeSelection") return;
+
+    const objects = activeObject._objects.filter((obj) => isImageObject(obj));
+    if (objects.length < 2) return;
+
+    const referenceDimension =
+      axis === "horizontal"
+        ? objects[0].getScaledWidth()
+        : objects[0].getScaledHeight();
+
+    objects.forEach((obj, index) => {
+      if (index === 0) return;
+      const scale =
+        referenceDimension / (axis === "horizontal" ? obj.width : obj.height);
+      obj.set({ scaleX: scale, scaleY: scale });
+      obj.setCoords();
+    });
+
+    fabricInstance.renderAll();
+    saveCallback();
+  },
+
+  // Distribute operations
+  distribute: (
+    fabricInstance,
+    axis,
+    isImageObject,
+    snapToGrid,
+    saveCallback
+  ) => {
+    const activeObject = fabricInstance.getActiveObject();
+    if (!activeObject || activeObject.type !== "activeSelection") return;
+
+    const objects = activeObject._objects.filter((obj) => isImageObject(obj));
+    if (objects.length < 2) return;
+
+    const getCenterCoord = (obj) =>
+      axis === "horizontal" ? obj.getCenterPoint().x : obj.getCenterPoint().y;
+
+    objects.sort((a, b) => getCenterCoord(a) - getCenterCoord(b));
+
+    const firstCoord = getCenterCoord(objects[0]);
+    const lastCoord = getCenterCoord(objects[objects.length - 1]);
+    const spacing = (lastCoord - firstCoord) / (objects.length - 1);
+
+    objects.forEach((obj, index) => {
+      const newCoord = firstCoord + spacing * index;
+      const currentCoord = getCenterCoord(obj);
+      const delta = newCoord - currentCoord;
+
+      if (axis === "horizontal") {
+        obj.set({ left: snapToGrid(obj.left + delta) });
+      } else {
+        obj.set({ top: snapToGrid(obj.top + delta) });
+      }
+      obj.setCoords();
+    });
+
+    fabricInstance.renderAll();
+    saveCallback();
+  },
+
+  // Flip operations
+  flip: (fabricInstance, axis, saveCallback) => {
+    const activeObject = fabricInstance.getActiveObject();
+    if (!activeObject) return;
+
+    const originalOriginX = activeObject.originX;
+    const originalOriginY = activeObject.originY;
+
+    activeObject.set({ originX: "center", originY: "center" });
+
+    const scaleProperty = axis === "horizontal" ? "scaleX" : "scaleY";
+    activeObject.set({ [scaleProperty]: -activeObject[scaleProperty] });
+
+    activeObject.set({ originX: originalOriginX, originY: originalOriginY });
+    activeObject.setCoords();
+    fabricInstance.renderAll();
+    saveCallback();
+  },
+};
+
+// Proposal 3: Layer UI Component Factory
+const createLayerUI = (config) => {
+  const {
+    index = null,
+    type = "image", // 'image', 'foreground', 'background'
+    label,
+    isDraggable = true,
+    hasColorPicker = false,
+    icon = null,
+    onVisibilityToggle,
+    onSelect,
+    onDragStart,
+    onDragEnd,
+    onDragOver,
+    onDragLeave,
+    onDrop,
+    colorPickerValue = "#ffffff",
+  } = config;
+
+  const layerItem = document.createElement("div");
+  applyStyles(layerItem, {
+    width: "100%",
+    height: "40px",
+    backgroundColor: COLOR_BUTTON_BG,
+    border: `1px solid ${COLOR_BUTTON_BORDER}`,
+    borderRadius: "4px",
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: "5px",
+    padding: "5px",
+    boxSizing: "border-box",
+    position: "relative",
+    cursor: type === "image" ? "default" : "pointer",
+  });
+
+  // Drag handle or icon placeholder
+  let dragHandle = null;
+  if (isDraggable && type === "image") {
+    dragHandle = createButton({
+      type: "drag",
+      content: "☰",
+    });
+    dragHandle.draggable = true;
+    if (onDragStart) dragHandle.ondragstart = onDragStart;
+    if (onDragEnd) dragHandle.ondragend = onDragEnd;
+    layerItem.appendChild(dragHandle);
+
+    // Add drop handlers to layer item
+    if (onDragOver) layerItem.ondragover = onDragOver;
+    if (onDragLeave) layerItem.ondragleave = onDragLeave;
+    if (onDrop) layerItem.ondrop = onDrop;
+  } else {
+    const iconPlaceholder = document.createElement("div");
+    iconPlaceholder.textContent = icon || (type === "foreground" ? "✏" : "🖼");
+    applyStyles(iconPlaceholder, {
+      width: "20px",
+      height: "20px",
+      flexShrink: "0",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "14px",
+      color: COLOR_BUTTON_TEXT,
+    });
+    layerItem.appendChild(iconPlaceholder);
+  }
+
+  // Thumbnail or color picker
+  let thumbnail = null;
+  let colorInput = null;
+  if (hasColorPicker) {
+    thumbnail = document.createElement("div");
+    applyStyles(thumbnail, {
+      width: "30px",
+      height: "30px",
+      backgroundColor: colorPickerValue,
+      borderRadius: "2px",
+      border: "1px solid rgba(255, 255, 255, 0.3)",
+      cursor: "pointer",
+      flexShrink: "0",
+    });
+
+    colorInput = document.createElement("input");
+    colorInput.type = "color";
+    colorInput.value = colorPickerValue.startsWith("#")
+      ? colorPickerValue
+      : "#ffffff";
+    colorInput.style.display = "none";
+
+    thumbnail.onclick = () => colorInput.click();
+    layerItem.appendChild(colorInput);
+    layerItem.appendChild(thumbnail);
+  } else {
+    thumbnail = document.createElement("div");
+    applyStyles(thumbnail, {
+      width: "30px",
+      height: "30px",
+      backgroundColor: "rgba(0, 0, 0, 0.3)",
+      borderRadius: "2px",
+      backgroundSize: "contain",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "9px",
+      cursor: type === "image" || type === "foreground" ? "pointer" : "default",
+      flexShrink: "0",
+    });
+    if (type === "background") {
+      thumbnail.style.border = hasColorPicker
+        ? "1px solid rgba(255, 255, 255, 0.3)"
+        : `1px solid ${COLOR_BUTTON_BORDER}`;
+    }
+    if (onSelect && type === "image") {
+      thumbnail.onclick = onSelect;
+    }
+    layerItem.appendChild(thumbnail);
+  }
+
+  // Info container with label and visibility button
+  const infoContainer = document.createElement("div");
+  applyStyles(infoContainer, {
+    display: "flex",
+    flexDirection: "row",
+    alignItems: "center",
+    flex: "1",
+    gap: "3px",
+  });
+
+  const labelElement = document.createElement("div");
+  labelElement.textContent = label;
+  applyStyles(labelElement, {
+    color: COLOR_BUTTON_TEXT,
+    fontSize: "10px",
+    fontWeight: "bold",
+    width: type === "image" ? "auto" : "37px",
+  });
+
+  const visibilityButton = createButton({
+    type: "visibility",
+    content: "👁",
+    onClick: (e) => {
+      e.stopPropagation();
+      if (onVisibilityToggle) onVisibilityToggle();
+    },
+  });
+
+  infoContainer.appendChild(labelElement);
+  infoContainer.appendChild(visibilityButton);
+  layerItem.appendChild(infoContainer);
+
+  // Add click handler for foreground/background layers
+  if ((type === "foreground" || type === "background") && onSelect) {
+    layerItem.onclick = onSelect;
+  }
+
+  return { layerItem, thumbnail, visibilityButton, colorInput, dragHandle };
+};
+
+// ============================================================================
+// END REFACTORED UTILITIES
+// ============================================================================
 
 // Editor Component
 
@@ -528,39 +896,16 @@ const Editor = (node, fabric) => {
     offLabel,
     onChange,
     parent
-  ) => {
-    const button = createToolbarButton(
-      initialState ? onLabel : offLabel,
-      () => {
-        const newState = !initialState;
-        initialState = newState;
-        button.textContent = newState ? onLabel : offLabel;
-        button.style.backgroundColor = newState
-          ? COLOR_BUTTON_ACTIVE
-          : COLOR_BUTTON_DISABLED;
-        onChange(newState);
-      },
-      parent
-    );
-
-    // Set initial styling
-    button.style.backgroundColor = initialState
-      ? COLOR_BUTTON_ACTIVE
-      : COLOR_BUTTON_DISABLED;
-
-    // Override hover behavior
-    button.onmouseover = () => {
-      button.style.backgroundColor = COLOR_BUTTON_HOVER;
-    };
-
-    button.onmouseout = () => {
-      button.style.backgroundColor = initialState
-        ? COLOR_BUTTON_ACTIVE
-        : COLOR_BUTTON_DISABLED;
-    };
-
-    return button;
-  };
+  ) =>
+    createButton({
+      type: "toggle",
+      content: initialState ? onLabel : offLabel,
+      onClick: onChange,
+      parent,
+      initialState,
+      onLabel,
+      offLabel,
+    });
 
   // Helper function to create number input
   const createNumberInput = (labelText, parent) => {
@@ -1458,207 +1803,56 @@ const Editor = (node, fabric) => {
     };
   };
 
-  const createLayerThumbnail = (index) => {
-    const thumbnail = document.createElement("div");
-    // No need for ID - we'll store direct reference
-    applyStyles(thumbnail, {
-      width: "30px",
-      height: "30px",
-      backgroundColor: "rgba(0, 0, 0, 0.3)",
-      borderRadius: "2px",
-      backgroundSize: "contain",
-      backgroundPosition: "center",
-      backgroundRepeat: "no-repeat",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      color: COLOR_BUTTON_TEXT,
-      fontSize: "9px",
-      cursor: "pointer",
-      flexShrink: "0",
-    });
-
-    thumbnail.onclick = () => selectImageByIndex(index);
-
-    // Store reference in array
-    layerThumbnails[index] = thumbnail;
-
-    return thumbnail;
-  };
-
-  const createLayerLabel = (index) => {
-    const label = document.createElement("div");
-    label.textContent = `Image ${index + 1}`;
-    applyStyles(label, {
-      color: COLOR_BUTTON_TEXT,
-      fontSize: "10px",
-      fontWeight: "bold",
-    });
-    return label;
-  };
-
-  const createVisibilityButton = (index) => {
-    const visibilityBtn = document.createElement("button");
-    // No need for ID - we'll store direct reference
-    visibilityBtn.textContent = "👁";
-    applyStyles(visibilityBtn, {
-      width: "20px",
-      height: "20px",
-      padding: "0",
-      backgroundColor: COLOR_BUTTON_BG,
-      color: COLOR_BUTTON_TEXT,
-      border: `1px solid ${COLOR_BUTTON_BORDER}`,
-      borderRadius: "3px",
-      cursor: "pointer",
-      fontSize: "12px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    });
-
-    visibilityBtn.onclick = (e) => {
-      e.stopPropagation();
-      toggleImageVisibility(index);
-    };
-
-    visibilityBtn.onmouseover = () => {
-      visibilityBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
-    };
-
-    visibilityBtn.onmouseout = () => {
-      const isVisible = images[index] && images[index].visible !== false;
-      visibilityBtn.style.backgroundColor = isVisible
-        ? COLOR_BUTTON_BG
-        : COLOR_BUTTON_DISABLED;
-    };
-
-    // Store reference in array
-    layerVisibilityButtons[index] = visibilityBtn;
-
-    return visibilityBtn;
-  };
-
-  const createDragHandleButton = (index) => {
-    const dragBtn = document.createElement("button");
-    // No need for ID - we'll use stored references
-    dragBtn.textContent = "☰";
-    dragBtn.draggable = true;
-    applyStyles(dragBtn, {
-      width: "20px",
-      height: "20px",
-      padding: "0",
-      backgroundColor: COLOR_BUTTON_BG,
-      color: COLOR_BUTTON_TEXT,
-      border: `1px solid ${COLOR_BUTTON_BORDER}`,
-      borderRadius: "3px",
-      cursor: "grab",
-      fontSize: "14px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-    });
-
-    dragBtn.ondragstart = (e) => {
-      draggedLayerIndex = index;
-      dragBtn.style.cursor = "grabbing";
-      // Use stored reference instead of getElementById
-      if (layerItems[index]) {
-        layerItems[index].style.opacity = "0.5";
-      }
-      e.dataTransfer.effectAllowed = "move";
-    };
-
-    dragBtn.ondragend = (e) => {
-      dragBtn.style.cursor = "grab";
-      // Use stored reference instead of getElementById
-      if (layerItems[index]) {
-        layerItems[index].style.opacity = "1";
-      }
-      draggedLayerIndex = null;
-    };
-
-    dragBtn.onmouseover = () => {
-      dragBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
-    };
-
-    dragBtn.onmouseout = () => {
-      dragBtn.style.backgroundColor = COLOR_BUTTON_BG;
-    };
-
-    return dragBtn;
-  };
-
   const createLayerItem = (index) => {
-    const layerItem = document.createElement("div");
-    // No need for ID - we'll store direct reference
-    applyStyles(layerItem, {
-      width: "100%",
-      height: "40px",
-      backgroundColor: COLOR_BUTTON_BG,
-      border: `1px solid ${COLOR_BUTTON_BORDER}`,
-      borderRadius: "4px",
-      display: "flex",
-      flexDirection: "row",
-      alignItems: "center",
-      gap: "5px",
-      padding: "5px",
-      boxSizing: "border-box",
-      position: "relative",
-    });
+    const { layerItem, thumbnail, visibilityButton, dragHandle } =
+      createLayerUI({
+        index,
+        type: "image",
+        label: `Image ${index + 1}`,
+        isDraggable: true,
+        onVisibilityToggle: () => toggleImageVisibility(index),
+        onSelect: () => selectImageByIndex(index),
+        onDragStart: (e) => {
+          draggedLayerIndex = index;
+          dragHandle.style.cursor = "grabbing";
+          if (layerItems[index]) {
+            layerItems[index].style.opacity = "0.5";
+          }
+          e.dataTransfer.effectAllowed = "move";
+        },
+        onDragEnd: (e) => {
+          dragHandle.style.cursor = "grab";
+          if (layerItems[index]) {
+            layerItems[index].style.opacity = "1";
+          }
+          draggedLayerIndex = null;
+        },
+        onDragOver: (e) => {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          if (draggedLayerIndex !== null && draggedLayerIndex !== index) {
+            layerItem.style.borderColor = COLOR_BUTTON_ACTIVE;
+            layerItem.style.borderWidth = "2px";
+          }
+        },
+        onDragLeave: (e) => {
+          layerItem.style.borderColor = COLOR_BUTTON_BORDER;
+          layerItem.style.borderWidth = "1px";
+        },
+        onDrop: (e) => {
+          e.preventDefault();
+          layerItem.style.borderColor = COLOR_BUTTON_BORDER;
+          layerItem.style.borderWidth = "1px";
+          if (draggedLayerIndex !== null && draggedLayerIndex !== index) {
+            swapLayerPositions(draggedLayerIndex, index);
+          }
+        },
+      });
 
-    // Add drag and drop event handlers to the layer item
-    layerItem.ondragover = (e) => {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = "move";
-      if (draggedLayerIndex !== null && draggedLayerIndex !== index) {
-        layerItem.style.borderColor = COLOR_BUTTON_ACTIVE;
-        layerItem.style.borderWidth = "2px";
-      }
-    };
-
-    layerItem.ondragleave = (e) => {
-      layerItem.style.borderColor = COLOR_BUTTON_BORDER;
-      layerItem.style.borderWidth = "1px";
-    };
-
-    layerItem.ondrop = (e) => {
-      e.preventDefault();
-      layerItem.style.borderColor = COLOR_BUTTON_BORDER;
-      layerItem.style.borderWidth = "1px";
-
-      if (draggedLayerIndex !== null && draggedLayerIndex !== index) {
-        swapLayerPositions(draggedLayerIndex, index);
-      }
-    };
-
-    // Add drag handle button
-    const dragHandle = createDragHandleButton(index);
-    layerItem.appendChild(dragHandle);
-
-    // Add thumbnail
-    const thumbnail = createLayerThumbnail(index);
-    layerItem.appendChild(thumbnail);
-
-    // Create info and controls container
-    const infoContainer = document.createElement("div");
-    applyStyles(infoContainer, {
-      display: "flex",
-      flexDirection: "row",
-      alignItems: "center",
-      flex: "1",
-      gap: "3px",
-    });
-
-    // Add label and visibility button
-    const label = createLayerLabel(index);
-    const visibilityBtn = createVisibilityButton(index);
-
-    infoContainer.appendChild(label);
-    infoContainer.appendChild(visibilityBtn);
-    layerItem.appendChild(infoContainer);
-
-    // Store reference in array
+    // Store references in arrays
     layerItems[index] = layerItem;
+    layerThumbnails[index] = thumbnail;
+    layerVisibilityButtons[index] = visibilityButton;
 
     return layerItem;
   };
@@ -1677,365 +1871,138 @@ const Editor = (node, fabric) => {
   };
 
   const createForegroundLayer = () => {
-    // Create a fixed layer at the top for drawing
-    const layerItem = document.createElement("div");
-    applyStyles(layerItem, {
-      width: "100%",
-      height: "40px",
-      backgroundColor: COLOR_BUTTON_BG,
-      border: `1px solid ${COLOR_BUTTON_BORDER}`,
-      borderRadius: "4px",
-      display: "flex",
-      flexDirection: "row",
-      alignItems: "center",
-      gap: "5px",
-      padding: "5px",
-      boxSizing: "border-box",
-      position: "relative",
-      cursor: "pointer",
-    });
+    const { layerItem, thumbnail, visibilityButton } = createLayerUI({
+      type: "foreground",
+      label: "FG",
+      isDraggable: false,
+      icon: "✏",
+      onVisibilityToggle: () => {
+        foregroundIsVisible = !foregroundIsVisible;
 
-    // Add pencil icon as non-interactive placeholder
-    const dragPlaceholder = document.createElement("div");
-    dragPlaceholder.textContent = "✏";
-    applyStyles(dragPlaceholder, {
-      width: "20px",
-      height: "20px",
-      flexShrink: "0",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: "14px",
-      color: COLOR_BUTTON_TEXT,
-    });
-    layerItem.appendChild(dragPlaceholder);
-
-    // Add thumbnail preview (shows actual FG layer content)
-    const drawingThumbnail = document.createElement("div");
-    applyStyles(drawingThumbnail, {
-      width: "30px",
-      height: "30px",
-      backgroundColor: "rgba(0, 0, 0, 0.3)",
-      borderRadius: "2px",
-      border: `1px solid ${COLOR_BUTTON_BORDER}`,
-      cursor: "pointer",
-      flexShrink: "0",
-      backgroundSize: "contain",
-      backgroundPosition: "center",
-      backgroundRepeat: "no-repeat",
-    });
-
-    // Store reference for updating thumbnail
-    foregroundThumbnail = drawingThumbnail;
-
-    // Clicking FG layer switches to select mode
-    layerItem.onclick = () => {
-      if (typeof setToolMode === "function") {
-        setToolMode("select");
-      }
-    };
-    drawingThumbnail.onclick = (e) => {
-      e.stopPropagation();
-      if (typeof setToolMode === "function") {
-        setToolMode("select");
-      }
-    };
-
-    layerItem.appendChild(drawingThumbnail);
-
-    // Add visibility toggle button
-    const visibilityBtn = document.createElement("button");
-    visibilityBtn.textContent = "👁";
-    applyStyles(visibilityBtn, {
-      width: "20px",
-      height: "20px",
-      padding: "0",
-      backgroundColor: COLOR_BUTTON_BG,
-      color: COLOR_BUTTON_TEXT,
-      border: `1px solid ${COLOR_BUTTON_BORDER}`,
-      borderRadius: "3px",
-      cursor: "pointer",
-      fontSize: "12px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      flexShrink: "0",
-    });
-
-    visibilityBtn.onclick = (e) => {
-      e.stopPropagation();
-
-      foregroundIsVisible = !foregroundIsVisible;
-
-      if (foregroundIsVisible) {
-        visibilityBtn.textContent = "👁";
-        visibilityBtn.style.backgroundColor = COLOR_BUTTON_BG;
-        if (foregroundLayer) {
-          foregroundLayer.set({
-            visible: true,
-            opacity: 1,
-            selectable: false,
-            evented: false,
-          });
-        }
-      } else {
-        // Hide and exit drawing mode
-        visibilityBtn.textContent = "👁‍🗨";
-        visibilityBtn.style.backgroundColor = COLOR_BUTTON_DISABLED;
-        if (foregroundLayer) {
-          foregroundLayer.set({
-            visible: false,
-            opacity: 0,
-            selectable: false,
-            evented: false,
-          });
-        }
-
-        // Exit drawing mode if active
-        if (isDrawingMode) {
-          isDrawingMode = false;
-          fabricInstance.isDrawingMode = false;
-          images.forEach((img) => {
-            if (img && img.visible !== false) {
-              img.set({ selectable: true, evented: true });
-            }
-          });
-          if (foregroundLayerItem) {
-            foregroundLayerItem.style.backgroundColor = COLOR_BUTTON_BG;
+        if (foregroundIsVisible) {
+          visibilityButton.textContent = "👁";
+          visibilityButton.style.backgroundColor = COLOR_BUTTON_BG;
+          if (foregroundLayer) {
+            foregroundLayer.set({
+              visible: true,
+              opacity: 1,
+              selectable: false,
+              evented: false,
+            });
           }
-          drawingThumbnail.style.backgroundColor = COLOR_BUTTON_BG;
+        } else {
+          visibilityButton.textContent = "👁‍🗨";
+          visibilityButton.style.backgroundColor = COLOR_BUTTON_DISABLED;
+          if (foregroundLayer) {
+            foregroundLayer.set({
+              visible: false,
+              opacity: 0,
+              selectable: false,
+              evented: false,
+            });
+          }
+
+          if (isDrawingMode) {
+            isDrawingMode = false;
+            fabricInstance.isDrawingMode = false;
+            images.forEach((img) => {
+              if (img && img.visible !== false) {
+                img.set({ selectable: true, evented: true });
+              }
+            });
+            if (foregroundLayerItem) {
+              foregroundLayerItem.style.backgroundColor = COLOR_BUTTON_BG;
+            }
+            thumbnail.style.backgroundColor = COLOR_BUTTON_BG;
+          }
         }
-      }
 
-      fabricInstance.renderAll();
+        fabricInstance.renderAll();
 
-      // Save changes
-      if (colorChangeDebounceTimeout) {
-        clearTimeout(colorChangeDebounceTimeout);
-      }
-      colorChangeDebounceTimeout = setTimeout(() => {
-        colorChangeDebounceTimeout = null;
-        saveAndUpdateSeed();
-      }, COLOR_CHANGE_DEBOUNCE_DELAY);
-    };
-
-    visibilityBtn.onmouseover = () => {
-      visibilityBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
-    };
-
-    visibilityBtn.onmouseout = () => {
-      visibilityBtn.style.backgroundColor = foregroundIsVisible
-        ? COLOR_BUTTON_BG
-        : COLOR_BUTTON_DISABLED;
-    };
-
-    foregroundVisibilityButton = visibilityBtn;
-
-    // Add label
-    const infoContainer = document.createElement("div");
-    applyStyles(infoContainer, {
-      display: "flex",
-      flexDirection: "row",
-      alignItems: "center",
-      flex: "1",
-      gap: "3px",
+        if (colorChangeDebounceTimeout) {
+          clearTimeout(colorChangeDebounceTimeout);
+        }
+        colorChangeDebounceTimeout = setTimeout(() => {
+          colorChangeDebounceTimeout = null;
+          saveAndUpdateSeed();
+        }, COLOR_CHANGE_DEBOUNCE_DELAY);
+      },
+      onSelect: () => {
+        if (typeof setToolMode === "function") {
+          setToolMode("select");
+        }
+      },
     });
-
-    const label = document.createElement("div");
-    label.textContent = "FG";
-    applyStyles(label, {
-      color: COLOR_BUTTON_TEXT,
-      fontSize: "10px",
-      fontWeight: "bold",
-      width: "37px",
-    });
-
-    infoContainer.appendChild(label);
-    infoContainer.appendChild(visibilityBtn);
-    layerItem.appendChild(infoContainer);
 
     foregroundLayerItem = layerItem;
+    foregroundThumbnail = thumbnail;
+    foregroundVisibilityButton = visibilityButton;
 
     return layerItem;
   };
 
   const createBackgroundLayer = () => {
-    // Create a fixed layer at the bottom for background color control
-    const layerItem = document.createElement("div");
-    applyStyles(layerItem, {
-      width: "100%",
-      height: "40px",
-      backgroundColor: COLOR_BUTTON_BG,
-      border: `1px solid ${COLOR_BUTTON_BORDER}`,
-      borderRadius: "4px",
-      display: "flex",
-      flexDirection: "row",
-      alignItems: "center",
-      gap: "5px",
-      padding: "5px",
-      boxSizing: "border-box",
-      position: "relative",
-    });
+    const { layerItem, thumbnail, visibilityButton, colorInput } =
+      createLayerUI({
+        type: "background",
+        label: "BG",
+        isDraggable: false,
+        hasColorPicker: true,
+        icon: "🖼",
+        colorPickerValue: backgroundColor,
+        onVisibilityToggle: () => {
+          if (backgroundIsVisible) {
+            backgroundColorOpaque = backgroundColor;
+            backgroundColor = "transparent";
+            visibilityButton.textContent = "👁‍🗨";
+            visibilityButton.style.backgroundColor = COLOR_BUTTON_DISABLED;
+          } else {
+            backgroundColor = backgroundColorOpaque;
+            visibilityButton.textContent = "👁";
+            visibilityButton.style.backgroundColor = COLOR_BUTTON_BG;
+          }
 
-    // Add picture icon as non-interactive placeholder
-    const dragPlaceholder = document.createElement("div");
-    dragPlaceholder.textContent = "🖼";
-    applyStyles(dragPlaceholder, {
-      width: "20px",
-      height: "20px",
-      flexShrink: "0",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: "14px",
-    });
-    layerItem.appendChild(dragPlaceholder);
+          backgroundIsVisible = !backgroundIsVisible;
+          thumbnail.style.backgroundColor = backgroundColor;
 
-    // Add color picker thumbnail
-    const colorThumbnail = document.createElement("div");
-    applyStyles(colorThumbnail, {
-      width: "30px",
-      height: "30px",
-      backgroundColor: backgroundColor,
-      borderRadius: "2px",
-      border: "1px solid rgba(255, 255, 255, 0.3)",
-      cursor: "pointer",
-      flexShrink: "0",
-    });
+          if (compositionArea) {
+            compositionArea.set({ fill: backgroundColor });
+            fabricInstance.renderAll();
+          }
 
-    // Create hidden color input (native browser color picker)
-    const colorInput = document.createElement("input");
-    colorInput.type = "color";
-    colorInput.value = rgbaToHex(backgroundColor);
-    colorInput.style.display = "none";
+          if (colorChangeDebounceTimeout) {
+            clearTimeout(colorChangeDebounceTimeout);
+          }
+          colorChangeDebounceTimeout = setTimeout(() => {
+            colorChangeDebounceTimeout = null;
+            saveAndUpdateSeed();
+          }, COLOR_CHANGE_DEBOUNCE_DELAY);
+        },
+      });
 
-    // When color thumbnail is clicked, open the color picker
-    colorThumbnail.onclick = () => {
-      colorInput.click();
-    };
-
-    // When color changes, update the background
+    // Set up color picker input handler
     colorInput.oninput = (e) => {
       const newColor = e.target.value;
       backgroundColor = newColor;
-      colorThumbnail.style.backgroundColor = newColor;
+      thumbnail.style.backgroundColor = newColor;
 
-      // Update the composition area background
       if (compositionArea) {
         compositionArea.set({ fill: newColor });
         fabricInstance.renderAll();
       }
 
-      // Debounce the save - cancel previous timer and start new one
       if (colorChangeDebounceTimeout) {
         clearTimeout(colorChangeDebounceTimeout);
       }
-
       colorChangeDebounceTimeout = setTimeout(() => {
         colorChangeDebounceTimeout = null;
         saveAndUpdateSeed();
       }, COLOR_CHANGE_DEBOUNCE_DELAY);
     };
 
-    layerItem.appendChild(colorInput);
-    layerItem.appendChild(colorThumbnail);
-
-    // Store references for later updates
     backgroundColorInput = colorInput;
-    backgroundColorThumbnail = colorThumbnail;
-
-    // Add visibility toggle button (eye icon)
-    const visibilityBtn = document.createElement("button");
-    visibilityBtn.textContent = "👁";
-    applyStyles(visibilityBtn, {
-      width: "20px",
-      height: "20px",
-      padding: "0",
-      backgroundColor: COLOR_BUTTON_BG,
-      color: COLOR_BUTTON_TEXT,
-      border: `1px solid ${COLOR_BUTTON_BORDER}`,
-      borderRadius: "3px",
-      cursor: "pointer",
-      fontSize: "12px",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      flexShrink: "0",
-    });
-
-    visibilityBtn.onclick = (e) => {
-      e.stopPropagation();
-
-      if (backgroundIsVisible) {
-        // Hide: store current color and set to transparent
-        backgroundColorOpaque = backgroundColor;
-        backgroundColor = "transparent";
-        visibilityBtn.textContent = "👁‍🗨";
-        visibilityBtn.style.backgroundColor = COLOR_BUTTON_DISABLED;
-      } else {
-        // Show: restore the stored color
-        backgroundColor = backgroundColorOpaque;
-        visibilityBtn.textContent = "👁";
-        visibilityBtn.style.backgroundColor = COLOR_BUTTON_BG;
-      }
-
-      backgroundIsVisible = !backgroundIsVisible;
-
-      // Update thumbnail to show current state
-      colorThumbnail.style.backgroundColor = backgroundColor;
-
-      // Update the composition area background
-      if (compositionArea) {
-        compositionArea.set({ fill: backgroundColor });
-        fabricInstance.renderAll();
-      }
-
-      // Debounce the save
-      if (colorChangeDebounceTimeout) {
-        clearTimeout(colorChangeDebounceTimeout);
-      }
-
-      colorChangeDebounceTimeout = setTimeout(() => {
-        colorChangeDebounceTimeout = null;
-        saveAndUpdateSeed();
-      }, COLOR_CHANGE_DEBOUNCE_DELAY);
-    };
-
-    visibilityBtn.onmouseover = () => {
-      visibilityBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
-    };
-
-    visibilityBtn.onmouseout = () => {
-      visibilityBtn.style.backgroundColor = backgroundIsVisible
-        ? COLOR_BUTTON_BG
-        : COLOR_BUTTON_DISABLED;
-    };
-
-    // Store reference
-    backgroundVisibilityButton = visibilityBtn;
-
-    // Add label
-    const infoContainer = document.createElement("div");
-    applyStyles(infoContainer, {
-      display: "flex",
-      flexDirection: "row",
-      alignItems: "center",
-      flex: "1",
-      gap: "3px",
-    });
-
-    const label = document.createElement("div");
-    label.textContent = "BG";
-    applyStyles(label, {
-      color: COLOR_BUTTON_TEXT,
-      fontSize: "10px",
-      fontWeight: "bold",
-      width: "37px",
-    });
-
-    infoContainer.appendChild(label);
-    infoContainer.appendChild(visibilityBtn);
-    layerItem.appendChild(infoContainer);
+    backgroundColorThumbnail = thumbnail;
+    backgroundVisibilityButton = visibilityButton;
 
     return layerItem;
   };
@@ -3813,164 +3780,68 @@ const Editor = (node, fabric) => {
     return images.includes(obj);
   };
 
-  // Helper function to apply transformation and save
-  const applyTransformation = (obj, transformation) => {
-    obj.set(transformation);
-    obj.setCoords();
-    fabricInstance.renderAll();
-    saveAndUpdateSeed();
-  };
-
-  // Helper function to stretch image by dimension
-  const stretchByDimension = (targetDimension, getCurrentDimension) => {
-    const activeObject = fabricInstance.getActiveObject();
-    if (!activeObject || !isImageObject(activeObject)) {
-      return;
-    }
-
-    const currentDimension = getCurrentDimension(activeObject);
-    const scaleFactor = targetDimension / currentDimension;
-
-    applyTransformation(activeObject, {
-      scaleX: activeObject.scaleX * scaleFactor,
-      scaleY: activeObject.scaleY * scaleFactor,
-    });
-  };
-
   const stretchHorizontally = () => {
-    stretchByDimension(canvasWidth, (obj) => obj.getScaledWidth());
+    TransformationEngine.stretch(
+      fabricInstance,
+      "horizontal",
+      canvasWidth,
+      saveAndUpdateSeed
+    );
   };
 
   const stretchVertically = () => {
-    stretchByDimension(canvasHeight, (obj) => obj.getScaledHeight());
-  };
-
-  // Helper function to equalize dimension for multiple objects
-  const equalizeDimension = (getDimension) => {
-    const activeObject = fabricInstance.getActiveObject();
-    if (!activeObject || activeObject.type !== "activeSelection") {
-      return;
-    }
-
-    const objects = activeObject._objects.filter((obj) => isImageObject(obj));
-    if (objects.length < 2) {
-      return;
-    }
-
-    // Use the first object's dimension as reference
-    const referenceDimension = getDimension(objects[0]);
-
-    objects.forEach((obj, index) => {
-      if (index === 0) return; // Skip the reference object
-      const scale =
-        referenceDimension /
-        (getDimension === ((o) => o.getScaledHeight())
-          ? obj.height
-          : obj.width);
-      obj.set({
-        scaleX: scale,
-        scaleY: scale,
-      });
-      obj.setCoords();
-    });
-
-    fabricInstance.renderAll();
-    saveAndUpdateSeed();
+    TransformationEngine.stretch(
+      fabricInstance,
+      "vertical",
+      canvasHeight,
+      saveAndUpdateSeed
+    );
   };
 
   const equalizeHeight = () => {
-    equalizeDimension((obj) => obj.getScaledHeight());
+    TransformationEngine.equalize(
+      fabricInstance,
+      "vertical",
+      isImageObject,
+      saveAndUpdateSeed
+    );
   };
 
   const equalizeWidth = () => {
-    equalizeDimension((obj) => obj.getScaledWidth());
-  };
-
-  // Helper function to distribute objects along an axis
-  const distributeAlongAxis = (getCenterCoord, setPosition) => {
-    const activeObject = fabricInstance.getActiveObject();
-    if (!activeObject || activeObject.type !== "activeSelection") {
-      return;
-    }
-
-    const objects = activeObject._objects.filter((obj) => isImageObject(obj));
-    if (objects.length < 2) {
-      return;
-    }
-
-    // Sort objects by their center position
-    objects.sort((a, b) => getCenterCoord(a) - getCenterCoord(b));
-
-    const firstCoord = getCenterCoord(objects[0]);
-    const lastCoord = getCenterCoord(objects[objects.length - 1]);
-    const spacing = (lastCoord - firstCoord) / (objects.length - 1);
-
-    objects.forEach((obj, index) => {
-      const newCoord = firstCoord + spacing * index;
-      const currentCoord = getCenterCoord(obj);
-      const delta = newCoord - currentCoord;
-      setPosition(obj, delta);
-      obj.setCoords();
-    });
-
-    fabricInstance.renderAll();
-    saveAndUpdateSeed();
+    TransformationEngine.equalize(
+      fabricInstance,
+      "horizontal",
+      isImageObject,
+      saveAndUpdateSeed
+    );
   };
 
   const distributeVertically = () => {
-    distributeAlongAxis(
-      (obj) => obj.getCenterPoint().y,
-      (obj, delta) => obj.set({ top: snapToGrid(obj.top + delta) })
+    TransformationEngine.distribute(
+      fabricInstance,
+      "vertical",
+      isImageObject,
+      snapToGrid,
+      saveAndUpdateSeed
     );
   };
 
   const distributeHorizontally = () => {
-    distributeAlongAxis(
-      (obj) => obj.getCenterPoint().x,
-      (obj, delta) => obj.set({ left: snapToGrid(obj.left + delta) })
+    TransformationEngine.distribute(
+      fabricInstance,
+      "horizontal",
+      isImageObject,
+      snapToGrid,
+      saveAndUpdateSeed
     );
   };
 
-  // Helper function to flip object along axis
-  const flipAlongAxis = (scaleProperty) => {
-    const activeObject = fabricInstance.getActiveObject();
-    if (!activeObject) {
-      return;
-    }
-
-    // Store original origin settings
-    const originalOriginX = activeObject.originX;
-    const originalOriginY = activeObject.originY;
-
-    // Temporarily set origin to center for proper flipping
-    activeObject.set({
-      originX: "center",
-      originY: "center",
-    });
-
-    // Flip by inverting scale
-    const transformation = {
-      [scaleProperty]: -activeObject[scaleProperty],
-    };
-    activeObject.set(transformation);
-
-    // Restore original origin settings
-    activeObject.set({
-      originX: originalOriginX,
-      originY: originalOriginY,
-    });
-
-    activeObject.setCoords();
-    fabricInstance.renderAll();
-    saveAndUpdateSeed();
-  };
-
   const flipHorizontally = () => {
-    flipAlongAxis("scaleX");
+    TransformationEngine.flip(fabricInstance, "horizontal", saveAndUpdateSeed);
   };
 
   const flipVertically = () => {
-    flipAlongAxis("scaleY");
+    TransformationEngine.flip(fabricInstance, "vertical", saveAndUpdateSeed);
   };
 
   const setSaveFolder = (folder) => {

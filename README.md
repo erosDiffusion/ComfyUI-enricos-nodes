@@ -34,7 +34,7 @@ With the Compositor Node you can:
 
 ## Changelog
 
-- v **4.0.0 Alpha** - 16.11.2025
+- v **4.0.0 Alpha** - 16.11.2025 new gui with tools, reload and remember, refactored code.
 
 ![Compositor V4 Interface](assets/v4.png)
 

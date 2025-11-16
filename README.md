@@ -36,6 +36,8 @@ With the Compositor Node you can:
 
 - v **4.0.0 Alpha** - 16.11.2025
 
+![Compositor V4 Interface](assets/v4.png)
+
   - _major rewrite_: **Complete UI overhaul with enhanced workflow!**
   - _new feature_: **Layers Panel** - Visual layer management with thumbnails for images and masks, drag-to-reorder, visibility toggles
   - _new feature_: **Drawing Tools** - Foreground layer with brush/eraser modes, color picker, adjustable brush size and shape (circle/square)
@@ -48,7 +50,7 @@ With the Compositor Node you can:
 
   - \_Attention!!!: This is an Alpha preview, v3 still there. :
 
-  ![Compositor V4 Interface](assets/v4.png)
+  
   ![Compositor V4 Output Example](assets/v4_out.png)
 
   **Known Issues / Work in Progress:**

@@ -6,7 +6,6 @@ from .CompositorTransformsOut3 import CompositorTransformsOutV3
 from .CompositorMasksOutputV3 import CompositorMasksOutputV3
 from .CompositorColorPicker import CompositorColorPicker
 from .ImageColorSampler import ImageColorSampler
-from .Compositor3Debug import Compositor3Debug
 
 # V4 nodes - new compositor with integrated mask handling
 from .Compositor4 import Compositor4
@@ -46,7 +45,6 @@ NODE_CLASS_MAPPINGS = {
     "CompositorMasksOutputV3": CompositorMasksOutputV3,
     "CompositorColorPicker": CompositorColorPicker,
     "ImageColorSampler": ImageColorSampler,
-    "Compositor3Debug": Compositor3Debug,
     
     # V4 nodes
     "Compositor4": Compositor4,
@@ -67,7 +65,6 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CompositorMasksOutputV3": "💜 Compositor Masks Output (V3)",
     "CompositorColorPicker": "💜 Compositor Color Picker",
     "ImageColorSampler": "💜 Image Color Sampler",
-    "Compositor3Debug": "💜 Compositor Debug",
     
     # V4 nodes
     "Compositor4": "💜 Compositor V4",

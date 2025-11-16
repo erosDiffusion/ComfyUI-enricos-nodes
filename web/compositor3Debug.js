@@ -372,7 +372,8 @@ const ArrayUtils = {
   filterByType: (objects, type) => objects.filter((obj) => obj.type === type),
 
   // Filter image objects from a collection
-  filterImageObjects: (objects, imageArray) => objects.filter((obj) => imageArray.includes(obj)),
+  filterImageObjects: (objects, imageArray) =>
+    objects.filter((obj) => imageArray.includes(obj)),
 
   // Apply function to each item with optional condition
   forEachIf: (array, condition, callback) => {
@@ -386,7 +387,8 @@ const ArrayUtils = {
 
 // Legacy wrappers for backward compatibility
 const createNullArray = ArrayUtils.createNullArray;
-const createSortedIndexPositionPairs = ArrayUtils.createSortedIndexPositionPairs;
+const createSortedIndexPositionPairs =
+  ArrayUtils.createSortedIndexPositionPairs;
 
 // ============================================================================
 // REFACTORED UTILITIES (Proposals 1, 2, 5)
@@ -578,7 +580,10 @@ const TransformationEngine = {
     const activeObject = fabricInstance.getActiveObject();
     if (!activeObject || activeObject.type !== "activeSelection") return;
 
-    const objects = ArrayUtils.filterImageObjects(activeObject._objects, imageArray);
+    const objects = ArrayUtils.filterImageObjects(
+      activeObject._objects,
+      imageArray
+    );
     if (objects.length < 2) return;
 
     const referenceDimension =

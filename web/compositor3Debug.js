@@ -1335,7 +1335,7 @@ const Editor = (node, fabric) => {
 
     visibilityBtn.onclick = (e) => {
       e.stopPropagation();
-      
+
       if (backgroundIsVisible) {
         // Hide: store current color and set to transparent
         backgroundColorOpaque = backgroundColor;
@@ -1348,23 +1348,23 @@ const Editor = (node, fabric) => {
         visibilityBtn.textContent = "👁";
         visibilityBtn.style.backgroundColor = COLOR_BUTTON_BG;
       }
-      
+
       backgroundIsVisible = !backgroundIsVisible;
-      
+
       // Update thumbnail to show current state
       colorThumbnail.style.backgroundColor = backgroundColor;
-      
+
       // Update the composition area background
       if (compositionArea) {
         compositionArea.set({ fill: backgroundColor });
         fabricInstance.renderAll();
       }
-      
+
       // Debounce the save
       if (colorChangeDebounceTimeout) {
         clearTimeout(colorChangeDebounceTimeout);
       }
-      
+
       colorChangeDebounceTimeout = setTimeout(() => {
         colorChangeDebounceTimeout = null;
         saveAndUpdateSeed();
@@ -1873,17 +1873,22 @@ const Editor = (node, fabric) => {
     if (backgroundColorThumbnail) {
       backgroundColorThumbnail.style.backgroundColor = backgroundColor;
     }
-    
+
     // Update background visibility button state
     if (backgroundVisibilityButton) {
       backgroundIsVisible = backgroundColor !== "transparent";
-      backgroundVisibilityButton.textContent = backgroundIsVisible ? "👁" : "👁‍🗨";
+      backgroundVisibilityButton.textContent = backgroundIsVisible
+        ? "👁"
+        : "👁‍🗨";
       backgroundVisibilityButton.style.backgroundColor = backgroundIsVisible
         ? COLOR_BUTTON_BG
         : COLOR_BUTTON_DISABLED;
-      
+
       // If transparent, store a default opaque color for when user toggles back
-      if (!backgroundIsVisible && backgroundColorOpaque === COMPOSITION_BACKGROUND_COLOR) {
+      if (
+        !backgroundIsVisible &&
+        backgroundColorOpaque === COMPOSITION_BACKGROUND_COLOR
+      ) {
         backgroundColorOpaque = "#ffffff"; // Default to white if no color was stored
       }
     }

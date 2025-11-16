@@ -818,7 +818,7 @@ const createLayerUI = (config) => {
       // No border by default - matches image thumbnail
     });
     maskThumbnail.textContent = "M";
-    
+
     // Add click handler for mask toggle
     if (onMaskToggle) {
       maskThumbnail.onclick = (e) => {
@@ -826,7 +826,7 @@ const createLayerUI = (config) => {
         onMaskToggle(index);
       };
     }
-    
+
     layerItem.appendChild(maskThumbnail);
   }
 
@@ -1164,16 +1164,16 @@ const Editor = (node, fabric) => {
       scrollbarWidth: "none", // Firefox
       msOverflowStyle: "none", // IE/Edge
     });
-    
+
     // Hide scrollbar for Chrome/Safari/Opera
     const style = document.createElement("style");
     style.textContent = `
-      #${toolbarEl.id || 'toolbar'}::-webkit-scrollbar {
+      #${toolbarEl.id || "toolbar"}::-webkit-scrollbar {
         display: none;
       }
     `;
     document.head.appendChild(style);
-    
+
     containerEl.appendChild(toolbarEl);
 
     // Create vertical group for Save and Reset buttons
@@ -3580,7 +3580,7 @@ const Editor = (node, fabric) => {
     // Save after object is modified
     fabricInstance.on("object:modified", function (opt) {
       updateSizeInputs();
-      
+
       // Sync mask transforms in frontend clipPath mode
       if (!applyMaskInConfig && opt.target) {
         const imgIndex = images.indexOf(opt.target);
@@ -3588,7 +3588,7 @@ const Editor = (node, fabric) => {
           syncMaskWithImage(imgIndex);
         }
       }
-      
+
       saveAndUpdateSeed();
     });
 
@@ -4016,15 +4016,19 @@ const Editor = (node, fabric) => {
 
   const loadMasks = async (maskFilenames) => {
     // Load mask filenames and update layer panel previews
-    for (let index = 0; index < maskFilenames.length && index < IMAGE_COUNT; index++) {
+    for (
+      let index = 0;
+      index < maskFilenames.length && index < IMAGE_COUNT;
+      index++
+    ) {
       const maskName = maskFilenames[index];
       maskNames[index] = maskName;
-      
+
       // If in frontend clipPath mode and mask exists, load it as Fabric image
       if (!applyMaskInConfig && maskName && images[index]) {
         try {
           await loadMaskAsClipPath(index);
-          
+
           // Apply clipPath if mask is enabled
           if (maskStates[index]) {
             images[index].set({ clipPath: maskImages[index] });
@@ -4034,10 +4038,10 @@ const Editor = (node, fabric) => {
           console.error(`[Compositor4] Failed to load mask ${index}:`, error);
         }
       }
-      
+
       updateMaskThumbnail(index);
     }
-    
+
     if (fabricInstance) {
       fabricInstance.renderAll();
     }
@@ -4054,7 +4058,7 @@ const Editor = (node, fabric) => {
       )}&subfolder=${STORE_FOLDER}&type=${saveFolder}`;
       maskThumbnail.style.backgroundImage = `url(${maskUrl})`;
       maskThumbnail.textContent = ""; // Clear the "M" placeholder
-      
+
       // Update visual state based on mask enabled/disabled and mode
       if (!applyMaskInConfig) {
         // Frontend clipPath mode - show enabled/disabled state via opacity only
@@ -4077,7 +4081,7 @@ const Editor = (node, fabric) => {
   const setApplyMaskInConfig = (value) => {
     applyMaskInConfig = value;
     console.log(`[Compositor4] applyMaskInConfig set to: ${applyMaskInConfig}`);
-    
+
     // Update all mask thumbnails to reflect the mode
     for (let i = 0; i < IMAGE_COUNT; i++) {
       updateMaskThumbnail(i);
@@ -4087,7 +4091,9 @@ const Editor = (node, fabric) => {
   const toggleMaskEnabled = async (index) => {
     // Only allow toggling when in frontend clipPath mode
     if (applyMaskInConfig) {
-      console.log("[Compositor4] Mask toggling only available in frontend clipPath mode");
+      console.log(
+        "[Compositor4] Mask toggling only available in frontend clipPath mode"
+      );
       return;
     }
 
@@ -4098,7 +4104,9 @@ const Editor = (node, fabric) => {
 
     // Toggle the mask state
     maskStates[index] = !maskStates[index];
-    console.log(`[Compositor4] Toggled mask for layer ${index + 1}: ${maskStates[index]}`);
+    console.log(
+      `[Compositor4] Toggled mask for layer ${index + 1}: ${maskStates[index]}`
+    );
 
     // Apply or remove clipPath from the image
     const img = images[index];
@@ -4134,7 +4142,9 @@ const Editor = (node, fabric) => {
         maskUrl,
         (maskImg) => {
           if (!maskImg) {
-            console.error(`[Compositor4] Failed to load mask for layer ${index + 1}`);
+            console.error(
+              `[Compositor4] Failed to load mask for layer ${index + 1}`
+            );
             reject(new Error("Mask load failed"));
             return;
           }

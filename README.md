@@ -1,4 +1,4 @@
-## Create complex compositions the FAST and EASY way
+## Create complex compositions the FAST and EASY way (V4 Alpha is out!)
 
 ![the compositor node](/assets/showreel1.png)
 

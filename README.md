@@ -61,6 +61,13 @@ With the Compositor Node you can:
   - Temporary remmoved mask output and advanced outputs.
   - Can be very heavy depending on the size of canvas and imported images, keep it reasonable in size. avoid importing 8 4k images in a 4k canvas...
 
+
+
+## Previous versions changelog
+
+<details>
+
+<summary><b>click here to expand</b> the changelog...</summary>
 - v **3.1.5** - 04.05.2025
   - _new feature_: **Mask outputs!** you asked for it so there you go: A new node that outputs the layers and their masks! search for the compositor masks output node and connect it to the new layer_outputs output socket. note: mask stacking (subtract top masks from the bekow ones will come later)
   - _new node_ :a new **color picker node** (specify rgb coordinates or use the eyedropper and connect the 24 bit output to connect to color inputs).
@@ -89,13 +96,6 @@ With the Compositor Node you can:
       you might need to re-select to use centering and reset
 
 ![the compositor node](/assets/v3.1.PNG)
-
-## Previous versions changelog
-
-<details>
-
-<summary><b>click here to expand</b> the changelog...</summary>
-
 - v **3.0.8** - 18.09.2024
   - _new feature_: **invert mask** option. the implementation of mask was not correct. now it's possible to invert the mask via toggle.
   - _new feature_: **angle output** the angle of rotation is now accessible in the output (and soon the bounding box x,y, width and height).
@@ -174,6 +174,9 @@ and set the security to weak (at your risk)
 - well...photoshop ** if you have it** and import via million clicks or with a plugin
 - finally use **Krita** which is good powerful and free
 - oh and Blender also has a great plugin **but you need to know/learn blender**
+- fast forward to 2025, almost 2026 now we have edit models and other goodies still... with qwen image edit and fuse lora, quick mockups are still useful
+- use as canvas for other editing tools to "direct" your scene... annotate and reframe, quickly setup a moodboard for edit models or drive animations...
+- make nice collages
 
 ### How to use
 

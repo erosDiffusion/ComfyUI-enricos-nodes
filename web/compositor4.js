@@ -3455,7 +3455,7 @@ const Editor = (node, fabric) => {
       img.onload = () => {
         foregroundLayer.setElement(img);
         fabricInstance.renderAll();
-        
+
         // Update thumbnail after layer is updated
         if (foregroundThumbnail) {
           foregroundThumbnail.style.backgroundImage = `url(${dataUrl})`;
@@ -3479,7 +3479,7 @@ const Editor = (node, fabric) => {
         fabricInstance.add(img);
         updateCanvasZOrder();
         fabricInstance.renderAll();
-        
+
         // Update thumbnail after layer is created
         if (foregroundThumbnail) {
           foregroundThumbnail.style.backgroundImage = `url(${dataUrl})`;

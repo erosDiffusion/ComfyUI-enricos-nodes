@@ -8,6 +8,12 @@ from .CompositorColorPicker import CompositorColorPicker
 from .ImageColorSampler import ImageColorSampler
 from .Compositor3Debug import Compositor3Debug
 
+# V4 nodes - new compositor with integrated mask handling
+from .Compositor4 import Compositor4
+from .CompositorConfig4 import CompositorConfig4
+from .Compositor4TransformsOut import Compositor4TransformsOut
+from .Compositor4MasksOutput import Compositor4MasksOutput
+
 # Test nodes for debugging config change detection
 from .TestNodeA import TestNodeA
 from .TestNodeB import TestNodeB
@@ -42,6 +48,12 @@ NODE_CLASS_MAPPINGS = {
     "ImageColorSampler": ImageColorSampler,
     "Compositor3Debug": Compositor3Debug,
     
+    # V4 nodes
+    "Compositor4": Compositor4,
+    "CompositorConfig4": CompositorConfig4,
+    "Compositor4TransformsOut": Compositor4TransformsOut,
+    "Compositor4MasksOutput": Compositor4MasksOutput,
+    
     # Test nodes
     "TestNodeA": TestNodeA,
     "TestNodeB": TestNodeB,
@@ -56,6 +68,12 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CompositorColorPicker": "💜 Compositor Color Picker",
     "ImageColorSampler": "💜 Image Color Sampler",
     "Compositor3Debug": "💜 Compositor Debug",
+    
+    # V4 nodes
+    "Compositor4": "💜 Compositor V4",
+    "CompositorConfig4": "💜 Compositor Config V4",
+    "Compositor4TransformsOut": "💜 Compositor Transforms Output V4",
+    "Compositor4MasksOutput": "💜 Compositor Masks Output V4",
     
     # Test nodes
     "TestNodeA": "🧪 Test Node A (Config)",

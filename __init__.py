@@ -12,6 +12,24 @@ from .Compositor3Debug import Compositor3Debug
 from .TestNodeA import TestNodeA
 from .TestNodeB import TestNodeB
 
+# Qwen Vision Language nodes
+try:
+    from .QwenVisionLoader import QwenVisionLoader, QwenVisionProcessor
+    QWEN_AVAILABLE = True
+except ImportError as e:
+    print(f"Qwen Vision nodes not available: {e}")
+    print("Install dependencies with: pip install -r requirements_qwen.txt")
+    QWEN_AVAILABLE = False
+
+# Qwen GGUF nodes (separate import for optional llama-cpp-python dependency)
+try:
+    from .QwenGGUFLoader import QwenGGUFLoader, QwenGGUFProcessor
+    QWEN_GGUF_AVAILABLE = True
+except ImportError as e:
+    print(f"Qwen GGUF nodes not available: {e}")
+    print("Install llama-cpp-python for GGUF support: pip install llama-cpp-python")
+    QWEN_GGUF_AVAILABLE = False
+
 # V1-style registration (kept for backward compatibility)
 # V3 nodes also have comfy_entrypoint() for modern registration
 NODE_CLASS_MAPPINGS = {
@@ -43,6 +61,30 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "TestNodeA": "🧪 Test Node A (Config)",
     "TestNodeB": "🧪 Test Node B (Blocker)",
 }
+
+# Add Qwen nodes if available
+if QWEN_AVAILABLE:
+    NODE_CLASS_MAPPINGS.update({
+        "QwenVisionLoader": QwenVisionLoader,
+        "QwenVisionProcessor": QwenVisionProcessor,
+    })
+    
+    NODE_DISPLAY_NAME_MAPPINGS.update({
+        "QwenVisionLoader": "💜 Qwen Vision Loader",
+        "QwenVisionProcessor": "💜 Qwen Vision Processor",
+    })
+
+# Add Qwen GGUF nodes if available
+if QWEN_GGUF_AVAILABLE:
+    NODE_CLASS_MAPPINGS.update({
+        "QwenGGUFLoader": QwenGGUFLoader,
+        "QwenGGUFProcessor": QwenGGUFProcessor,
+    })
+    
+    NODE_DISPLAY_NAME_MAPPINGS.update({
+        "QwenGGUFLoader": "💜 Qwen GGUF Loader",
+        "QwenGGUFProcessor": "💜 Qwen GGUF Processor",
+    })
 
 EXTENSION_NAME = "Enrico"
 

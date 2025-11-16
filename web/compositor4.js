@@ -87,6 +87,10 @@ function getFabricDataWidget(node) {
   return getWidget(node, "fabricData");
 }
 
+function getSeedWidget(node) {
+  return getWidget(node, "seed");
+}
+
 const initializeCustomCanvasWidget = (node) => {
   if (isCorrectType(node)) {
     // Note: Widget hiding functionality is commented out as it doesn't work as expected
@@ -1092,6 +1096,7 @@ const Editor = (node, fabric) => {
 
   const imageNameWidget = getImageNameWidget(node);
   const fabricDataWidget = getFabricDataWidget(node);
+  const seedWidget = getSeedWidget(node);
 
   // Helper function to save and update seed
   const saveAndUpdateSeed = () => {
@@ -1763,12 +1768,13 @@ const Editor = (node, fabric) => {
       display: "none",
       flexDirection: "column",
       gap: "2px",
-      minWidth: "80px",
+      maxWidth: "fit-content",
     });
     toolbarEl.appendChild(tools2Container);
 
     // Brush shape selector (circle/square) - applies to both draw and erase
     const brushShapeGroup = createVerticalButtonGroup(tools2Container);
+    brushShapeGroup.style.maxWidth = "fit-content";
 
     let circleShapeBtn, squareShapeBtn;
 
@@ -3842,8 +3848,14 @@ const Editor = (node, fabric) => {
   const updateSeedValue = (signature = false) => {
     // Store custom compositor data with a random seed to trigger update
     const compositorData = serializeCompositorData();
-    compositorData.seed = signature != false ? signature : Math.random(); // Add seed to trigger change detection
+    const seedValue = signature != false ? signature : Math.random();
+    compositorData.seed = seedValue; // Add seed to trigger change detection
     fabricDataWidget.value = JSON.stringify(compositorData);
+
+    // Update the seed widget to trigger node re-execution
+    if (seedWidget) {
+      seedWidget.value = seedValue;
+    }
   };
 
   const updateRotationSlider = () => {

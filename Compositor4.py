@@ -139,6 +139,7 @@ class Compositor4(io.ComfyNode):
             inputs=[
                 io.String.Input("fabricData", default="", multiline=False, tooltip="JSON string containing the compositor state (transforms, positions, visibility). Auto-managed by the compositor interface"),
                 io.String.Input("imageName", default="", multiline=False, tooltip="Name of the snapshot image file. Auto-generated based on graph and node ID"),
+                io.String.Input("seed", default="0", multiline=False, tooltip="Random seed value that changes on each save to trigger node re-execution. Auto-updated by the compositor interface"),
                 io.Custom("COMPOSITOR_CONFIG").Input("config", tooltip="Configuration from CompositorConfig4 containing canvas size, images, masks, raw tensors, and settings"),
             ],
             outputs=[
@@ -157,7 +158,7 @@ class Compositor4(io.ComfyNode):
 
 
     @classmethod
-    def execute(cls, fabricData, imageName, config) -> io.NodeOutput:
+    def execute(cls, fabricData, imageName, seed, config) -> io.NodeOutput:
         # Access hidden inputs via cls.hidden
         node_id = cls.hidden.unique_id if cls.hidden else None
         extra_pnginfo = cls.hidden.extra_pnginfo if cls.hidden else None

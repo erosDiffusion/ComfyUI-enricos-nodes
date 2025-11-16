@@ -1147,7 +1147,8 @@ const Editor = (node, fabric) => {
     toolbarEl = document.createElement("div");
     applyStyles(toolbarEl, {
       width: "100%",
-      minHeight: "auto",
+      minWidth: "400px",
+      minHeight: "118px",
       height: "118px",
       backgroundColor: COLOR_TOOLBAR_BG,
       display: "flex",

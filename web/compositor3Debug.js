@@ -946,17 +946,8 @@ const Editor = (node, fabric) => {
           fabricInstance &&
           fabricInstance.freeDrawingBrush
         ) {
-          if (brushMode === "eraser") {
-            // Eraser: draw with white
-            fabricInstance.freeDrawingBrush.color = "rgba(255, 255, 255, 1)";
-            fabricInstance.freeDrawingBrush.globalCompositeOperation =
-              "source-over";
-          } else {
-            // Pencil: restore normal drawing
-            fabricInstance.freeDrawingBrush.color = brushColor;
-            fabricInstance.freeDrawingBrush.globalCompositeOperation =
-              "source-over";
-          }
+          fabricInstance.freeDrawingBrush.color = brushMode === "eraser" ? "rgba(254, 0, 254, 1)" : brushColor;
+          fabricInstance.freeDrawingBrush.globalCompositeOperation = "source-over";
         }
       },
       brushControlsContainer
@@ -1414,7 +1405,7 @@ const Editor = (node, fabric) => {
       backgroundPosition: "center",
       backgroundRepeat: "no-repeat",
     });
-    
+
     // Store reference for updating thumbnail
     foregroundThumbnail = drawingThumbnail;
 

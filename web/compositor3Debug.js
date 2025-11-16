@@ -463,6 +463,7 @@ const Editor = (node, fabric) => {
   // Store references to foreground drawing layer
   let foregroundLayer = null; // Fabric image object for drawing layer
   let foregroundLayerItem = null; // UI element
+  let foregroundThumbnail = null; // Thumbnail preview element
   let foregroundVisibilityButton = null;
   let isDrawingMode = false; // Track if drawing mode is active
   let foregroundIsVisible = true; // Track if FG layer is visible
@@ -1384,31 +1385,38 @@ const Editor = (node, fabric) => {
       cursor: "pointer",
     });
 
-    // Add empty placeholder for drag handle
+    // Add pencil icon as non-interactive placeholder
     const dragPlaceholder = document.createElement("div");
+    dragPlaceholder.textContent = "✏";
     applyStyles(dragPlaceholder, {
       width: "20px",
       height: "20px",
       flexShrink: "0",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "14px",
+      color: COLOR_BUTTON_TEXT,
     });
     layerItem.appendChild(dragPlaceholder);
 
-    // Add drawing icon thumbnail
+    // Add thumbnail preview (shows actual FG layer content)
     const drawingThumbnail = document.createElement("div");
-    drawingThumbnail.textContent = "✏";
     applyStyles(drawingThumbnail, {
       width: "30px",
       height: "30px",
-      backgroundColor: COLOR_BUTTON_BG,
+      backgroundColor: "rgba(0, 0, 0, 0.3)",
       borderRadius: "2px",
       border: `1px solid ${COLOR_BUTTON_BORDER}`,
       cursor: "pointer",
       flexShrink: "0",
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: "16px",
+      backgroundSize: "contain",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
     });
+    
+    // Store reference for updating thumbnail
+    foregroundThumbnail = drawingThumbnail;
 
     // Toggle drawing mode when clicking the layer or thumbnail
     const toggleDrawingMode = () => {
@@ -1600,12 +1608,17 @@ const Editor = (node, fabric) => {
       position: "relative",
     });
 
-    // Add empty placeholder for drag handle (same size as other layers)
+    // Add picture icon as non-interactive placeholder
     const dragPlaceholder = document.createElement("div");
+    dragPlaceholder.textContent = "🖼";
     applyStyles(dragPlaceholder, {
       width: "20px",
       height: "20px",
       flexShrink: "0",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "14px",
     });
     layerItem.appendChild(dragPlaceholder);
 
@@ -2887,6 +2900,11 @@ const Editor = (node, fabric) => {
     drawingObjects.forEach((path) => {
       fabricInstance.remove(path);
     });
+
+    // Update thumbnail preview with the saved FG layer
+    if (foregroundThumbnail) {
+      foregroundThumbnail.style.backgroundImage = `url(${dataUrl})`;
+    }
 
     // Load the saved image as the foreground layer
     loadForegroundLayer(fgImageName);

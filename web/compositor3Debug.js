@@ -441,6 +441,7 @@ const Editor = (node, fabric) => {
   let isUpdatingRotationSlider = false; // Flag to prevent circular updates
   let snapEnabled = SNAP_ENABLED; // Editor property for snap to grid
   let gridSize = GRID_SIZE; // Editor property for grid size
+  let backgroundColor = COMPOSITION_BACKGROUND_COLOR; // Background color for composition area
   const IMAGE_COUNT = 9;
   let images = createNullArray(IMAGE_COUNT);
   let imagePositions = Array.from({ length: IMAGE_COUNT }, (_, i) => i); // Z-index stacking order (0=bottom, 8=top)
@@ -451,6 +452,13 @@ const Editor = (node, fabric) => {
   let layerItems = createNullArray(IMAGE_COUNT);
   let layerThumbnails = createNullArray(IMAGE_COUNT);
   let layerVisibilityButtons = createNullArray(IMAGE_COUNT);
+
+  // Store references to background layer UI elements
+  let backgroundColorInput = null;
+  let backgroundColorThumbnail = null;
+  let backgroundVisibilityButton = null;
+  let backgroundColorOpaque = COMPOSITION_BACKGROUND_COLOR; // Store the opaque color when toggling to transparent
+  let backgroundIsVisible = true; // Track if background is visible (not transparent)
 
   // Canvas dimensions - can be updated from config
   let canvasWidth = WIDTH;
@@ -467,6 +475,8 @@ const Editor = (node, fabric) => {
   let pendingSaveRequest = null;
   let saveDebounceTimeout = null;
   const SAVE_DEBOUNCE_DELAY = 15; // milliseconds
+  let colorChangeDebounceTimeout = null; // Debounce timer for background color changes
+  const COLOR_CHANGE_DEBOUNCE_DELAY = 250; // milliseconds
 
   const imageNameWidget = getImageNameWidget(node);
   const fabricDataWidget = getFabricDataWidget(node);
@@ -1224,6 +1234,202 @@ const Editor = (node, fabric) => {
     return title;
   };
 
+  const createBackgroundLayer = () => {
+    // Create a fixed layer at the bottom for background color control
+    const layerItem = document.createElement("div");
+    applyStyles(layerItem, {
+      width: "100%",
+      height: "40px",
+      backgroundColor: COLOR_BUTTON_BG,
+      border: `1px solid ${COLOR_BUTTON_BORDER}`,
+      borderRadius: "4px",
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "center",
+      gap: "5px",
+      padding: "5px",
+      boxSizing: "border-box",
+      position: "relative",
+    });
+
+    // Add empty placeholder for drag handle (same size as other layers)
+    const dragPlaceholder = document.createElement("div");
+    applyStyles(dragPlaceholder, {
+      width: "20px",
+      height: "20px",
+      flexShrink: "0",
+    });
+    layerItem.appendChild(dragPlaceholder);
+
+    // Add color picker thumbnail
+    const colorThumbnail = document.createElement("div");
+    applyStyles(colorThumbnail, {
+      width: "30px",
+      height: "30px",
+      backgroundColor: backgroundColor,
+      borderRadius: "2px",
+      border: "1px solid rgba(255, 255, 255, 0.3)",
+      cursor: "pointer",
+      flexShrink: "0",
+    });
+
+    // Create hidden color input (native browser color picker)
+    const colorInput = document.createElement("input");
+    colorInput.type = "color";
+    colorInput.value = rgbaToHex(backgroundColor);
+    colorInput.style.display = "none";
+
+    // When color thumbnail is clicked, open the color picker
+    colorThumbnail.onclick = () => {
+      colorInput.click();
+    };
+
+    // When color changes, update the background
+    colorInput.oninput = (e) => {
+      const newColor = e.target.value;
+      backgroundColor = newColor;
+      colorThumbnail.style.backgroundColor = newColor;
+
+      // Update the composition area background
+      if (compositionArea) {
+        compositionArea.set({ fill: newColor });
+        fabricInstance.renderAll();
+      }
+
+      // Debounce the save - cancel previous timer and start new one
+      if (colorChangeDebounceTimeout) {
+        clearTimeout(colorChangeDebounceTimeout);
+      }
+
+      colorChangeDebounceTimeout = setTimeout(() => {
+        colorChangeDebounceTimeout = null;
+        saveAndUpdateSeed();
+      }, COLOR_CHANGE_DEBOUNCE_DELAY);
+    };
+
+    layerItem.appendChild(colorInput);
+    layerItem.appendChild(colorThumbnail);
+
+    // Store references for later updates
+    backgroundColorInput = colorInput;
+    backgroundColorThumbnail = colorThumbnail;
+
+    // Add visibility toggle button (eye icon)
+    const visibilityBtn = document.createElement("button");
+    visibilityBtn.textContent = "👁";
+    applyStyles(visibilityBtn, {
+      width: "20px",
+      height: "20px",
+      padding: "0",
+      backgroundColor: COLOR_BUTTON_BG,
+      color: COLOR_BUTTON_TEXT,
+      border: `1px solid ${COLOR_BUTTON_BORDER}`,
+      borderRadius: "3px",
+      cursor: "pointer",
+      fontSize: "12px",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: "0",
+    });
+
+    visibilityBtn.onclick = (e) => {
+      e.stopPropagation();
+      
+      if (backgroundIsVisible) {
+        // Hide: store current color and set to transparent
+        backgroundColorOpaque = backgroundColor;
+        backgroundColor = "transparent";
+        visibilityBtn.textContent = "👁‍🗨";
+        visibilityBtn.style.backgroundColor = COLOR_BUTTON_DISABLED;
+      } else {
+        // Show: restore the stored color
+        backgroundColor = backgroundColorOpaque;
+        visibilityBtn.textContent = "👁";
+        visibilityBtn.style.backgroundColor = COLOR_BUTTON_BG;
+      }
+      
+      backgroundIsVisible = !backgroundIsVisible;
+      
+      // Update thumbnail to show current state
+      colorThumbnail.style.backgroundColor = backgroundColor;
+      
+      // Update the composition area background
+      if (compositionArea) {
+        compositionArea.set({ fill: backgroundColor });
+        fabricInstance.renderAll();
+      }
+      
+      // Debounce the save
+      if (colorChangeDebounceTimeout) {
+        clearTimeout(colorChangeDebounceTimeout);
+      }
+      
+      colorChangeDebounceTimeout = setTimeout(() => {
+        colorChangeDebounceTimeout = null;
+        saveAndUpdateSeed();
+      }, COLOR_CHANGE_DEBOUNCE_DELAY);
+    };
+
+    visibilityBtn.onmouseover = () => {
+      visibilityBtn.style.backgroundColor = COLOR_BUTTON_HOVER;
+    };
+
+    visibilityBtn.onmouseout = () => {
+      visibilityBtn.style.backgroundColor = backgroundIsVisible
+        ? COLOR_BUTTON_BG
+        : COLOR_BUTTON_DISABLED;
+    };
+
+    // Store reference
+    backgroundVisibilityButton = visibilityBtn;
+
+    // Add label
+    const infoContainer = document.createElement("div");
+    applyStyles(infoContainer, {
+      display: "flex",
+      flexDirection: "row",
+      alignItems: "center",
+      flex: "1",
+      gap: "3px",
+    });
+
+    const label = document.createElement("div");
+    label.textContent = "BG";
+    applyStyles(label, {
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "10px",
+      fontWeight: "bold",
+      width: "37px",
+    });
+
+    infoContainer.appendChild(label);
+    infoContainer.appendChild(visibilityBtn);
+    layerItem.appendChild(infoContainer);
+
+    return layerItem;
+  };
+
+  // Helper function to convert rgba/hex to hex format for color input
+  const rgbaToHex = (color) => {
+    // If already hex, return as-is
+    if (color.startsWith("#")) {
+      return color.length === 7 ? color : color.substring(0, 7);
+    }
+
+    // If rgba format, extract rgb values
+    const rgbaMatch = color.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+    if (rgbaMatch) {
+      const r = parseInt(rgbaMatch[1]);
+      const g = parseInt(rgbaMatch[2]);
+      const b = parseInt(rgbaMatch[3]);
+      return "#" + ((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1);
+    }
+
+    // Default to transparent (white)
+    return "#ffffff";
+  };
+
   const createLayersPanel = () => {
     // Create main content wrapper (canvas + layers side by side)
     const contentWrapper = document.createElement("div");
@@ -1267,6 +1473,10 @@ const Editor = (node, fabric) => {
       const layerItem = createLayerItem(index);
       layersPanelEl.appendChild(layerItem);
     });
+
+    // Add background layer at the bottom (fixed)
+    const backgroundLayer = createBackgroundLayer();
+    layersPanelEl.appendChild(backgroundLayer);
 
     contentWrapper.appendChild(layersPanelEl);
 
@@ -1481,7 +1691,7 @@ const Editor = (node, fabric) => {
     compositionArea = new fabric.Rect({
       left: canvasPadding + COMPOSITION_BORDER_SIZE,
       top: canvasPadding + COMPOSITION_BORDER_SIZE,
-      fill: COMPOSITION_BACKGROUND_COLOR,
+      fill: backgroundColor,
       width: canvasWidth,
       height: canvasHeight,
       selectable: false,
@@ -1654,6 +1864,28 @@ const Editor = (node, fabric) => {
     }
     if (gridSizeLabel) {
       gridSizeLabel.textContent = `Grid: ${gridSize}px`;
+    }
+
+    // Update background color picker and thumbnail
+    if (backgroundColorInput) {
+      backgroundColorInput.value = rgbaToHex(backgroundColor);
+    }
+    if (backgroundColorThumbnail) {
+      backgroundColorThumbnail.style.backgroundColor = backgroundColor;
+    }
+    
+    // Update background visibility button state
+    if (backgroundVisibilityButton) {
+      backgroundIsVisible = backgroundColor !== "transparent";
+      backgroundVisibilityButton.textContent = backgroundIsVisible ? "👁" : "👁‍🗨";
+      backgroundVisibilityButton.style.backgroundColor = backgroundIsVisible
+        ? COLOR_BUTTON_BG
+        : COLOR_BUTTON_DISABLED;
+      
+      // If transparent, store a default opaque color for when user toggles back
+      if (!backgroundIsVisible && backgroundColorOpaque === COMPOSITION_BACKGROUND_COLOR) {
+        backgroundColorOpaque = "#ffffff"; // Default to white if no color was stored
+      }
     }
   };
 
@@ -2008,6 +2240,7 @@ const Editor = (node, fabric) => {
       width: canvasWidth,
       height: canvasHeight,
       padding: canvasPadding,
+      backgroundColor: backgroundColor,
     };
   };
 
@@ -2040,6 +2273,11 @@ const Editor = (node, fabric) => {
 
       if (data.gridSize !== undefined) {
         gridSize = data.gridSize;
+      }
+
+      // Restore background color if available
+      if (data.backgroundColor !== undefined) {
+        backgroundColor = data.backgroundColor;
       }
 
       // Store transforms for pending restoration
@@ -2294,6 +2532,12 @@ const Editor = (node, fabric) => {
     if (saveDebounceTimeout) {
       clearTimeout(saveDebounceTimeout);
       saveDebounceTimeout = null;
+    }
+
+    // Cancel any pending color change debounced saves
+    if (colorChangeDebounceTimeout) {
+      clearTimeout(colorChangeDebounceTimeout);
+      colorChangeDebounceTimeout = null;
     }
   };
 
@@ -2627,12 +2871,13 @@ const Editor = (node, fabric) => {
             COMPOSITION_BORDER_SIZE
           );
 
-          // Update composition area
+          // Update composition area (including restored background color)
           compositionArea.set({
             left: canvasPadding + COMPOSITION_BORDER_SIZE,
             top: canvasPadding + COMPOSITION_BORDER_SIZE,
             width: canvasWidth,
             height: canvasHeight,
+            fill: backgroundColor,
           });
 
           // Update composition border

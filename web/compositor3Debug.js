@@ -486,6 +486,7 @@ const Editor = (node, fabric) => {
   let toolMode = "select"; // 'select', 'draw', or 'erase'
   let brushColor = "#ff0000"; // Red by default
   let brushWidth = 3; // 3px by default
+  let brushShape = "circle"; // 'circle' or 'square'
   let isCanvasDrawing = false; // Track if using canvas primitives for eraser
   let canvasDrawingPath = []; // Store path points for canvas drawing
   let storedSelectedLayerIndex = null; // Store layer selection when switching to draw/erase
@@ -1006,12 +1007,10 @@ const Editor = (node, fabric) => {
             fabricInstance.discardActiveObject();
           }
 
-          // Hide brush controls and separators
+          // Hide brush controls and separator
           brushControlsContainer.style.display = "none";
           brushControlsSeparator.style.display = "none";
-          eraseControlsContainer.style.display = "none";
-          eraseControlsSeparator.style.display = "none";
-          
+
           // Update layer highlights
           updateLayerSelectionHighlight();
         } else {
@@ -1044,7 +1043,7 @@ const Editor = (node, fabric) => {
 
           // Enable drawing mode
           isDrawingMode = true;
-          
+
           // Update layer highlights to show FG is active
           updateLayerSelectionHighlight();
 
@@ -1057,6 +1056,14 @@ const Editor = (node, fabric) => {
               fabricInstance.freeDrawingBrush.width = brushWidth;
               fabricInstance.freeDrawingBrush.globalCompositeOperation =
                 "source-over";
+              // Apply brush shape
+              if (brushShape === "square") {
+                fabricInstance.freeDrawingBrush.strokeLineCap = "square";
+                fabricInstance.freeDrawingBrush.strokeLineJoin = "miter";
+              } else {
+                fabricInstance.freeDrawingBrush.strokeLineCap = "round";
+                fabricInstance.freeDrawingBrush.strokeLineJoin = "round";
+              }
             }
           } else {
             // Erase mode: use canvas primitives
@@ -1067,21 +1074,17 @@ const Editor = (node, fabric) => {
           // Show brush controls and separator
           brushControlsContainer.style.display = "flex";
           brushControlsSeparator.style.display = "block";
-          
-          // Show/hide color picker based on mode
+
+          // Show/hide controls based on mode
           if (toolMode === "draw") {
             colorPickerGroup.style.display = "flex";
-          } else {
-            colorPickerGroup.style.display = "none";
-          }
-          
-          // Show erase controls only in erase mode
-          if (toolMode === "erase") {
-            eraseControlsContainer.style.display = "flex";
-            eraseControlsSeparator.style.display = "block";
-          } else {
+            brushShapeGroup.style.display = "flex";
             eraseControlsContainer.style.display = "none";
-            eraseControlsSeparator.style.display = "none";
+          } else {
+            // Erase mode
+            colorPickerGroup.style.display = "none";
+            brushShapeGroup.style.display = "none";
+            eraseControlsContainer.style.display = "flex";
           }
         }
 
@@ -1194,6 +1197,53 @@ const Editor = (node, fabric) => {
     };
     brushColorContainer.appendChild(brushColorInput);
 
+    // Row 2: Brush shape selector (circle/square) - horizontal group
+    const brushShapeGroup = createHorizontalButtonGroup(brushControlsContainer);
+    
+    let circleShapeBtn, squareShapeBtn;
+    
+    const updateBrushShapeButtons = () => {
+      circleShapeBtn.style.backgroundColor = brushShape === "circle" ? COLOR_BUTTON_ACTIVE : COLOR_BUTTON_BG;
+      squareShapeBtn.style.backgroundColor = brushShape === "square" ? COLOR_BUTTON_ACTIVE : COLOR_BUTTON_BG;
+    };
+    
+    const setBrushShape = (shape) => {
+      brushShape = shape;
+      updateBrushShapeButtons();
+      
+      // Update Fabric brush if in draw mode
+      if (toolMode === "draw" && fabricInstance && fabricInstance.freeDrawingBrush) {
+        // Fabric.js doesn't have built-in square brush, but we can simulate it
+        // by setting the brush to have sharp corners (strokeLineCap)
+        if (brushShape === "square") {
+          fabricInstance.freeDrawingBrush.strokeLineCap = "square";
+          fabricInstance.freeDrawingBrush.strokeLineJoin = "miter";
+        } else {
+          fabricInstance.freeDrawingBrush.strokeLineCap = "round";
+          fabricInstance.freeDrawingBrush.strokeLineJoin = "round";
+        }
+      }
+    };
+    
+    circleShapeBtn = createIconButton("●", () => setBrushShape("circle"), brushShapeGroup);
+    squareShapeBtn = createIconButton("■", () => setBrushShape("square"), brushShapeGroup);
+    
+    // Setup hover behavior for shape buttons
+    const setupShapeButtonHover = (btn) => {
+      btn.onmouseover = () => {
+        btn.style.backgroundColor = COLOR_BUTTON_HOVER;
+      };
+      btn.onmouseout = () => {
+        const isActive = (btn === circleShapeBtn && brushShape === "circle") ||
+                        (btn === squareShapeBtn && brushShape === "square");
+        btn.style.backgroundColor = isActive ? COLOR_BUTTON_ACTIVE : COLOR_BUTTON_BG;
+      };
+    };
+    
+    setupShapeButtonHover(circleShapeBtn);
+    setupShapeButtonHover(squareShapeBtn);
+    updateBrushShapeButtons();
+
     // Row 3: Brush width slider (stacked vertically below)
     const brushWidthLabel = document.createElement("label");
     brushWidthLabel.textContent = `Width: ${brushWidth}px`;
@@ -1233,11 +1283,7 @@ const Editor = (node, fabric) => {
     };
     brushWidthSliderContainer.appendChild(brushWidthSlider);
 
-    // Add separator before erase controls (hidden except in erase mode)
-    const eraseControlsSeparator = createSeparator(toolbarEl);
-    eraseControlsSeparator.style.display = "none";
-
-    // Create erase controls container (shown only in erase mode)
+    // Create erase-specific controls (Clear FG button) - shown above slider in erase mode
     const eraseControlsContainer = document.createElement("div");
     applyStyles(eraseControlsContainer, {
       display: "none",
@@ -1245,14 +1291,15 @@ const Editor = (node, fabric) => {
       gap: "2px",
       minWidth: "80px",
     });
-    toolbarEl.appendChild(eraseControlsContainer);
+    // Insert before the width label so it appears above the slider
+    brushControlsContainer.insertBefore(eraseControlsContainer, brushWidthLabel);
 
     // Clear button (clears entire foreground layer)
     const clearFgBtn = createToolbarButton(
       "Clear FG",
       async () => {
         if (!fabricInstance || !foregroundLayer) return;
-        
+
         // Remove all drawing paths
         const pathsToRemove = fabricInstance
           .getObjects()
@@ -1260,15 +1307,15 @@ const Editor = (node, fabric) => {
         pathsToRemove.forEach((path) => {
           fabricInstance.remove(path);
         });
-        
+
         // Clear the foreground layer image
         const emptyCanvas = document.createElement("canvas");
         emptyCanvas.width = canvasWidth;
         emptyCanvas.height = canvasHeight;
         foregroundLayer.setElement(emptyCanvas);
-        
+
         fabricInstance.renderAll();
-        
+
         // Save the cleared state
         await saveForegroundLayer();
         saveAndUpdateSeed();
@@ -1653,61 +1700,17 @@ const Editor = (node, fabric) => {
     // Store reference for updating thumbnail
     foregroundThumbnail = drawingThumbnail;
 
-    // Toggle drawing mode when clicking the layer or thumbnail
-    const toggleDrawingMode = () => {
-      if (!foregroundIsVisible) return; // Can't draw if layer is hidden
-
-      isDrawingMode = !isDrawingMode;
-
-      if (isDrawingMode) {
-        if (brushMode === "eraser") {
-          // Use canvas primitives for eraser (perfect pixel removal)
-          fabricInstance.isDrawingMode = false;
-          setupCanvasEraser();
-        } else {
-          // Use Fabric drawing mode for pencil
-          fabricInstance.isDrawingMode = true;
-          fabricInstance.freeDrawingBrush.color = brushColor;
-          fabricInstance.freeDrawingBrush.globalCompositeOperation =
-            "source-over";
-          fabricInstance.freeDrawingBrush.width = brushWidth;
-        }
-
-        // Disable selection on all other objects
-        images.forEach((img) => {
-          if (img) img.set({ selectable: false, evented: false });
-        });
-
-        // Highlight the layer
-        layerItem.style.backgroundColor = COLOR_BUTTON_ACTIVE;
-        drawingThumbnail.style.backgroundColor = COLOR_BUTTON_ACTIVE;
-
-        // Deselect any active objects
-        fabricInstance.discardActiveObject();
-      } else {
-        // Disable drawing mode
-        fabricInstance.isDrawingMode = false;
-        cleanupCanvasEraser();
-
-        // Re-enable selection on visible objects
-        images.forEach((img) => {
-          if (img && img.visible !== false) {
-            img.set({ selectable: true, evented: true });
-          }
-        });
-
-        // Remove highlight
-        layerItem.style.backgroundColor = COLOR_BUTTON_BG;
-        drawingThumbnail.style.backgroundColor = COLOR_BUTTON_BG;
+    // Clicking FG layer switches to select mode
+    layerItem.onclick = () => {
+      if (typeof setToolMode === 'function') {
+        setToolMode("select");
       }
-
-      fabricInstance.renderAll();
     };
-
-    layerItem.onclick = toggleDrawingMode;
     drawingThumbnail.onclick = (e) => {
       e.stopPropagation();
-      toggleDrawingMode();
+      if (typeof setToolMode === 'function') {
+        setToolMode("select");
+      }
     };
 
     layerItem.appendChild(drawingThumbnail);
@@ -2118,7 +2121,7 @@ const Editor = (node, fabric) => {
         layerItem.style.backgroundColor = COLOR_BUTTON_BG;
       }
     });
-    
+
     // Clear foreground layer highlight
     if (foregroundLayerItem) {
       foregroundLayerItem.style.backgroundColor = COLOR_BUTTON_BG;
@@ -2476,7 +2479,7 @@ const Editor = (node, fabric) => {
     // Ensure select mode is active by default
     // This must happen after fabricInstance and all layers are created
     setTimeout(() => {
-      if (typeof setToolMode === 'function') {
+      if (typeof setToolMode === "function") {
         setToolMode("select");
       }
     }, 100);
@@ -3473,6 +3476,14 @@ const Editor = (node, fabric) => {
                 fabricInstance.freeDrawingBrush.width = brushWidth;
                 fabricInstance.freeDrawingBrush.globalCompositeOperation =
                   "source-over";
+                // Apply brush shape
+                if (brushShape === "square") {
+                  fabricInstance.freeDrawingBrush.strokeLineCap = "square";
+                  fabricInstance.freeDrawingBrush.strokeLineJoin = "miter";
+                } else {
+                  fabricInstance.freeDrawingBrush.strokeLineCap = "round";
+                  fabricInstance.freeDrawingBrush.strokeLineJoin = "round";
+                }
               }
             } else {
               // Temporarily switch to eraser
@@ -3502,6 +3513,14 @@ const Editor = (node, fabric) => {
                 fabricInstance.freeDrawingBrush.width = brushWidth;
                 fabricInstance.freeDrawingBrush.globalCompositeOperation =
                   "source-over";
+                // Apply brush shape
+                if (brushShape === "square") {
+                  fabricInstance.freeDrawingBrush.strokeLineCap = "square";
+                  fabricInstance.freeDrawingBrush.strokeLineJoin = "miter";
+                } else {
+                  fabricInstance.freeDrawingBrush.strokeLineCap = "round";
+                  fabricInstance.freeDrawingBrush.strokeLineJoin = "round";
+                }
               }
             } else {
               // Restore eraser mode
@@ -3992,11 +4011,11 @@ const Editor = (node, fabric) => {
               }
             });
             // Ensure tool mode buttons reflect correct state
-            if (typeof updateToolModeButtons === 'function') {
+            if (typeof updateToolModeButtons === "function") {
               updateToolModeButtons();
             }
             // Update layer highlights
-            if (typeof updateLayerSelectionHighlight === 'function') {
+            if (typeof updateLayerSelectionHighlight === "function") {
               updateLayerSelectionHighlight();
             }
             fabricInstance.renderAll();

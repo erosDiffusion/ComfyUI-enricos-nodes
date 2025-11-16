@@ -177,6 +177,7 @@ class Compositor4(io.ComfyNode):
         
         padding = config.get("padding", 0)
         invertMask = config.get("invertMask", False)
+        applyMaskInConfig = config.get("applyMaskInConfig", True)
         width = config.get("width", 512)
         height = config.get("height", 512)
         config_node_id = config.get("node_id")
@@ -206,6 +207,7 @@ class Compositor4(io.ComfyNode):
             "node_id": [node_id],
             "names": names,
             "maskNames": maskNames,  # V4: Pass mask filenames to frontend
+            "applyMaskInConfig": [applyMaskInConfig],  # V4: Pass mask application mode to frontend
             "fabricData": [fabricData],
             "configSignature": [configSignature],
             "configChanged": [configChanged],

@@ -40,9 +40,9 @@ except ImportError as e:
 NODE_CLASS_MAPPINGS = {
     "Compositor3": Compositor3,
     "CompositorConfig3": CompositorConfig3,
-
     "CompositorTransformsOutV3": CompositorTransformsOutV3,
     "CompositorMasksOutputV3": CompositorMasksOutputV3,
+    # Utilities 
     "CompositorColorPicker": CompositorColorPicker,
     "ImageColorSampler": ImageColorSampler,
     
@@ -52,17 +52,15 @@ NODE_CLASS_MAPPINGS = {
     "Compositor4TransformsOut": Compositor4TransformsOut,
     "Compositor4MasksOutput": Compositor4MasksOutput,
     
-    # Test nodes
-    "TestNodeA": TestNodeA,
-    "TestNodeB": TestNodeB,
+
 }
 
 NODE_DISPLAY_NAME_MAPPINGS = {
     "Compositor3": "💜 Compositor (V3)",
     "CompositorConfig3": "💜 Compositor Config (V3)",
-
     "CompositorTransformsOutV3": "💜 Compositor Transforms Output (V3)",
     "CompositorMasksOutputV3": "💜 Compositor Masks Output (V3)",
+    # Utilities
     "CompositorColorPicker": "💜 Compositor Color Picker",
     "ImageColorSampler": "💜 Image Color Sampler",
     
@@ -71,35 +69,7 @@ NODE_DISPLAY_NAME_MAPPINGS = {
     "CompositorConfig4": "💜 Compositor Config V4",
     "Compositor4TransformsOut": "💜 Compositor Transforms Output V4",
     "Compositor4MasksOutput": "💜 Compositor Masks Output V4",
-    
-    # Test nodes
-    "TestNodeA": "🧪 Test Node A (Config)",
-    "TestNodeB": "🧪 Test Node B (Blocker)",
 }
-
-# Add Qwen nodes if available
-if QWEN_AVAILABLE:
-    NODE_CLASS_MAPPINGS.update({
-        "QwenVisionLoader": QwenVisionLoader,
-        "QwenVisionProcessor": QwenVisionProcessor,
-    })
-    
-    NODE_DISPLAY_NAME_MAPPINGS.update({
-        "QwenVisionLoader": "💜 Qwen Vision Loader",
-        "QwenVisionProcessor": "💜 Qwen Vision Processor",
-    })
-
-# Add Qwen GGUF nodes if available
-if QWEN_GGUF_AVAILABLE:
-    NODE_CLASS_MAPPINGS.update({
-        "QwenGGUFLoader": QwenGGUFLoader,
-        "QwenGGUFProcessor": QwenGGUFProcessor,
-    })
-    
-    NODE_DISPLAY_NAME_MAPPINGS.update({
-        "QwenGGUFLoader": "💜 Qwen GGUF Loader",
-        "QwenGGUFProcessor": "💜 Qwen GGUF Processor",
-    })
 
 EXTENSION_NAME = "Enrico"
 

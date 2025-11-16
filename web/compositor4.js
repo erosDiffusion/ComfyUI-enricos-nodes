@@ -228,6 +228,11 @@ function executedMessageHandler(event, a, b) {
       e.names.forEach((name, index) => editor.appendImage(name, index));
     }
 
+    // Store applyMaskInConfig mode
+    if (e.applyMaskInConfig !== undefined) {
+      editor.setApplyMaskInConfig(Boolean(e.applyMaskInConfig?.[0]));
+    }
+
     // Load mask filenames if available
     if (e.maskNames && Array.isArray(e.maskNames)) {
       editor.loadMasks(e.maskNames);
@@ -792,6 +797,7 @@ const createLayerUI = (config) => {
 
   // Mask preview (only for image layers)
   let maskThumbnail = null;
+  let onMaskToggle = config.onMaskToggle; // Callback for mask toggle
   if (type === "image") {
     maskThumbnail = document.createElement("div");
     applyStyles(maskThumbnail, {
@@ -806,12 +812,21 @@ const createLayerUI = (config) => {
       alignItems: "center",
       justifyContent: "center",
       color: COLOR_BUTTON_TEXT,
-      fontSize: "8px",
+      fontSize: "9px", // Match image thumbnail font size
+      cursor: "pointer", // Make clickable
       flexShrink: "0",
-      border: `1px solid ${COLOR_BUTTON_BORDER}`,
-      pointerEvents: "none", // Non-interactive
+      // No border by default - matches image thumbnail
     });
     maskThumbnail.textContent = "M";
+    
+    // Add click handler for mask toggle
+    if (onMaskToggle) {
+      maskThumbnail.onclick = (e) => {
+        e.stopPropagation();
+        onMaskToggle(index);
+      };
+    }
+    
     layerItem.appendChild(maskThumbnail);
   }
 
@@ -1019,7 +1034,10 @@ const Editor = (node, fabric) => {
   let backgroundColor = COMPOSITION_BACKGROUND_COLOR; // Background color for composition area
   const IMAGE_COUNT = 9;
   let images = createNullArray(IMAGE_COUNT);
+  let maskImages = createNullArray(IMAGE_COUNT); // Store Fabric mask image objects for clipPath
   let maskNames = createNullArray(IMAGE_COUNT); // Store mask filenames for each layer
+  let maskStates = Array.from({ length: IMAGE_COUNT }, () => true); // Track if mask is enabled per layer (default: true)
+  let applyMaskInConfig = true; // Global setting: true = masks applied in config (RGBA), false = frontend clipPath
   let imagePositions = Array.from({ length: IMAGE_COUNT }, (_, i) => i); // Z-index stacking order (0=bottom, 8=top)
   let draggedLayerIndex = null; // Track which layer is being dragged
   let pendingTransforms = createNullArray(IMAGE_COUNT); // Store transforms to apply during restoration
@@ -1140,7 +1158,21 @@ const Editor = (node, fabric) => {
       gap: "5px",
       position: "relative",
       boxShadow: "inset 0 0 5px rgba(0, 0, 0, 0.2)",
+      overflowX: "auto",
+      overflowY: "hidden",
+      scrollbarWidth: "none", // Firefox
+      msOverflowStyle: "none", // IE/Edge
     });
+    
+    // Hide scrollbar for Chrome/Safari/Opera
+    const style = document.createElement("style");
+    style.textContent = `
+      #${toolbarEl.id || 'toolbar'}::-webkit-scrollbar {
+        display: none;
+      }
+    `;
+    document.head.appendChild(style);
+    
     containerEl.appendChild(toolbarEl);
 
     // Create vertical group for Save and Reset buttons
@@ -1890,6 +1922,7 @@ const Editor = (node, fabric) => {
       label: `${index + 1}`,
       isDraggable: true,
       onVisibilityToggle: () => toggleImageVisibility(index),
+      onMaskToggle: (idx) => toggleMaskEnabled(idx),
       onSelect: () => selectImageByIndex(index),
       onDragStart: (e) => {
         draggedLayerIndex = index;
@@ -2974,6 +3007,8 @@ const Editor = (node, fabric) => {
       bboxes: bboxes,
       imageNames: imageNames,
       imagePositions: imagePositions,
+      maskStates: maskStates, // V4: Save mask enabled/disabled states
+      applyMaskInConfig: applyMaskInConfig, // V4: Save mask application mode
       snapEnabled: snapEnabled,
       gridSize: gridSize,
       width: canvasWidth,
@@ -3013,6 +3048,16 @@ const Editor = (node, fabric) => {
 
       if (data.gridSize !== undefined) {
         gridSize = data.gridSize;
+      }
+
+      // V4: Restore mask states if available
+      if (data.maskStates && Array.isArray(data.maskStates)) {
+        maskStates = data.maskStates.slice(); // Copy the array
+      }
+
+      // V4: Restore mask application mode if available
+      if (data.applyMaskInConfig !== undefined) {
+        applyMaskInConfig = data.applyMaskInConfig;
       }
 
       // Restore background color if available
@@ -3503,9 +3548,46 @@ const Editor = (node, fabric) => {
       updateSizeInputs();
     });
 
+    // Sync mask during transform (moving, scaling, rotating)
+    fabricInstance.on("object:moving", function (opt) {
+      if (!applyMaskInConfig && opt.target) {
+        const imgIndex = images.indexOf(opt.target);
+        if (imgIndex !== -1 && maskImages[imgIndex] && maskStates[imgIndex]) {
+          syncMaskWithImage(imgIndex);
+        }
+      }
+    });
+
+    fabricInstance.on("object:scaling", function (opt) {
+      if (!applyMaskInConfig && opt.target) {
+        const imgIndex = images.indexOf(opt.target);
+        if (imgIndex !== -1 && maskImages[imgIndex] && maskStates[imgIndex]) {
+          syncMaskWithImage(imgIndex);
+        }
+      }
+    });
+
+    fabricInstance.on("object:rotating", function (opt) {
+      if (!applyMaskInConfig && opt.target) {
+        const imgIndex = images.indexOf(opt.target);
+        if (imgIndex !== -1 && maskImages[imgIndex] && maskStates[imgIndex]) {
+          syncMaskWithImage(imgIndex);
+        }
+      }
+    });
+
     // Save after object is modified
     fabricInstance.on("object:modified", function (opt) {
       updateSizeInputs();
+      
+      // Sync mask transforms in frontend clipPath mode
+      if (!applyMaskInConfig && opt.target) {
+        const imgIndex = images.indexOf(opt.target);
+        if (imgIndex !== -1 && maskImages[imgIndex] && maskStates[imgIndex]) {
+          syncMaskWithImage(imgIndex);
+        }
+      }
+      
       saveAndUpdateSeed();
     });
 
@@ -3931,14 +4013,33 @@ const Editor = (node, fabric) => {
     saveFolder = folder;
   };
 
-  const loadMasks = (maskFilenames) => {
+  const loadMasks = async (maskFilenames) => {
     // Load mask filenames and update layer panel previews
-    maskFilenames.forEach((maskName, index) => {
-      if (index < IMAGE_COUNT) {
-        maskNames[index] = maskName;
-        updateMaskThumbnail(index);
+    for (let index = 0; index < maskFilenames.length && index < IMAGE_COUNT; index++) {
+      const maskName = maskFilenames[index];
+      maskNames[index] = maskName;
+      
+      // If in frontend clipPath mode and mask exists, load it as Fabric image
+      if (!applyMaskInConfig && maskName && images[index]) {
+        try {
+          await loadMaskAsClipPath(index);
+          
+          // Apply clipPath if mask is enabled
+          if (maskStates[index]) {
+            images[index].set({ clipPath: maskImages[index] });
+            syncMaskWithImage(index);
+          }
+        } catch (error) {
+          console.error(`[Compositor4] Failed to load mask ${index}:`, error);
+        }
       }
-    });
+      
+      updateMaskThumbnail(index);
+    }
+    
+    if (fabricInstance) {
+      fabricInstance.renderAll();
+    }
   };
 
   const updateMaskThumbnail = (index) => {
@@ -3952,11 +4053,129 @@ const Editor = (node, fabric) => {
       )}&subfolder=${STORE_FOLDER}&type=${saveFolder}`;
       maskThumbnail.style.backgroundImage = `url(${maskUrl})`;
       maskThumbnail.textContent = ""; // Clear the "M" placeholder
+      
+      // Update visual state based on mask enabled/disabled and mode
+      if (!applyMaskInConfig) {
+        // Frontend clipPath mode - show enabled/disabled state via opacity only
+        maskThumbnail.style.cursor = "pointer";
+        maskThumbnail.style.opacity = maskStates[index] ? "1" : "0.5";
+      } else {
+        // Config mode - masks already applied, non-interactive
+        maskThumbnail.style.cursor = "default";
+        maskThumbnail.style.opacity = "1";
+      }
     } else {
-      // No mask - show placeholder
+      // No mask - show same background color as preview (no M letter)
       maskThumbnail.style.backgroundImage = "none";
-      maskThumbnail.textContent = "M";
+      maskThumbnail.textContent = "";
+      maskThumbnail.style.cursor = "default";
+      maskThumbnail.style.opacity = "1";
     }
+  };
+
+  const setApplyMaskInConfig = (value) => {
+    applyMaskInConfig = value;
+    console.log(`[Compositor4] applyMaskInConfig set to: ${applyMaskInConfig}`);
+    
+    // Update all mask thumbnails to reflect the mode
+    for (let i = 0; i < IMAGE_COUNT; i++) {
+      updateMaskThumbnail(i);
+    }
+  };
+
+  const toggleMaskEnabled = async (index) => {
+    // Only allow toggling when in frontend clipPath mode
+    if (applyMaskInConfig) {
+      console.log("[Compositor4] Mask toggling only available in frontend clipPath mode");
+      return;
+    }
+
+    if (!maskNames[index]) {
+      console.log(`[Compositor4] No mask for layer ${index + 1}`);
+      return;
+    }
+
+    // Toggle the mask state
+    maskStates[index] = !maskStates[index];
+    console.log(`[Compositor4] Toggled mask for layer ${index + 1}: ${maskStates[index]}`);
+
+    // Apply or remove clipPath from the image
+    const img = images[index];
+    if (img && maskImages[index]) {
+      if (maskStates[index]) {
+        // Enable mask - apply clipPath
+        img.set({ clipPath: maskImages[index] });
+      } else {
+        // Disable mask - remove clipPath
+        img.set({ clipPath: null });
+      }
+      img.setCoords();
+      fabricInstance.renderAll();
+    }
+
+    // Update thumbnail visual state
+    updateMaskThumbnail(index);
+
+    // Save the state
+    await saveAndUpdateSeed();
+  };
+
+  const loadMaskAsClipPath = async (index) => {
+    // Load mask image from disk and create Fabric image for clipPath
+    if (!maskNames[index]) return;
+
+    const maskUrl = `/view?filename=${encodeURIComponent(
+      maskNames[index]
+    )}&subfolder=${STORE_FOLDER}&type=${saveFolder}`;
+
+    return new Promise((resolve, reject) => {
+      fabric.Image.fromURL(
+        maskUrl,
+        (maskImg) => {
+          if (!maskImg) {
+            console.error(`[Compositor4] Failed to load mask for layer ${index + 1}`);
+            reject(new Error("Mask load failed"));
+            return;
+          }
+
+          // Configure mask image
+          maskImg.set({
+            originX: "left",
+            originY: "top",
+            absolutePositioned: true, // Keep mask in absolute coordinates
+            inverted: true, // White = visible, black = hidden
+          });
+
+          // Store mask image reference
+          maskImages[index] = maskImg;
+          console.log(`[Compositor4] Loaded mask for layer ${index + 1}`);
+
+          resolve(maskImg);
+        },
+        { crossOrigin: "anonymous" }
+      );
+    });
+  };
+
+  const syncMaskWithImage = (index) => {
+    // Sync mask transform with image transform for clipPath
+    const img = images[index];
+    const mask = maskImages[index];
+
+    if (!img || !mask) return;
+
+    // Copy transforms from image to mask
+    mask.set({
+      left: img.left,
+      top: img.top,
+      scaleX: img.scaleX,
+      scaleY: img.scaleY,
+      angle: img.angle,
+      flipX: img.flipX,
+      flipY: img.flipY,
+    });
+
+    mask.setCoords();
   };
 
   const restoreState = (dataString) => {
@@ -4049,6 +4268,7 @@ const Editor = (node, fabric) => {
     selectImageByIndex,
     updateCanvasDimensions,
     setSaveFolder,
+    setApplyMaskInConfig,
     loadMasks,
     restoreState,
     cleanup,

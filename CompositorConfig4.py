@@ -206,6 +206,9 @@ class CompositorConfig4(io.ComfyNode):
         
         import random
         hash_input = str(random.random())
+        
+        # Force applyMaskInConfig to True (frontend clipPath not fully functional)
+        applyMaskInConfig = True
 
         print(f"[CompositorConfig4] execute called")
         # Access hidden inputs via cls.hidden
@@ -217,7 +220,7 @@ class CompositorConfig4(io.ComfyNode):
         all_inputs = {
             "width": width, "height": height, "padding": padding,
             "normalizeHeight": normalizeHeight, "onConfigChangedContinue": onConfigChangedContinue,
-            "invertMask": invertMask, "saveFormat": saveFormat, "saveFolder": saveFolder,
+            "invertMask": invertMask, "applyMaskInConfig": applyMaskInConfig, "saveFormat": saveFormat, "saveFolder": saveFolder,
             "configSignature": hash_input,
             "image1": image1, "mask1": mask1, "image2": image2, "mask2": mask2,
             "image3": image3, "mask3": mask3, "image4": image4, "mask4": mask4,
@@ -253,23 +256,26 @@ class CompositorConfig4(io.ComfyNode):
                 # tensor
 
                 if mask is not None:
-                    # V4: Save mask to disk before applying
+                    # V4: Save mask to disk
                     mask_filename = saveMaskToCompositorFolder(mask, node_id, index, saveFolder)
                     mask_filenames.append(mask_filename)
                     
-                    # apply the mask and return
-                    masked = cls.apply_mask(img, mask, invertMask)
-
-                    i = tensor2pil(masked[0])
-                    # Save image to disk and return filename instead of base64
-                    # Use index (0-7) for the input slot number
-                    filename = saveImageToCompositorFolder(i, node_id, index, saveFormat, saveFolder)
-                    input_images.append(filename)
+                    if applyMaskInConfig:
+                        # Mode 1: Apply mask in config (create RGBA)
+                        masked = cls.apply_mask(img, mask, invertMask)
+                        i = tensor2pil(masked[0])
+                        filename = saveImageToCompositorFolder(i, node_id, index, saveFormat, saveFolder)
+                        input_images.append(filename)
+                    else:
+                        # Mode 2: Save RGB without mask (frontend will apply via clipPath)
+                        i = tensor2pil(img)
+                        filename = saveImageToCompositorFolder(i, node_id, index, saveFormat, saveFolder)
+                        input_images.append(filename)
                 else:
                     # V4: No mask, append None to maintain index alignment
                     mask_filenames.append(None)
                     
-                    # no need to apply the mask
+                    # no mask to apply
                     i = tensor2pil(img)
                     # Save image to disk and return filename instead of base64
                     # Use index (0-7) for the input slot number
@@ -293,6 +299,7 @@ class CompositorConfig4(io.ComfyNode):
             "onConfigChangedContinue": onConfigChangedContinue,
             "normalizeHeight": normalizeHeight,
             "invertMask": invertMask,
+            "applyMaskInConfig": applyMaskInConfig,  # V4: Pass mask application mode to compositor
             "saveFolder": saveFolder,
             "configSignature": hash_input,  # Hash that changes on every execution
             # V4: Include raw tensors for layer processing

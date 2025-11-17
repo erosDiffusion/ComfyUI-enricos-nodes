@@ -166,6 +166,9 @@ and set the security to weak (at your risk)
 - be able to have image inputs that are generated on the fly in the composition
 - be able to remember sizing and position across usages/generations
 - have more room to manipulate objects around/outside the generated image
+- fast forward to 2025, almost 2026 now we have edit models and other goodies still... with qwen image edit and fuse lora, quick mockups are still useful
+- use as canvas for other editing tools to "direct" your scene... annotate and reframe, quickly setup a moodboard for edit models or drive animations...
+- make nice collages
 
 ### Alternatives ?
 
@@ -174,9 +177,9 @@ and set the security to weak (at your risk)
 - well...photoshop ** if you have it** and import via million clicks or with a plugin
 - finally use **Krita** which is good powerful and free
 - oh and Blender also has a great plugin **but you need to know/learn blender**
-- fast forward to 2025, almost 2026 now we have edit models and other goodies still... with qwen image edit and fuse lora, quick mockups are still useful
-- use as canvas for other editing tools to "direct" your scene... annotate and reframe, quickly setup a moodboard for edit models or drive animations...
-- make nice collages
+- invokeai
+- plethora of tools available in 2025 but this one is in comfy and it will get better soon :D
+
 
 ### How to use
 

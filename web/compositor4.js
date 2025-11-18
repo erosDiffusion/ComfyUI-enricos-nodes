@@ -47,6 +47,15 @@ let currentLayersToolsPopover = null;
 app.registerExtension({
   name: "Comfy.Compositor4",
 
+  settings: [
+    {
+      id: "Compositor4.popoverPosition",
+      name: "Layers/Tools Popover Position",
+      type: "hidden",
+      defaultValue: null,
+    },
+  ],
+
   async setup(app) {
     api.addEventListener("compositor4_init", executedMessageHandler);
   },
@@ -124,14 +133,16 @@ const initializeCustomCanvasWidget = (node) => {
       // Cleanup layers/tools popover
       if (node._layersToolsPopover) {
         try {
-          if (node._layersToolsPopover.matches(':popover-open')) {
+          if (node._layersToolsPopover.matches(":popover-open")) {
             node._layersToolsPopover.hidePopover();
           }
         } catch (e) {
           // Ignore if already hidden
         }
         if (node._layersToolsPopover.parentNode) {
-          node._layersToolsPopover.parentNode.removeChild(node._layersToolsPopover);
+          node._layersToolsPopover.parentNode.removeChild(
+            node._layersToolsPopover
+          );
         }
         node._layersToolsPopover = null;
       }
@@ -1185,50 +1196,68 @@ const Editor = (node, fabric) => {
       margin: "0px",
       overflow: "visible",
     });
-    
+
     // Add mouseenter event to switch popover toolbar to this node when hovering
     containerEl.addEventListener("mouseenter", () => {
       // If there's an open popover and it's not for this node, switch it
-      if (currentLayersToolsPopover && currentLayersToolsPopover._nodeRef !== node) {
+      if (
+        currentLayersToolsPopover &&
+        currentLayersToolsPopover._nodeRef !== node
+      ) {
         const currentPopover = currentLayersToolsPopover;
-        
+
         // Get this node's popover
         const thisNodePopover = node._layersToolsPopover;
-        if (thisNodePopover && thisNodePopover.matches(':popover-open')) {
+        if (thisNodePopover && thisNodePopover.matches(":popover-open")) {
           // This node's popover is already open, nothing to do
           return;
         }
-        
+
         // If this node has a popover, switch to it
         if (thisNodePopover) {
-          console.log("[Compositor4] Switching popover from node", currentPopover._nodeRef.id, "to node", node.id);
-          
+          console.log(
+            "[Compositor4] Switching popover from node",
+            currentPopover._nodeRef.id,
+            "to node",
+            node.id
+          );
+
           // Restore layers panel from previous popover
           const prevPortalState = currentPopover._portalState;
-          if (prevPortalState.layersPanelEl && prevPortalState.layersPanelOriginalParent) {
-            prevPortalState.layersPanelOriginalParent.appendChild(prevPortalState.layersPanelEl);
+          if (
+            prevPortalState.layersPanelEl &&
+            prevPortalState.layersPanelOriginalParent
+          ) {
+            prevPortalState.layersPanelOriginalParent.appendChild(
+              prevPortalState.layersPanelEl
+            );
           }
-          
+
           // Hide previous popover
           try {
-            if (currentPopover.matches(':popover-open')) {
+            if (currentPopover.matches(":popover-open")) {
               currentPopover.hidePopover();
             }
             currentPopover.style.visibility = "hidden";
           } catch (e) {
             console.warn("[Compositor4] Error hiding previous popover:", e);
           }
-          
+
           // Get layers panel from this node
-          const layersPanelEl = node.editor.getContainer().querySelector('[style*="width: 150px"]');
+          const layersPanelEl = node.editor
+            .getContainer()
+            .querySelector('[style*="width: 150px"]');
           if (layersPanelEl) {
             // Store original parent and move to popover
-            const popoverLayersContainer = thisNodePopover.querySelector('[style*="width: 150px"]');
+            const popoverLayersContainer = thisNodePopover.querySelector(
+              '[style*="width: 150px"]'
+            );
             if (popoverLayersContainer) {
-              thisNodePopover._portalState.layersPanelOriginalParent = layersPanelEl.parentNode;
+              thisNodePopover._portalState.layersPanelOriginalParent =
+                layersPanelEl.parentNode;
               thisNodePopover._portalState.layersPanelEl = layersPanelEl;
               popoverLayersContainer.appendChild(layersPanelEl);
-              
+
               // Show this node's popover
               thisNodePopover.showPopover();
               currentLayersToolsPopover = thisNodePopover;
@@ -1237,7 +1266,7 @@ const Editor = (node, fabric) => {
         }
       }
     });
-    
+
     return containerEl;
   };
 
@@ -1589,6 +1618,15 @@ const Editor = (node, fabric) => {
           tools2Container.style.display = "none";
           tools2Separator.style.display = "none";
 
+          // Hide popover draw/erase controls if they exist
+          if (
+            node._layersToolsPopover &&
+            node._layersToolsPopover._drawEraseControls
+          ) {
+            node._layersToolsPopover._drawEraseControls.container.style.display =
+              "none";
+          }
+
           // Update layer highlights
           updateLayerSelectionHighlight();
         } else {
@@ -1655,14 +1693,45 @@ const Editor = (node, fabric) => {
           tools2Container.style.display = "flex";
           tools2Separator.style.display = "block";
 
+          // Show popover draw/erase controls if they exist
+          if (
+            node._layersToolsPopover &&
+            node._layersToolsPopover._drawEraseControls
+          ) {
+            node._layersToolsPopover._drawEraseControls.container.style.display =
+              "flex";
+          }
+
           // Show/hide specific controls based on mode
           if (toolMode === "draw") {
             colorPickerGroup.style.display = "flex";
             eraseControlsContainer.style.display = "none";
+
+            // Update popover controls if they exist
+            if (
+              node._layersToolsPopover &&
+              node._layersToolsPopover._drawEraseControls
+            ) {
+              const popoverControls =
+                node._layersToolsPopover._drawEraseControls;
+              popoverControls.brushColorContainer.style.display = "flex";
+              popoverControls.clearFgBtn.style.display = "none";
+            }
           } else {
             // Erase mode
             colorPickerGroup.style.display = "none";
             eraseControlsContainer.style.display = "flex";
+
+            // Update popover controls if they exist
+            if (
+              node._layersToolsPopover &&
+              node._layersToolsPopover._drawEraseControls
+            ) {
+              const popoverControls =
+                node._layersToolsPopover._drawEraseControls;
+              popoverControls.brushColorContainer.style.display = "none";
+              popoverControls.clearFgBtn.style.display = "block";
+            }
           }
         }
 
@@ -2067,44 +2136,44 @@ const Editor = (node, fabric) => {
     const tempPopoverId = `compositor-layers-tools-temp-${Date.now()}`;
     let layersToolsPopover = document.createElement("div");
     layersToolsPopover.id = tempPopoverId;
-    
+
     // Store reference on node for init event to update
     node._layersToolsPopover = layersToolsPopover;
-    
+
     // Store node reference and state for portal behavior
     layersToolsPopover._nodeRef = node;
     layersToolsPopover._portalState = {
       layersPanelOriginalParent: null,
-      layersPanelEl: null
+      layersPanelEl: null,
     };
 
-      // Check browser support
-      if (typeof layersToolsPopover.showPopover === "function") {
-        layersToolsPopover.popover = "manual";
-      } else {
-        layersToolsPopover.setAttribute("popover", "manual");
-      }
+    // Check browser support
+    if (typeof layersToolsPopover.showPopover === "function") {
+      layersToolsPopover.popover = "manual";
+    } else {
+      layersToolsPopover.setAttribute("popover", "manual");
+    }
 
-      applyStyles(layersToolsPopover, {
-        width: "auto",
-        height: "auto",
-        maxWidth: "90vw",
-        maxHeight: "90vh",
-        padding: "0",
-        border: "2px solid #c8a2ff",
-        borderRadius: "8px",
-        backgroundColor: COLOR_TOOLBAR_BG,
-        overflow: "hidden",
-        display: "flex",
-        flexDirection: "column",
-        position: "fixed",
-        top: "50%",
-        left: "50%",
-        transform: "translate(-50%, -50%)",
-        margin: "0",
-        inset: "unset", // Override default popover positioning
-        visibility: "hidden", // Start hidden to prevent flash on creation
-      });
+    applyStyles(layersToolsPopover, {
+      width: "auto",
+      height: "auto",
+      maxWidth: "90vw",
+      maxHeight: "90vh",
+      padding: "0",
+      border: "2px solid #c8a2ff",
+      borderRadius: "8px",
+      backgroundColor: COLOR_TOOLBAR_BG,
+      overflow: "hidden",
+      display: "flex",
+      flexDirection: "column",
+      position: "fixed",
+      top: "50%",
+      left: "50%",
+      transform: "translate(-50%, -50%)",
+      margin: "0",
+      inset: "unset", // Override default popover positioning
+      visibility: "hidden", // Start hidden to prevent flash on creation
+    });
 
     const isNewPopover = true; // Always true since we create fresh popover
 
@@ -2130,38 +2199,43 @@ const Editor = (node, fabric) => {
       fontWeight: "bold",
     });
     layersToolsHeader.appendChild(layersToolsTitle);
-    
+
     // Store title reference for dynamic updates
     layersToolsPopover._titleElement = layersToolsTitle;
 
     const layersToolsCloseBtn = createIconButton("✕", (e) => {
       e.stopPropagation();
-      console.log("[Compositor4] Close button clicked for popover:", layersToolsPopover.id);
-      
+      console.log(
+        "[Compositor4] Close button clicked for popover:",
+        layersToolsPopover.id
+      );
+
       // First restore the layers panel
       const portalState = layersToolsPopover._portalState;
       if (portalState.layersPanelEl && portalState.layersPanelOriginalParent) {
-        portalState.layersPanelOriginalParent.appendChild(portalState.layersPanelEl);
+        portalState.layersPanelOriginalParent.appendChild(
+          portalState.layersPanelEl
+        );
         console.log("[Compositor4] Restored layers panel to original parent");
       }
-      
+
       // Then hide the popover
       try {
-        if (layersToolsPopover.matches(':popover-open')) {
+        if (layersToolsPopover.matches(":popover-open")) {
           layersToolsPopover.hidePopover();
         }
       } catch (err) {
         console.warn("[Compositor4] Error calling hidePopover:", err);
       }
-      
+
       // Set visibility hidden as fallback
       layersToolsPopover.style.visibility = "hidden";
-      
+
       // Clear current popover reference
       if (currentLayersToolsPopover === layersToolsPopover) {
         currentLayersToolsPopover = null;
       }
-      
+
       console.log("[Compositor4] Popover closed");
     });
     layersToolsCloseBtn.title = "Close (or press Escape)";
@@ -2178,7 +2252,7 @@ const Editor = (node, fabric) => {
         dragStartX: 0,
         dragStartY: 0,
         popoverStartX: 0,
-        popoverStartY: 0
+        popoverStartY: 0,
       };
 
       // Create and store event handlers as properties for cleanup
@@ -2211,46 +2285,68 @@ const Editor = (node, fabric) => {
           const state = layersToolsPopover._dragState;
           if (state.isDragging) {
             state.isDragging = false;
-            layersToolsPopover.querySelector("[style*='cursor']").style.cursor = "move";
-            
-            // Save position to fabricData
+            layersToolsPopover.querySelector("[style*='cursor']").style.cursor =
+              "move";
+
+            // Save position to settings
             const rect = layersToolsPopover.getBoundingClientRect();
-            const fabricData = JSON.parse(fabricDataWidget.value);
-            fabricData.popoverPosition = {
+            const position = {
               left: rect.left,
-              top: rect.top
+              top: rect.top,
             };
-            fabricDataWidget.value = JSON.stringify(fabricData);
-            console.log("[Compositor4] Saved popover position:", fabricData.popoverPosition);
+            app.extensionManager.setting
+              .set("Compositor4.popoverPosition", position)
+              .then(() => {
+                console.log("[Compositor4] Saved popover position:", position);
+              })
+              .catch((error) => {
+                console.warn(
+                  "[Compositor4] Error saving popover position:",
+                  error
+                );
+              });
           }
         },
         toggle: (event) => {
-          console.log("[Compositor4] Toggle event:", event.newState, "for popover:", layersToolsPopover.id);
+          console.log(
+            "[Compositor4] Toggle event:",
+            event.newState,
+            "for popover:",
+            layersToolsPopover.id
+          );
           if (event.newState === "open") {
             // Update title with current node ID
             const currentNode = layersToolsPopover._nodeRef;
             if (layersToolsPopover._titleElement && currentNode) {
               layersToolsPopover._titleElement.textContent = `Layers & Tools ${currentNode.id}`;
             }
-            
+
             // Restore saved position or center if no saved position
-            const fabricData = JSON.parse(fabricDataWidget.value);
-            const hasValidPosition = fabricData.popoverPosition && 
-                                    typeof fabricData.popoverPosition.left === 'number' && 
-                                    typeof fabricData.popoverPosition.top === 'number' &&
-                                    fabricData.popoverPosition.left >= 0 &&
-                                    fabricData.popoverPosition.top >= 0;
-            
+            const savedPosition = app.extensionManager.setting.get(
+              "Compositor4.popoverPosition"
+            );
+            const hasValidPosition =
+              savedPosition &&
+              typeof savedPosition.left === "number" &&
+              typeof savedPosition.top === "number" &&
+              savedPosition.left >= 0 &&
+              savedPosition.top >= 0;
+
             if (hasValidPosition) {
-              console.log("[Compositor4] Restoring popover position:", fabricData.popoverPosition);
+              console.log(
+                "[Compositor4] Restoring popover position:",
+                savedPosition
+              );
               applyStyles(layersToolsPopover, {
-                top: `${fabricData.popoverPosition.top}px`,
-                left: `${fabricData.popoverPosition.left}px`,
+                top: `${savedPosition.top}px`,
+                left: `${savedPosition.left}px`,
                 transform: "none",
                 visibility: "visible",
               });
             } else {
-              console.log("[Compositor4] No valid saved position, centering popover");
+              console.log(
+                "[Compositor4] No valid saved position, centering popover"
+              );
               applyStyles(layersToolsPopover, {
                 top: "50%",
                 left: "50%",
@@ -2258,7 +2354,7 @@ const Editor = (node, fabric) => {
                 visibility: "visible",
               });
             }
-            
+
             // Ensure visibility is set (fallback)
             layersToolsPopover.style.visibility = "visible";
             currentLayersToolsPopover = layersToolsPopover;
@@ -2271,20 +2367,32 @@ const Editor = (node, fabric) => {
               console.log("[Compositor4] Cleared current popover reference");
             }
           }
-        }
+        },
       };
 
       // Add event listeners using stored handlers
-      document.addEventListener("mousemove", layersToolsPopover._dragHandlers.mousemove);
-      document.addEventListener("mouseup", layersToolsPopover._dragHandlers.mouseup);
-      layersToolsPopover.addEventListener("toggle", layersToolsPopover._dragHandlers.toggle);
+      document.addEventListener(
+        "mousemove",
+        layersToolsPopover._dragHandlers.mousemove
+      );
+      document.addEventListener(
+        "mouseup",
+        layersToolsPopover._dragHandlers.mouseup
+      );
+      layersToolsPopover.addEventListener(
+        "toggle",
+        layersToolsPopover._dragHandlers.toggle
+      );
 
       // Mark as initialized
       layersToolsPopover.dataset.initialized = "true";
     }
 
     // Always attach mousedown to the current header (since header is recreated)
-    layersToolsHeader.addEventListener("mousedown", layersToolsPopover._dragHandlers.mousedown);
+    layersToolsHeader.addEventListener(
+      "mousedown",
+      layersToolsPopover._dragHandlers.mousedown
+    );
 
     layersToolsPopover.appendChild(layersToolsHeader);
 
@@ -2315,37 +2423,67 @@ const Editor = (node, fabric) => {
     });
 
     // Save/Reset buttons
-    verticalToolbar.appendChild(createToolbarButton("Save", (event) => updateWidgetValues(event, node)));
-    verticalToolbar.appendChild(createToolbarButton("Reset", (event) => resetImagePositions(event, node)));
-    
-    verticalToolbar.appendChild(document.createElement("div")).style.cssText = "height:1px;background:#666;margin:5px 0";
+    verticalToolbar.appendChild(
+      createToolbarButton("Save", (event) => updateWidgetValues(event, node))
+    );
+    verticalToolbar.appendChild(
+      createToolbarButton("Reset", (event) => resetImagePositions(event, node))
+    );
+
+    verticalToolbar.appendChild(document.createElement("div")).style.cssText =
+      "height:1px;background:#666;margin:5px 0";
 
     // Alignment grid (3x3)
     const vAlignmentGrid = document.createElement("div");
-    vAlignmentGrid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:2px";
+    vAlignmentGrid.style.cssText =
+      "display:grid;grid-template-columns:repeat(3,1fr);gap:2px";
     [
-      { l: "↖", a: "top-left" }, { l: "↑", a: "top" }, { l: "↗", a: "top-right" },
-      { l: "←", a: "left" }, { l: "●", a: "center" }, { l: "→", a: "right" },
-      { l: "↙", a: "bottom-left" }, { l: "↓", a: "bottom" }, { l: "↘", a: "bottom-right" }
-    ].forEach(({ l, a }) => vAlignmentGrid.appendChild(createIconButton(l, () => alignSelected(a))));
+      { l: "↖", a: "top-left" },
+      { l: "↑", a: "top" },
+      { l: "↗", a: "top-right" },
+      { l: "←", a: "left" },
+      { l: "●", a: "center" },
+      { l: "→", a: "right" },
+      { l: "↙", a: "bottom-left" },
+      { l: "↓", a: "bottom" },
+      { l: "↘", a: "bottom-right" },
+    ].forEach(({ l, a }) =>
+      vAlignmentGrid.appendChild(createIconButton(l, () => alignSelected(a)))
+    );
     verticalToolbar.appendChild(vAlignmentGrid);
 
-    verticalToolbar.appendChild(document.createElement("div")).style.cssText = "height:1px;background:#666;margin:5px 0";
+    verticalToolbar.appendChild(document.createElement("div")).style.cssText =
+      "height:1px;background:#666;margin:5px 0";
 
     // Flip buttons
-    verticalToolbar.appendChild(createIconButton("⇄", () => flipHorizontally()));
+    verticalToolbar.appendChild(
+      createIconButton("⇄", () => flipHorizontally())
+    );
     verticalToolbar.appendChild(createIconButton("⇵", () => flipVertically()));
 
-    verticalToolbar.appendChild(document.createElement("div")).style.cssText = "height:1px;background:#666;margin:5px 0";
+    verticalToolbar.appendChild(document.createElement("div")).style.cssText =
+      "height:1px;background:#666;margin:5px 0";
 
     // Stretch buttons
-    verticalToolbar.appendChild(createIconButton("↔", () => stretchHorizontally()));
-    verticalToolbar.appendChild(createIconButton("↕", () => stretchVertically()));
+    verticalToolbar.appendChild(
+      createIconButton("↔", () => stretchHorizontally())
+    );
+    verticalToolbar.appendChild(
+      createIconButton("↕", () => stretchVertically())
+    );
 
-    verticalToolbar.appendChild(document.createElement("div")).style.cssText = "height:1px;background:#666;margin:5px 0";
+    verticalToolbar.appendChild(document.createElement("div")).style.cssText =
+      "height:1px;background:#666;margin:5px 0";
 
     // Snap to grid toggle
-    const vSnapBtn = createToggleButton(snapEnabled, "Snap: ON", "Snap: OFF", (newState) => { snapEnabled = newState; });
+    const vSnapBtn = createToggleButton(
+      snapEnabled,
+      "Snap: ON",
+      "Snap: OFF",
+      (newState) => {
+        snapEnabled = newState;
+      }
+    );
     verticalToolbar.appendChild(vSnapBtn);
 
     // Grid size slider
@@ -2356,18 +2494,30 @@ const Editor = (node, fabric) => {
       max: 50,
       value: gridSize,
       unit: "px",
-      onChange: (newValue) => { gridSize = newValue; }
+      onChange: (newValue) => {
+        gridSize = newValue;
+      },
     });
     verticalToolbar.appendChild(vGridControl.container);
 
-    verticalToolbar.appendChild(document.createElement("div")).style.cssText = "height:1px;background:#666;margin:5px 0";
+    verticalToolbar.appendChild(document.createElement("div")).style.cssText =
+      "height:1px;background:#666;margin:5px 0";
 
     // Precise selection toggle
-    const vPreciseBtn = createToggleButton(preciseSelection, "Precise: ON", "Precise: OFF", (newState) => {
-      preciseSelection = newState;
-      ArrayUtils.forEachIf(images, (img) => img !== null, (img) => img.set("perPixelTargetFind", preciseSelection));
-      fabricInstance.renderAll();
-    });
+    const vPreciseBtn = createToggleButton(
+      preciseSelection,
+      "Precise: ON",
+      "Precise: OFF",
+      (newState) => {
+        preciseSelection = newState;
+        ArrayUtils.forEachIf(
+          images,
+          (img) => img !== null,
+          (img) => img.set("perPixelTargetFind", preciseSelection)
+        );
+        fabricInstance.renderAll();
+      }
+    );
     verticalToolbar.appendChild(vPreciseBtn);
 
     // Rotation slider
@@ -2389,32 +2539,207 @@ const Editor = (node, fabric) => {
         const activeObject = fabricInstance.getActiveObject();
         if (activeObject) {
           const center = activeObject.getCenterPoint();
-          activeObject.set({ angle: angle, originX: "center", originY: "center", left: center.x, top: center.y });
+          activeObject.set({
+            angle: angle,
+            originX: "center",
+            originY: "center",
+            left: center.x,
+            top: center.y,
+          });
           activeObject.setCoords();
           fabricInstance.renderAll();
         }
-      }
+      },
     });
     verticalToolbar.appendChild(vRotationControl.container);
-    
+
     // Store references to popover controls so they can be updated by selection changes
     popoverRotationSlider = vRotationControl.slider;
     popoverRotationLabel = vRotationControl.label;
 
-    verticalToolbar.appendChild(document.createElement("div")).style.cssText = "height:1px;background:#666;margin:5px 0";
+    verticalToolbar.appendChild(document.createElement("div")).style.cssText =
+      "height:1px;background:#666;margin:5px 0";
 
     // Tool mode buttons (Select, Draw, Erase)
     const vToolModeContainer = document.createElement("div");
-    vToolModeContainer.style.cssText = "display:flex;flex-direction:column;gap:2px";
-    
-    const vSelectBtn = createToolbarButton("Select", () => setToolMode("select"));
+    vToolModeContainer.style.cssText =
+      "display:flex;flex-direction:column;gap:2px";
+
+    const vSelectBtn = createToolbarButton("Select", () =>
+      setToolMode("select")
+    );
     const vDrawBtn = createToolbarButton("Draw", () => setToolMode("draw"));
     const vEraseBtn = createToolbarButton("Erase", () => setToolMode("erase"));
-    
+
     vToolModeContainer.appendChild(vSelectBtn);
     vToolModeContainer.appendChild(vDrawBtn);
     vToolModeContainer.appendChild(vEraseBtn);
     verticalToolbar.appendChild(vToolModeContainer);
+
+    verticalToolbar.appendChild(document.createElement("div")).style.cssText =
+      "height:1px;background:#666;margin:5px 0";
+
+    // Draw/Erase submenu controls (hidden by default, shown when draw/erase mode is active)
+    const vDrawEraseControls = document.createElement("div");
+    applyStyles(vDrawEraseControls, {
+      display: "none",
+      flexDirection: "column",
+      gap: "5px",
+    });
+    verticalToolbar.appendChild(vDrawEraseControls);
+
+    // Brush color picker (draw mode only)
+    const vBrushColorContainer = document.createElement("div");
+    applyStyles(vBrushColorContainer, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "3px",
+      alignItems: "center",
+    });
+    vDrawEraseControls.appendChild(vBrushColorContainer);
+
+    const vBrushColorLabel = document.createElement("label");
+    vBrushColorLabel.textContent = "Draw Color:";
+    applyStyles(vBrushColorLabel, {
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "9px",
+    });
+    vBrushColorContainer.appendChild(vBrushColorLabel);
+
+    const vBrushColorInput = document.createElement("input");
+    vBrushColorInput.type = "color";
+    vBrushColorInput.value = brushColor;
+    applyStyles(vBrushColorInput, {
+      width: "60px",
+      height: "30px",
+      border: "none",
+      cursor: "pointer",
+    });
+    vBrushColorInput.oninput = (e) => {
+      brushColor = e.target.value;
+      if (
+        toolMode === "draw" &&
+        fabricInstance &&
+        fabricInstance.freeDrawingBrush
+      ) {
+        fabricInstance.freeDrawingBrush.color = brushColor;
+      }
+    };
+    vBrushColorContainer.appendChild(vBrushColorInput);
+
+    // Clear FG button (erase mode only)
+    const vClearFgBtn = createToolbarButton("Clear FG", async () => {
+      if (!fabricInstance) return;
+
+      // Remove all drawing paths
+      const pathsToRemove = ArrayUtils.filterByType(
+        fabricInstance.getObjects(),
+        "path"
+      );
+      pathsToRemove.forEach((path) => {
+        fabricInstance.remove(path);
+      });
+
+      // Create empty canvas
+      const emptyCanvas = document.createElement("canvas");
+      emptyCanvas.width = canvasWidth;
+      emptyCanvas.height = canvasHeight;
+
+      // Update eraser canvas if it exists
+      if (fabricInstance._eraserCanvas) {
+        const eraserCtx = fabricInstance._eraserCanvas.getContext("2d");
+        eraserCtx.clearRect(0, 0, canvasWidth, canvasHeight);
+      }
+
+      // Update foreground layer
+      if (foregroundLayer) {
+        foregroundLayer.setElement(emptyCanvas);
+        fabricInstance.renderAll();
+      }
+
+      // Update thumbnail
+      if (foregroundThumbnail) {
+        foregroundThumbnail.style.backgroundImage = "none";
+      }
+
+      // Save the cleared state
+      await saveForegroundLayer();
+      saveAndUpdateSeed();
+    });
+    vClearFgBtn.title = "Clear all drawings from the foreground layer";
+    applyStyles(vClearFgBtn, { display: "none" });
+    vDrawEraseControls.appendChild(vClearFgBtn);
+
+    // Brush width slider
+    const vBrushWidthControl = createControl({
+      type: "slider",
+      label: "Width",
+      min: 1,
+      max: 50,
+      value: brushWidth,
+      unit: "px",
+      onChange: (newValue) => {
+        brushWidth = newValue;
+        if (fabricInstance && fabricInstance.freeDrawingBrush) {
+          fabricInstance.freeDrawingBrush.width = brushWidth;
+        }
+      },
+    });
+    vDrawEraseControls.appendChild(vBrushWidthControl.container);
+
+    // Brush shape buttons (circle/square)
+    const vBrushShapeLabel = document.createElement("label");
+    vBrushShapeLabel.textContent = "Shape:";
+    applyStyles(vBrushShapeLabel, {
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "9px",
+      textAlign: "center",
+    });
+    vDrawEraseControls.appendChild(vBrushShapeLabel);
+
+    const vShapeButtonsContainer = document.createElement("div");
+    applyStyles(vShapeButtonsContainer, {
+      display: "flex",
+      flexDirection: "row",
+      gap: "2px",
+      justifyContent: "center",
+    });
+    vDrawEraseControls.appendChild(vShapeButtonsContainer);
+
+    const vCircleShapeBtn = createToolbarButton("●", () => {
+      brushShape = "circle";
+      vCircleShapeBtn.style.backgroundColor = COLOR_BUTTON_ACTIVE;
+      vSquareShapeBtn.style.backgroundColor = COLOR_BUTTON_BG;
+      if (fabricInstance && fabricInstance.freeDrawingBrush) {
+        fabricInstance.freeDrawingBrush.strokeLineCap = "round";
+        fabricInstance.freeDrawingBrush.strokeLineJoin = "round";
+      }
+    });
+    const vSquareShapeBtn = createToolbarButton("■", () => {
+      brushShape = "square";
+      vSquareShapeBtn.style.backgroundColor = COLOR_BUTTON_ACTIVE;
+      vCircleShapeBtn.style.backgroundColor = COLOR_BUTTON_BG;
+      if (fabricInstance && fabricInstance.freeDrawingBrush) {
+        fabricInstance.freeDrawingBrush.strokeLineCap = "square";
+        fabricInstance.freeDrawingBrush.strokeLineJoin = "miter";
+      }
+    });
+
+    // Initialize shape button states
+    vCircleShapeBtn.style.backgroundColor =
+      brushShape === "circle" ? COLOR_BUTTON_ACTIVE : COLOR_BUTTON_BG;
+    vSquareShapeBtn.style.backgroundColor =
+      brushShape === "square" ? COLOR_BUTTON_ACTIVE : COLOR_BUTTON_BG;
+
+    vShapeButtonsContainer.appendChild(vCircleShapeBtn);
+    vShapeButtonsContainer.appendChild(vSquareShapeBtn);
+
+    // Store references so the main setToolMode function can show/hide these controls
+    layersToolsPopover._drawEraseControls = {
+      container: vDrawEraseControls,
+      brushColorContainer: vBrushColorContainer,
+      clearFgBtn: vClearFgBtn,
+    };
 
     layersToolsContent.appendChild(verticalToolbar);
 
@@ -2439,22 +2764,38 @@ const Editor = (node, fabric) => {
     const layersToolsBtn = createToolbarButton(
       "🎨 Layers",
       () => {
-        console.log("[Compositor4] Button clicked for node:", node.id, "popover:", layersToolsPopover.id);
-        
+        console.log(
+          "[Compositor4] Button clicked for node:",
+          node.id,
+          "popover:",
+          layersToolsPopover.id
+        );
+
         // Close any currently open popover from another instance
-        if (currentLayersToolsPopover && currentLayersToolsPopover !== layersToolsPopover) {
-          console.log("[Compositor4] Closing previous popover:", currentLayersToolsPopover.id);
-          
+        if (
+          currentLayersToolsPopover &&
+          currentLayersToolsPopover !== layersToolsPopover
+        ) {
+          console.log(
+            "[Compositor4] Closing previous popover:",
+            currentLayersToolsPopover.id
+          );
+
           // Restore layers panel from previous popover
           const prevPortalState = currentLayersToolsPopover._portalState;
-          if (prevPortalState.layersPanelEl && prevPortalState.layersPanelOriginalParent) {
-            prevPortalState.layersPanelOriginalParent.appendChild(prevPortalState.layersPanelEl);
+          if (
+            prevPortalState.layersPanelEl &&
+            prevPortalState.layersPanelOriginalParent
+          ) {
+            prevPortalState.layersPanelOriginalParent.appendChild(
+              prevPortalState.layersPanelEl
+            );
             console.log("[Compositor4] Restored layers from previous popover");
           }
-          
+
           // Hide previous popover
           try {
-            if (currentLayersToolsPopover.matches(':popover-open')) {
+            if (currentLayersToolsPopover.matches(":popover-open")) {
               currentLayersToolsPopover.hidePopover();
             }
             currentLayersToolsPopover.style.visibility = "hidden";
@@ -2462,15 +2803,16 @@ const Editor = (node, fabric) => {
             console.warn("[Compositor4] Error closing previous popover:", e);
           }
         }
-        
+
         // Move the actual layers panel into this popover (portal-style)
         if (layersPanelEl && layersPanelEl.parentNode) {
-          layersToolsPopover._portalState.layersPanelOriginalParent = layersPanelEl.parentNode;
+          layersToolsPopover._portalState.layersPanelOriginalParent =
+            layersPanelEl.parentNode;
           layersToolsPopover._portalState.layersPanelEl = layersPanelEl;
           popoverLayersContainer.appendChild(layersPanelEl);
           console.log("[Compositor4] Moved layers panel into popover");
         }
-        
+
         try {
           layersToolsPopover.showPopover();
           console.log("[Compositor4] showPopover() called");

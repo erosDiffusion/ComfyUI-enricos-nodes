@@ -41,6 +41,9 @@ const ICON_BUTTON_SIZE = "24px";
 const BUTTON_FONT_SIZE = "12px";
 const ICON_FONT_SIZE = "14px";
 
+// Global variable to track the currently open layers/tools popover
+let currentLayersToolsPopover = null;
+
 app.registerExtension({
   name: "Comfy.Compositor4",
 
@@ -118,7 +121,22 @@ const initializeCustomCanvasWidget = (node) => {
         node.editor.cleanup();
       }
 
-      // Cleanup popover element
+      // Cleanup layers/tools popover
+      if (node._layersToolsPopover) {
+        try {
+          if (node._layersToolsPopover.matches(':popover-open')) {
+            node._layersToolsPopover.hidePopover();
+          }
+        } catch (e) {
+          // Ignore if already hidden
+        }
+        if (node._layersToolsPopover.parentNode) {
+          node._layersToolsPopover.parentNode.removeChild(node._layersToolsPopover);
+        }
+        node._layersToolsPopover = null;
+      }
+
+      // Cleanup old popover element (fullscreen popover)
       if (node.popoverElement) {
         try {
           node.popoverElement.hidePopover();
@@ -1052,6 +1070,8 @@ const Editor = (node, fabric) => {
   let snapBtn = null; // Reference to snap button for UI updates
   let gridSizeLabel = null; // Reference to grid size label
   let gridSizeSlider = null; // Reference to grid size slider
+  let popoverRotationSlider = null; // Reference to popover rotation slider
+  let popoverRotationLabel = null; // Reference to popover rotation label
   let isUpdatingRotationSlider = false; // Flag to prevent circular updates
   let snapEnabled = SNAP_ENABLED; // Editor property for snap to grid
   let gridSize = GRID_SIZE; // Editor property for grid size
@@ -1165,6 +1185,59 @@ const Editor = (node, fabric) => {
       margin: "0px",
       overflow: "visible",
     });
+    
+    // Add mouseenter event to switch popover toolbar to this node when hovering
+    containerEl.addEventListener("mouseenter", () => {
+      // If there's an open popover and it's not for this node, switch it
+      if (currentLayersToolsPopover && currentLayersToolsPopover._nodeRef !== node) {
+        const currentPopover = currentLayersToolsPopover;
+        
+        // Get this node's popover
+        const thisNodePopover = node._layersToolsPopover;
+        if (thisNodePopover && thisNodePopover.matches(':popover-open')) {
+          // This node's popover is already open, nothing to do
+          return;
+        }
+        
+        // If this node has a popover, switch to it
+        if (thisNodePopover) {
+          console.log("[Compositor4] Switching popover from node", currentPopover._nodeRef.id, "to node", node.id);
+          
+          // Restore layers panel from previous popover
+          const prevPortalState = currentPopover._portalState;
+          if (prevPortalState.layersPanelEl && prevPortalState.layersPanelOriginalParent) {
+            prevPortalState.layersPanelOriginalParent.appendChild(prevPortalState.layersPanelEl);
+          }
+          
+          // Hide previous popover
+          try {
+            if (currentPopover.matches(':popover-open')) {
+              currentPopover.hidePopover();
+            }
+            currentPopover.style.visibility = "hidden";
+          } catch (e) {
+            console.warn("[Compositor4] Error hiding previous popover:", e);
+          }
+          
+          // Get layers panel from this node
+          const layersPanelEl = node.editor.getContainer().querySelector('[style*="width: 150px"]');
+          if (layersPanelEl) {
+            // Store original parent and move to popover
+            const popoverLayersContainer = thisNodePopover.querySelector('[style*="width: 150px"]');
+            if (popoverLayersContainer) {
+              thisNodePopover._portalState.layersPanelOriginalParent = layersPanelEl.parentNode;
+              thisNodePopover._portalState.layersPanelEl = layersPanelEl;
+              popoverLayersContainer.appendChild(layersPanelEl);
+              
+              // Show this node's popover
+              thisNodePopover.showPopover();
+              currentLayersToolsPopover = thisNodePopover;
+            }
+          }
+        }
+      }
+    });
+    
     return containerEl;
   };
 
@@ -1978,6 +2051,438 @@ const Editor = (node, fabric) => {
       minWidth: "80px",
     });
     toolbarEl.appendChild(popoverContainer);
+
+    // ========== NEW: Create Layers/Tools Popover ==========
+    const layersToolsPopoverContainer = document.createElement("div");
+    applyStyles(layersToolsPopoverContainer, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "2px",
+      minWidth: "80px",
+    });
+    toolbarEl.appendChild(layersToolsPopoverContainer);
+
+    // Initially create popover with temporary ID (node.id might be -1 at creation)
+    // Will be updated during init event when proper node ID is available
+    const tempPopoverId = `compositor-layers-tools-temp-${Date.now()}`;
+    let layersToolsPopover = document.createElement("div");
+    layersToolsPopover.id = tempPopoverId;
+    
+    // Store reference on node for init event to update
+    node._layersToolsPopover = layersToolsPopover;
+    
+    // Store node reference and state for portal behavior
+    layersToolsPopover._nodeRef = node;
+    layersToolsPopover._portalState = {
+      layersPanelOriginalParent: null,
+      layersPanelEl: null
+    };
+
+      // Check browser support
+      if (typeof layersToolsPopover.showPopover === "function") {
+        layersToolsPopover.popover = "manual";
+      } else {
+        layersToolsPopover.setAttribute("popover", "manual");
+      }
+
+      applyStyles(layersToolsPopover, {
+        width: "auto",
+        height: "auto",
+        maxWidth: "90vw",
+        maxHeight: "90vh",
+        padding: "0",
+        border: "2px solid #c8a2ff",
+        borderRadius: "8px",
+        backgroundColor: COLOR_TOOLBAR_BG,
+        overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
+        position: "fixed",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        margin: "0",
+        inset: "unset", // Override default popover positioning
+        visibility: "hidden", // Start hidden to prevent flash on creation
+      });
+
+    const isNewPopover = true; // Always true since we create fresh popover
+
+    // Create draggable header
+    const layersToolsHeader = document.createElement("div");
+    applyStyles(layersToolsHeader, {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "10px 15px",
+      backgroundColor: "rgba(200, 162, 255, 0.2)",
+      borderBottom: `1px solid ${COLOR_BUTTON_BORDER}`,
+      cursor: "move",
+      userSelect: "none",
+    });
+
+    const layersToolsTitle = document.createElement("h3");
+    layersToolsTitle.textContent = `Layers & Tools`;
+    applyStyles(layersToolsTitle, {
+      margin: "0",
+      color: "#c8a2ff",
+      fontSize: "16px",
+      fontWeight: "bold",
+    });
+    layersToolsHeader.appendChild(layersToolsTitle);
+    
+    // Store title reference for dynamic updates
+    layersToolsPopover._titleElement = layersToolsTitle;
+
+    const layersToolsCloseBtn = createIconButton("✕", (e) => {
+      e.stopPropagation();
+      console.log("[Compositor4] Close button clicked for popover:", layersToolsPopover.id);
+      
+      // First restore the layers panel
+      const portalState = layersToolsPopover._portalState;
+      if (portalState.layersPanelEl && portalState.layersPanelOriginalParent) {
+        portalState.layersPanelOriginalParent.appendChild(portalState.layersPanelEl);
+        console.log("[Compositor4] Restored layers panel to original parent");
+      }
+      
+      // Then hide the popover
+      try {
+        if (layersToolsPopover.matches(':popover-open')) {
+          layersToolsPopover.hidePopover();
+        }
+      } catch (err) {
+        console.warn("[Compositor4] Error calling hidePopover:", err);
+      }
+      
+      // Set visibility hidden as fallback
+      layersToolsPopover.style.visibility = "hidden";
+      
+      // Clear current popover reference
+      if (currentLayersToolsPopover === layersToolsPopover) {
+        currentLayersToolsPopover = null;
+      }
+      
+      console.log("[Compositor4] Popover closed");
+    });
+    layersToolsCloseBtn.title = "Close (or press Escape)";
+    applyStyles(layersToolsCloseBtn, {
+      backgroundColor: "rgba(255, 100, 100, 0.7)",
+    });
+    layersToolsHeader.appendChild(layersToolsCloseBtn);
+
+    // Setup draggable behavior - only add event listeners once for new popovers
+    if (isNewPopover) {
+      // Store drag state on the popover element itself
+      layersToolsPopover._dragState = {
+        isDragging: false,
+        dragStartX: 0,
+        dragStartY: 0,
+        popoverStartX: 0,
+        popoverStartY: 0
+      };
+
+      // Create and store event handlers as properties for cleanup
+      layersToolsPopover._dragHandlers = {
+        mousedown: (e) => {
+          const state = layersToolsPopover._dragState;
+          state.isDragging = true;
+          state.dragStartX = e.clientX;
+          state.dragStartY = e.clientY;
+          const rect = layersToolsPopover.getBoundingClientRect();
+          state.popoverStartX = rect.left;
+          state.popoverStartY = rect.top;
+          e.currentTarget.style.cursor = "grabbing";
+          // Remove transform when starting to drag
+          layersToolsPopover.style.transform = "none";
+          e.preventDefault();
+        },
+        mousemove: (e) => {
+          const state = layersToolsPopover._dragState;
+          if (!state.isDragging) return;
+          const deltaX = e.clientX - state.dragStartX;
+          const deltaY = e.clientY - state.dragStartY;
+          applyStyles(layersToolsPopover, {
+            left: `${state.popoverStartX + deltaX}px`,
+            top: `${state.popoverStartY + deltaY}px`,
+            margin: "0",
+          });
+        },
+        mouseup: () => {
+          const state = layersToolsPopover._dragState;
+          if (state.isDragging) {
+            state.isDragging = false;
+            layersToolsPopover.querySelector("[style*='cursor']").style.cursor = "move";
+            
+            // Save position to fabricData
+            const rect = layersToolsPopover.getBoundingClientRect();
+            const fabricData = JSON.parse(fabricDataWidget.value);
+            fabricData.popoverPosition = {
+              left: rect.left,
+              top: rect.top
+            };
+            fabricDataWidget.value = JSON.stringify(fabricData);
+            console.log("[Compositor4] Saved popover position:", fabricData.popoverPosition);
+          }
+        },
+        toggle: (event) => {
+          console.log("[Compositor4] Toggle event:", event.newState, "for popover:", layersToolsPopover.id);
+          if (event.newState === "open") {
+            // Update title with current node ID
+            const currentNode = layersToolsPopover._nodeRef;
+            if (layersToolsPopover._titleElement && currentNode) {
+              layersToolsPopover._titleElement.textContent = `Layers & Tools ${currentNode.id}`;
+            }
+            
+            // Restore saved position or center if no saved position
+            const fabricData = JSON.parse(fabricDataWidget.value);
+            const hasValidPosition = fabricData.popoverPosition && 
+                                    typeof fabricData.popoverPosition.left === 'number' && 
+                                    typeof fabricData.popoverPosition.top === 'number' &&
+                                    fabricData.popoverPosition.left >= 0 &&
+                                    fabricData.popoverPosition.top >= 0;
+            
+            if (hasValidPosition) {
+              console.log("[Compositor4] Restoring popover position:", fabricData.popoverPosition);
+              applyStyles(layersToolsPopover, {
+                top: `${fabricData.popoverPosition.top}px`,
+                left: `${fabricData.popoverPosition.left}px`,
+                transform: "none",
+                visibility: "visible",
+              });
+            } else {
+              console.log("[Compositor4] No valid saved position, centering popover");
+              applyStyles(layersToolsPopover, {
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                visibility: "visible",
+              });
+            }
+            
+            // Ensure visibility is set (fallback)
+            layersToolsPopover.style.visibility = "visible";
+            currentLayersToolsPopover = layersToolsPopover;
+            console.log("[Compositor4] Popover opened, set as current");
+          } else if (event.newState === "closed") {
+            console.log("[Compositor4] Popover closed via toggle event");
+            // Restoration is handled by close button, just clear tracking
+            if (currentLayersToolsPopover === layersToolsPopover) {
+              currentLayersToolsPopover = null;
+              console.log("[Compositor4] Cleared current popover reference");
+            }
+          }
+        }
+      };
+
+      // Add event listeners using stored handlers
+      document.addEventListener("mousemove", layersToolsPopover._dragHandlers.mousemove);
+      document.addEventListener("mouseup", layersToolsPopover._dragHandlers.mouseup);
+      layersToolsPopover.addEventListener("toggle", layersToolsPopover._dragHandlers.toggle);
+
+      // Mark as initialized
+      layersToolsPopover.dataset.initialized = "true";
+    }
+
+    // Always attach mousedown to the current header (since header is recreated)
+    layersToolsHeader.addEventListener("mousedown", layersToolsPopover._dragHandlers.mousedown);
+
+    layersToolsPopover.appendChild(layersToolsHeader);
+
+    // Create popover content: vertical toolbar on left, layers on right
+    const layersToolsContent = document.createElement("div");
+    applyStyles(layersToolsContent, {
+      display: "flex",
+      flexDirection: "row",
+      gap: "10px",
+      padding: "10px",
+      overflow: "auto",
+      flex: "1",
+    });
+
+    // Create vertical toolbar with all features from main toolbar
+    const verticalToolbar = document.createElement("div");
+    applyStyles(verticalToolbar, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "5px",
+      backgroundColor: COLOR_TOOLBAR_BG,
+      padding: "5px",
+      borderRadius: "8px",
+      boxShadow: "inset 0 0 5px rgba(0, 0, 0, 0.2)",
+      minWidth: "100px",
+      maxHeight: "90vh",
+      overflowY: "auto",
+    });
+
+    // Save/Reset buttons
+    verticalToolbar.appendChild(createToolbarButton("Save", (event) => updateWidgetValues(event, node)));
+    verticalToolbar.appendChild(createToolbarButton("Reset", (event) => resetImagePositions(event, node)));
+    
+    verticalToolbar.appendChild(document.createElement("div")).style.cssText = "height:1px;background:#666;margin:5px 0";
+
+    // Alignment grid (3x3)
+    const vAlignmentGrid = document.createElement("div");
+    vAlignmentGrid.style.cssText = "display:grid;grid-template-columns:repeat(3,1fr);gap:2px";
+    [
+      { l: "↖", a: "top-left" }, { l: "↑", a: "top" }, { l: "↗", a: "top-right" },
+      { l: "←", a: "left" }, { l: "●", a: "center" }, { l: "→", a: "right" },
+      { l: "↙", a: "bottom-left" }, { l: "↓", a: "bottom" }, { l: "↘", a: "bottom-right" }
+    ].forEach(({ l, a }) => vAlignmentGrid.appendChild(createIconButton(l, () => alignSelected(a))));
+    verticalToolbar.appendChild(vAlignmentGrid);
+
+    verticalToolbar.appendChild(document.createElement("div")).style.cssText = "height:1px;background:#666;margin:5px 0";
+
+    // Flip buttons
+    verticalToolbar.appendChild(createIconButton("⇄", () => flipHorizontally()));
+    verticalToolbar.appendChild(createIconButton("⇵", () => flipVertically()));
+
+    verticalToolbar.appendChild(document.createElement("div")).style.cssText = "height:1px;background:#666;margin:5px 0";
+
+    // Stretch buttons
+    verticalToolbar.appendChild(createIconButton("↔", () => stretchHorizontally()));
+    verticalToolbar.appendChild(createIconButton("↕", () => stretchVertically()));
+
+    verticalToolbar.appendChild(document.createElement("div")).style.cssText = "height:1px;background:#666;margin:5px 0";
+
+    // Snap to grid toggle
+    const vSnapBtn = createToggleButton(snapEnabled, "Snap: ON", "Snap: OFF", (newState) => { snapEnabled = newState; });
+    verticalToolbar.appendChild(vSnapBtn);
+
+    // Grid size slider
+    const vGridControl = createControl({
+      type: "slider",
+      label: "Grid",
+      min: 1,
+      max: 50,
+      value: gridSize,
+      unit: "px",
+      onChange: (newValue) => { gridSize = newValue; }
+    });
+    verticalToolbar.appendChild(vGridControl.container);
+
+    verticalToolbar.appendChild(document.createElement("div")).style.cssText = "height:1px;background:#666;margin:5px 0";
+
+    // Precise selection toggle
+    const vPreciseBtn = createToggleButton(preciseSelection, "Precise: ON", "Precise: OFF", (newState) => {
+      preciseSelection = newState;
+      ArrayUtils.forEachIf(images, (img) => img !== null, (img) => img.set("perPixelTargetFind", preciseSelection));
+      fabricInstance.renderAll();
+    });
+    verticalToolbar.appendChild(vPreciseBtn);
+
+    // Rotation slider
+    const vRotationControl = createControl({
+      type: "slider",
+      label: "Rotate",
+      min: 0,
+      max: 360,
+      value: 0,
+      unit: "°",
+      disabled: true,
+      onChange: (angle, e) => {
+        if (isUpdatingRotationSlider) return;
+        if (e.shiftKey) {
+          angle = Math.round(angle / 5) * 5;
+          vRotationControl.slider.value = angle;
+          vRotationControl.label.textContent = `Rotate: ${angle}°`;
+        }
+        const activeObject = fabricInstance.getActiveObject();
+        if (activeObject) {
+          const center = activeObject.getCenterPoint();
+          activeObject.set({ angle: angle, originX: "center", originY: "center", left: center.x, top: center.y });
+          activeObject.setCoords();
+          fabricInstance.renderAll();
+        }
+      }
+    });
+    verticalToolbar.appendChild(vRotationControl.container);
+    
+    // Store references to popover controls so they can be updated by selection changes
+    popoverRotationSlider = vRotationControl.slider;
+    popoverRotationLabel = vRotationControl.label;
+
+    verticalToolbar.appendChild(document.createElement("div")).style.cssText = "height:1px;background:#666;margin:5px 0";
+
+    // Tool mode buttons (Select, Draw, Erase)
+    const vToolModeContainer = document.createElement("div");
+    vToolModeContainer.style.cssText = "display:flex;flex-direction:column;gap:2px";
+    
+    const vSelectBtn = createToolbarButton("Select", () => setToolMode("select"));
+    const vDrawBtn = createToolbarButton("Draw", () => setToolMode("draw"));
+    const vEraseBtn = createToolbarButton("Erase", () => setToolMode("erase"));
+    
+    vToolModeContainer.appendChild(vSelectBtn);
+    vToolModeContainer.appendChild(vDrawBtn);
+    vToolModeContainer.appendChild(vEraseBtn);
+    verticalToolbar.appendChild(vToolModeContainer);
+
+    layersToolsContent.appendChild(verticalToolbar);
+
+    // Create container for the layers panel (portal target)
+    const popoverLayersContainer = document.createElement("div");
+    applyStyles(popoverLayersContainer, {
+      width: "150px",
+      minHeight: "400px",
+      display: "flex",
+      flexDirection: "column",
+    });
+
+    layersToolsContent.appendChild(popoverLayersContainer);
+    layersToolsPopover.appendChild(layersToolsContent);
+
+    // Append to document body only if not already appended
+    if (!layersToolsPopover.parentNode) {
+      document.body.appendChild(layersToolsPopover);
+    }
+
+    // Create button to open popover
+    const layersToolsBtn = createToolbarButton(
+      "🎨 Layers",
+      () => {
+        console.log("[Compositor4] Button clicked for node:", node.id, "popover:", layersToolsPopover.id);
+        
+        // Close any currently open popover from another instance
+        if (currentLayersToolsPopover && currentLayersToolsPopover !== layersToolsPopover) {
+          console.log("[Compositor4] Closing previous popover:", currentLayersToolsPopover.id);
+          
+          // Restore layers panel from previous popover
+          const prevPortalState = currentLayersToolsPopover._portalState;
+          if (prevPortalState.layersPanelEl && prevPortalState.layersPanelOriginalParent) {
+            prevPortalState.layersPanelOriginalParent.appendChild(prevPortalState.layersPanelEl);
+            console.log("[Compositor4] Restored layers from previous popover");
+          }
+          
+          // Hide previous popover
+          try {
+            if (currentLayersToolsPopover.matches(':popover-open')) {
+              currentLayersToolsPopover.hidePopover();
+            }
+            currentLayersToolsPopover.style.visibility = "hidden";
+          } catch (e) {
+            console.warn("[Compositor4] Error closing previous popover:", e);
+          }
+        }
+        
+        // Move the actual layers panel into this popover (portal-style)
+        if (layersPanelEl && layersPanelEl.parentNode) {
+          layersToolsPopover._portalState.layersPanelOriginalParent = layersPanelEl.parentNode;
+          layersToolsPopover._portalState.layersPanelEl = layersPanelEl;
+          popoverLayersContainer.appendChild(layersPanelEl);
+          console.log("[Compositor4] Moved layers panel into popover");
+        }
+        
+        try {
+          layersToolsPopover.showPopover();
+          console.log("[Compositor4] showPopover() called");
+        } catch (e) {
+          console.error("[Compositor4] Error showing layers/tools popover:", e);
+        }
+      },
+      layersToolsPopoverContainer
+    );
+    layersToolsBtn.title = "Open layers and tools in popover";
+
+    // ========== END: Layers/Tools Popover ==========
 
     // Store reference to original parent for moving back
     let originalParent = null;
@@ -3779,6 +4284,7 @@ const Editor = (node, fabric) => {
       updateLayerSelectionHighlight();
       updateSizeInputs();
       if (rotationSlider) rotationSlider.disabled = false;
+      if (popoverRotationSlider) popoverRotationSlider.disabled = false;
       if (node.widthInput) node.widthInput.disabled = false;
       if (node.heightInput) node.heightInput.disabled = false;
     });
@@ -3788,6 +4294,7 @@ const Editor = (node, fabric) => {
       updateLayerSelectionHighlight();
       updateSizeInputs();
       if (rotationSlider) rotationSlider.disabled = false;
+      if (popoverRotationSlider) popoverRotationSlider.disabled = false;
       if (node.widthInput) node.widthInput.disabled = false;
       if (node.heightInput) node.heightInput.disabled = false;
     });
@@ -3800,6 +4307,13 @@ const Editor = (node, fabric) => {
       }
       if (rotationLabel) {
         rotationLabel.textContent = "Rotate: 0°";
+      }
+      if (popoverRotationSlider) {
+        popoverRotationSlider.disabled = true;
+        popoverRotationSlider.value = "0";
+      }
+      if (popoverRotationLabel) {
+        popoverRotationLabel.textContent = "Rotate: 0°";
       }
       if (node.widthInput) {
         node.widthInput.disabled = true;
@@ -4077,8 +4591,6 @@ const Editor = (node, fabric) => {
   };
 
   const updateRotationSlider = () => {
-    if (!rotationSlider || !rotationLabel) return;
-
     const activeObject = fabricInstance.getActiveObject();
     if (activeObject) {
       isUpdatingRotationSlider = true;
@@ -4086,9 +4598,19 @@ const Editor = (node, fabric) => {
       // Normalize angle to 0-360 range
       let angle = activeObject.angle % 360;
       if (angle < 0) angle += 360;
+      const roundedAngle = Math.round(angle);
 
-      rotationSlider.value = Math.round(angle);
-      rotationLabel.textContent = `Rotate: ${Math.round(angle)}°`;
+      // Update main toolbar rotation slider
+      if (rotationSlider && rotationLabel) {
+        rotationSlider.value = roundedAngle;
+        rotationLabel.textContent = `Rotate: ${roundedAngle}°`;
+      }
+
+      // Update popover rotation slider
+      if (popoverRotationSlider && popoverRotationLabel) {
+        popoverRotationSlider.value = roundedAngle;
+        popoverRotationLabel.textContent = `Rotate: ${roundedAngle}°`;
+      }
 
       isUpdatingRotationSlider = false;
     }

@@ -2433,10 +2433,15 @@ const Editor = (node, fabric) => {
     verticalToolbar.appendChild(document.createElement("div")).style.cssText =
       "height:1px;background:#666;margin:5px 0";
 
-    // Alignment grid (3x3)
+    // Alignment grid (3x3) - constrained to not expand
     const vAlignmentGrid = document.createElement("div");
-    vAlignmentGrid.style.cssText =
-      "display:grid;grid-template-columns:repeat(3,1fr);gap:2px";
+    applyStyles(vAlignmentGrid, {
+      display: "grid",
+      gridTemplateColumns: "repeat(3, 28px)",
+      gridTemplateRows: "repeat(3, 28px)",
+      gap: "2px",
+      justifyContent: "center",
+    });
     [
       { l: "↖", a: "top-left" },
       { l: "↑", a: "top" },
@@ -2447,30 +2452,50 @@ const Editor = (node, fabric) => {
       { l: "↙", a: "bottom-left" },
       { l: "↓", a: "bottom" },
       { l: "↘", a: "bottom-right" },
-    ].forEach(({ l, a }) =>
-      vAlignmentGrid.appendChild(createIconButton(l, () => alignSelected(a)))
-    );
+    ].forEach(({ l, a }) => {
+      const btn = createIconButton(l, () => alignSelected(a));
+      applyStyles(btn, {
+        width: "28px",
+        height: "28px",
+        padding: "0",
+        minWidth: "28px",
+      });
+      vAlignmentGrid.appendChild(btn);
+    });
     verticalToolbar.appendChild(vAlignmentGrid);
 
     verticalToolbar.appendChild(document.createElement("div")).style.cssText =
       "height:1px;background:#666;margin:5px 0";
 
-    // Flip buttons
-    verticalToolbar.appendChild(
-      createIconButton("⇄", () => flipHorizontally())
-    );
-    verticalToolbar.appendChild(createIconButton("⇵", () => flipVertically()));
+    // Flip and Stretch buttons in a single horizontal group (4 buttons)
+    const vFlipStretchContainer = document.createElement("div");
+    applyStyles(vFlipStretchContainer, {
+      display: "flex",
+      flexDirection: "row",
+      gap: "2px",
+      justifyContent: "center",
+    });
 
-    verticalToolbar.appendChild(document.createElement("div")).style.cssText =
-      "height:1px;background:#666;margin:5px 0";
+    const vFlipHBtn = createIconButton("⇄", () => flipHorizontally());
+    const vFlipVBtn = createIconButton("⇵", () => flipVertically());
+    const vStretchHBtn = createIconButton("↔", () => stretchHorizontally());
+    const vStretchVBtn = createIconButton("↕", () => stretchVertically());
 
-    // Stretch buttons
-    verticalToolbar.appendChild(
-      createIconButton("↔", () => stretchHorizontally())
-    );
-    verticalToolbar.appendChild(
-      createIconButton("↕", () => stretchVertically())
-    );
+    // Make buttons compact and square
+    [vFlipHBtn, vFlipVBtn, vStretchHBtn, vStretchVBtn].forEach((btn) => {
+      applyStyles(btn, {
+        width: "28px",
+        height: "28px",
+        padding: "0",
+        minWidth: "28px",
+      });
+    });
+
+    vFlipStretchContainer.appendChild(vFlipHBtn);
+    vFlipStretchContainer.appendChild(vFlipVBtn);
+    vFlipStretchContainer.appendChild(vStretchHBtn);
+    vFlipStretchContainer.appendChild(vStretchVBtn);
+    verticalToolbar.appendChild(vFlipStretchContainer);
 
     verticalToolbar.appendChild(document.createElement("div")).style.cssText =
       "height:1px;background:#666;margin:5px 0";

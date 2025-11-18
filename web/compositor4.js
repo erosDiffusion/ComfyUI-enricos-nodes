@@ -2136,9 +2136,9 @@ const Editor = (node, fabric) => {
     const sizeControlsContainer = document.createElement("div");
     applyStyles(sizeControlsContainer, {
       display: "flex",
-      flexDirection: "column",
-      gap: "2px",
-      minWidth: "80px",
+      flexDirection: "row",
+      gap: "5px",
+      alignItems: "center",
     });
     toolbarEl.appendChild(sizeControlsContainer);
 

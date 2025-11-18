@@ -1197,76 +1197,6 @@ const Editor = (node, fabric) => {
       overflow: "visible",
     });
 
-    // Add mouseenter event to switch popover toolbar to this node when hovering
-    containerEl.addEventListener("mouseenter", () => {
-      // If there's an open popover and it's not for this node, switch it
-      if (
-        currentLayersToolsPopover &&
-        currentLayersToolsPopover._nodeRef !== node
-      ) {
-        const currentPopover = currentLayersToolsPopover;
-
-        // Get this node's popover
-        const thisNodePopover = node._layersToolsPopover;
-        if (thisNodePopover && thisNodePopover.matches(":popover-open")) {
-          // This node's popover is already open, nothing to do
-          return;
-        }
-
-        // If this node has a popover, switch to it
-        if (thisNodePopover) {
-          console.log(
-            "[Compositor4] Switching popover from node",
-            currentPopover._nodeRef.id,
-            "to node",
-            node.id
-          );
-
-          // Restore layers panel from previous popover
-          const prevPortalState = currentPopover._portalState;
-          if (
-            prevPortalState.layersPanelEl &&
-            prevPortalState.layersPanelOriginalParent
-          ) {
-            prevPortalState.layersPanelOriginalParent.appendChild(
-              prevPortalState.layersPanelEl
-            );
-          }
-
-          // Hide previous popover
-          try {
-            if (currentPopover.matches(":popover-open")) {
-              currentPopover.hidePopover();
-            }
-            currentPopover.style.visibility = "hidden";
-          } catch (e) {
-            console.warn("[Compositor4] Error hiding previous popover:", e);
-          }
-
-          // Get layers panel from this node
-          const layersPanelEl = node.editor
-            .getContainer()
-            .querySelector('[style*="width: 150px"]');
-          if (layersPanelEl) {
-            // Store original parent and move to popover
-            const popoverLayersContainer = thisNodePopover.querySelector(
-              '[style*="width: 150px"]'
-            );
-            if (popoverLayersContainer) {
-              thisNodePopover._portalState.layersPanelOriginalParent =
-                layersPanelEl.parentNode;
-              thisNodePopover._portalState.layersPanelEl = layersPanelEl;
-              popoverLayersContainer.appendChild(layersPanelEl);
-
-              // Show this node's popover
-              thisNodePopover.showPopover();
-              currentLayersToolsPopover = thisNodePopover;
-            }
-          }
-        }
-      }
-    });
-
     return containerEl;
   };
 
@@ -1304,14 +1234,14 @@ const Editor = (node, fabric) => {
     // Create a new slim visible toolbar for popover buttons only
     const miniToolbar = document.createElement("div");
     applyStyles(miniToolbar, {
-      width: "100%",
+      width: "fit-content",
       minHeight: "40px",
       height: "40px",
       backgroundColor: COLOR_TOOLBAR_BG,
       display: "flex",
       alignItems: "center",
       borderRadius: "8px",
-      padding: "5px 10px",
+      padding: "5px",
       boxSizing: "border-box",
       gap: "5px",
       boxShadow: "inset 0 0 5px rgba(0, 0, 0, 0.2)",
@@ -2142,6 +2072,39 @@ const Editor = (node, fabric) => {
     toolbarEl.appendChild(popoverContainer);
 
     // ========== NEW: Create Layers/Tools Popover ==========
+
+    // Centralized function to move layers panel to popover and make it visible
+    const moveLayersPanelToPopover = (popover, layersPanelEl) => {
+      if (!popover || !layersPanelEl) return false;
+
+      const popoverLayersContainer = popover.querySelector(".layers-container");
+      if (!popoverLayersContainer) return false;
+
+      // Store original parent
+      popover._portalState.layersPanelOriginalParent = layersPanelEl.parentNode;
+      popover._portalState.layersPanelEl = layersPanelEl;
+
+      // Move to popover and make visible
+      popoverLayersContainer.appendChild(layersPanelEl);
+      layersPanelEl.style.display = "flex";
+
+      return true;
+    };
+
+    // Centralized function to restore layers panel to DOM widget and hide it
+    const restoreLayersPanelToWidget = (popover) => {
+      if (!popover || !popover._portalState) return false;
+
+      const { layersPanelEl, layersPanelOriginalParent } = popover._portalState;
+      if (!layersPanelEl || !layersPanelOriginalParent) return false;
+
+      // Restore to original parent and hide
+      layersPanelOriginalParent.appendChild(layersPanelEl);
+      layersPanelEl.style.display = "none";
+
+      return true;
+    };
+
     // Create container for popover buttons in the mini toolbar
     const layersToolsPopoverContainer = document.createElement("div");
     applyStyles(layersToolsPopoverContainer, {
@@ -2230,12 +2193,8 @@ const Editor = (node, fabric) => {
         layersToolsPopover.id
       );
 
-      // First restore the layers panel
-      const portalState = layersToolsPopover._portalState;
-      if (portalState.layersPanelEl && portalState.layersPanelOriginalParent) {
-        portalState.layersPanelOriginalParent.appendChild(
-          portalState.layersPanelEl
-        );
+      // First restore the layers panel using centralized function
+      if (restoreLayersPanelToWidget(layersToolsPopover)) {
         console.log("[Compositor4] Restored layers panel to original parent");
       }
 
@@ -2529,6 +2488,7 @@ const Editor = (node, fabric) => {
         snapEnabled = newState;
       }
     );
+    vSnapBtn.title = "Enable snapping to grid and objects";
     verticalToolbar.appendChild(vSnapBtn);
 
     // Grid size slider
@@ -2563,6 +2523,8 @@ const Editor = (node, fabric) => {
         fabricInstance.renderAll();
       }
     );
+    vPreciseBtn.title =
+      "Toggle precise pixel-level selection (ignores transparent areas)";
     verticalToolbar.appendChild(vPreciseBtn);
 
     // Rotation slider
@@ -2908,6 +2870,7 @@ const Editor = (node, fabric) => {
 
     // Create container for the layers panel (portal target)
     const popoverLayersContainer = document.createElement("div");
+    popoverLayersContainer.className = "layers-container";
     applyStyles(popoverLayersContainer, {
       width: "150px",
       minHeight: "400px",
@@ -2925,7 +2888,7 @@ const Editor = (node, fabric) => {
 
     // Create button to open popover
     const layersToolsBtn = createToolbarButton(
-      "Tools",
+      "🎨 Tools",
       () => {
         console.log(
           "[Compositor4] Button clicked for node:",
@@ -2944,17 +2907,9 @@ const Editor = (node, fabric) => {
             currentLayersToolsPopover.id
           );
 
-          // Restore layers panel from previous popover
-          const prevPortalState = currentLayersToolsPopover._portalState;
-          if (
-            prevPortalState.layersPanelEl &&
-            prevPortalState.layersPanelOriginalParent
-          ) {
-            prevPortalState.layersPanelOriginalParent.appendChild(
-              prevPortalState.layersPanelEl
-            );
-            console.log("[Compositor4] Restored layers from previous popover");
-          }
+          // Restore layers panel from previous popover using centralized function
+          restoreLayersPanelToWidget(currentLayersToolsPopover);
+          console.log("[Compositor4] Restored layers from previous popover");
 
           // Hide previous popover
           try {
@@ -2969,10 +2924,7 @@ const Editor = (node, fabric) => {
 
         // Move the actual layers panel into this popover (portal-style)
         if (layersPanelEl && layersPanelEl.parentNode) {
-          layersToolsPopover._portalState.layersPanelOriginalParent =
-            layersPanelEl.parentNode;
-          layersToolsPopover._portalState.layersPanelEl = layersPanelEl;
-          popoverLayersContainer.appendChild(layersPanelEl);
+          moveLayersPanelToPopover(layersToolsPopover, layersPanelEl);
           console.log("[Compositor4] Moved layers panel into popover");
         }
 
@@ -2988,6 +2940,61 @@ const Editor = (node, fabric) => {
     layersToolsBtn.title = "Open layers and tools in popover";
 
     // ========== END: Layers/Tools Popover ==========
+
+    // Add mouseenter event to switch popover toolbar to this node when hovering
+    // Must be after popover is created and stored on node
+    containerEl.addEventListener("mouseenter", () => {
+      // If there's an open popover and it's not for this node, switch it
+      if (
+        currentLayersToolsPopover &&
+        currentLayersToolsPopover._nodeRef !== node
+      ) {
+        const currentPopover = currentLayersToolsPopover;
+
+        // Get this node's popover
+        const thisNodePopover = node._layersToolsPopover;
+        if (thisNodePopover && thisNodePopover.matches(":popover-open")) {
+          // This node's popover is already open, nothing to do
+          return;
+        }
+
+        // If this node has a popover, switch to it
+        if (thisNodePopover) {
+          console.log(
+            "[Compositor4] Switching popover from node",
+            currentPopover._nodeRef.id,
+            "to node",
+            node.id
+          );
+
+          // Restore layers panel from previous popover using centralized function
+          restoreLayersPanelToWidget(currentPopover);
+
+          // Hide previous popover
+          try {
+            if (currentPopover.matches(":popover-open")) {
+              currentPopover.hidePopover();
+            }
+            currentPopover.style.visibility = "hidden";
+          } catch (e) {
+            console.warn("[Compositor4] Error hiding previous popover:", e);
+          }
+
+          // Get layers panel from this node
+          const layersPanelEl = node.editor
+            .getContainer()
+            .querySelector('[style*="width: 150px"]');
+          if (layersPanelEl) {
+            // Move to this node's popover using centralized function
+            if (moveLayersPanelToPopover(thisNodePopover, layersPanelEl)) {
+              // Show this node's popover
+              thisNodePopover.showPopover();
+              currentLayersToolsPopover = thisNodePopover;
+            }
+          }
+        }
+      }
+    });
 
     // Store reference to original parent for moving back
     let originalParent = null;
@@ -3414,6 +3421,7 @@ const Editor = (node, fabric) => {
       flexDirection: "row",
       gap: "10px",
       width: "100%",
+      overflow: "hidden",
     });
 
     containerEl.appendChild(contentWrapper);
@@ -3457,6 +3465,9 @@ const Editor = (node, fabric) => {
     // Add background layer at the bottom (fixed)
     const backgroundLayer = createBackgroundLayer();
     layersPanelEl.appendChild(backgroundLayer);
+
+    // Hide layers panel from DOM widget - it will only be visible in the popover
+    layersPanelEl.style.display = "none";
 
     contentWrapper.appendChild(layersPanelEl);
 
@@ -4040,9 +4051,8 @@ const Editor = (node, fabric) => {
   const calculateNodeSize = () => {
     const ch = fabricInstance.getHeight();
     const cw = fabricInstance.getWidth();
-    // Added 150px for layers panel + 10px gap
-    // Mini toolbar is 40px instead of 80px, saving 40px in height
-    return [cw + 21 + 160, ch + 111 + 98]; // Reduced from 138 to 98 (40px less)
+    // Layers panel is hidden, mini toolbar is 40px instead of 80px
+    return [cw + 21, ch + 111 + 98]; // Width reduced by 160px, height reduced by 40px
   };
 
   const fromUrlCallback = (img, index) => {
@@ -4286,6 +4296,7 @@ const Editor = (node, fabric) => {
       padding: canvasPadding,
       backgroundColor: backgroundColor,
       foregroundImageName: foregroundImageName,
+      toolMode: toolMode, // Save current tool mode
     };
   };
 
@@ -4789,8 +4800,14 @@ const Editor = (node, fabric) => {
       updateRotationSlider();
       updateLayerSelectionHighlight();
       updateSizeInputs();
-      if (rotationSlider) rotationSlider.disabled = false;
-      if (popoverRotationSlider) popoverRotationSlider.disabled = false;
+      if (rotationSlider) {
+        rotationSlider.disabled = false;
+        rotationSlider.style.cursor = "pointer";
+      }
+      if (popoverRotationSlider) {
+        popoverRotationSlider.disabled = false;
+        popoverRotationSlider.style.cursor = "pointer";
+      }
       if (node.widthInput) node.widthInput.disabled = false;
       if (node.heightInput) node.heightInput.disabled = false;
       if (node._layersToolsPopover && node._layersToolsPopover._sizeInputs) {
@@ -4803,8 +4820,14 @@ const Editor = (node, fabric) => {
       updateRotationSlider();
       updateLayerSelectionHighlight();
       updateSizeInputs();
-      if (rotationSlider) rotationSlider.disabled = false;
-      if (popoverRotationSlider) popoverRotationSlider.disabled = false;
+      if (rotationSlider) {
+        rotationSlider.disabled = false;
+        rotationSlider.style.cursor = "pointer";
+      }
+      if (popoverRotationSlider) {
+        popoverRotationSlider.disabled = false;
+        popoverRotationSlider.style.cursor = "pointer";
+      }
       if (node.widthInput) node.widthInput.disabled = false;
       if (node.heightInput) node.heightInput.disabled = false;
       if (node._layersToolsPopover && node._layersToolsPopover._sizeInputs) {
@@ -4818,6 +4841,7 @@ const Editor = (node, fabric) => {
       if (rotationSlider) {
         rotationSlider.disabled = true;
         rotationSlider.value = "0";
+        rotationSlider.style.cursor = "not-allowed";
       }
       if (rotationLabel) {
         rotationLabel.textContent = "Rotate: 0°";
@@ -4825,6 +4849,7 @@ const Editor = (node, fabric) => {
       if (popoverRotationSlider) {
         popoverRotationSlider.disabled = true;
         popoverRotationSlider.value = "0";
+        popoverRotationSlider.style.cursor = "not-allowed";
       }
       if (popoverRotationLabel) {
         popoverRotationLabel.textContent = "Rotate: 0°";
@@ -5271,6 +5296,7 @@ const Editor = (node, fabric) => {
       canvasWidth,
       saveAndUpdateSeed
     );
+    updateSizeInputs();
   };
 
   const stretchVertically = () => {
@@ -5280,6 +5306,7 @@ const Editor = (node, fabric) => {
       canvasHeight,
       saveAndUpdateSeed
     );
+    updateSizeInputs();
   };
 
   const equalizeHeight = () => {
@@ -5513,8 +5540,18 @@ const Editor = (node, fabric) => {
     try {
       const data = deserializeCompositorData(dataString);
       if (data) {
+        // Restore toolMode if saved
+        if (data.toolMode) {
+          toolMode = data.toolMode;
+        }
+
         // Update UI elements to reflect restored state
         updateUIAfterRestore();
+
+        // Update tool mode buttons to show correct highlighting
+        if (typeof updateToolModeButtons === "function") {
+          updateToolModeButtons();
+        }
 
         // Update canvas dimensions if they were restored
         if (fabricInstance && compositionArea && compositionBorder) {

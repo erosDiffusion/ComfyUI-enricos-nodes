@@ -54,10 +54,156 @@ app.registerExtension({
       type: "hidden",
       defaultValue: null,
     },
+    {
+      id: "Compositor4.toolbarLocation",
+      name: "Compositor4: Toolbar Location",
+      type: "combo",
+      defaultValue: "overlay",
+      options: ["overlay", "sidebar"],
+      tooltip: "Choose where the toolbar opens: overlay popover or side panel",
+    },
   ],
 
   async setup(app) {
     api.addEventListener("compositor4_init", executedMessageHandler);
+
+    // Create global sidebar API for Compositor4
+    if (!window.compositor4Sidebar) {
+      window.compositor4Sidebar = {
+        activeEditor: null,
+        containerElement: null,
+        headerElement: null,
+        
+        // Connect an editor to the sidebar (make it the active one)
+        connect(editor, node) {
+          console.log('[Compositor4 Sidebar] Connecting editor for node:', node.id);
+          this.activeEditor = { editor, node };
+          this.render();
+        },
+        
+        // Disconnect current editor
+        disconnect() {
+          console.log('[Compositor4 Sidebar] Disconnecting editor');
+          this.activeEditor = null;
+          
+          // Update header to show no node connected
+          if (this.headerElement) {
+            this.headerElement.textContent = 'Compositor4 Tools - No Node Connected';
+          }
+          
+          if (this.containerElement) {
+            // Clear container
+            while (this.containerElement.firstChild) {
+              this.containerElement.removeChild(this.containerElement.firstChild);
+            }
+            // Show instructions
+            const instructions = document.createElement('div');
+            instructions.style.cssText = 'color: #888; padding: 20px; line-height: 1.6;';
+            instructions.innerHTML = `
+              <div style="margin-bottom: 10px; font-weight: bold;">No active node</div>
+              <div style="margin-bottom: 8px;">• Click the <strong>Tools</strong> button on a Compositor4 node to display its tools and layers here.</div>
+              <div>• Hover over any Compositor4 node to automatically switch to its tools and layers.</div>
+            `;
+            this.containerElement.appendChild(instructions);
+          }
+        },
+        
+        // Render the current active editor's toolbar and layers
+        render() {
+          if (!this.containerElement || !this.activeEditor) return;
+          
+          const { editor, node } = this.activeEditor;
+          
+          // Update header to show connected node
+          if (this.headerElement) {
+            this.headerElement.textContent = `Compositor4 Tools - Node #${node.id}`;
+          }
+          
+          // Clear container by removing all children (preserves element references)
+          while (this.containerElement.firstChild) {
+            this.containerElement.removeChild(this.containerElement.firstChild);
+          }
+          
+          // Get the toolbar and layers elements from the editor
+          const toolbarEl = editor.getVerticalToolbar();
+          const layersEl = editor.getLayersPanel();
+          
+          if (toolbarEl && layersEl) {
+            // appendChild automatically removes elements from their previous parent
+            this.containerElement.appendChild(toolbarEl);
+            layersEl.style.display = 'flex';
+            this.containerElement.appendChild(layersEl);
+          }
+        }
+      };
+    }
+
+    // Register sidebar tab for compositor toolbar
+    app.extensionManager.registerSidebarTab({
+      id: "compositor4Toolbar",
+      icon: "pi pi-palette",
+      title: "Compositor4",
+      tooltip: "Compositor4 Toolbar & Layers",
+      type: "custom",
+      render: (el) => {
+        const container = document.createElement("div");
+        container.id = "compositor4-sidebar-container";
+        container.style.cssText = `
+          padding: 10px;
+          height: 100%;
+          overflow: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        `;
+
+        const header = document.createElement("div");
+        header.style.cssText = `
+          color: #c8a2ff;
+          font-size: 14px;
+          font-weight: bold;
+          padding-bottom: 10px;
+          border-bottom: 1px solid #666;
+        `;
+        header.textContent = "Compositor4 Tools - No Node Connected";
+        container.appendChild(header);
+
+        const contentArea = document.createElement("div");
+        contentArea.id = "compositor4-sidebar-content";
+        contentArea.style.cssText = `
+          flex: 1;
+          display: flex;
+          flex-direction: row;
+          gap: 10px;
+          overflow: auto;
+        `;
+        container.appendChild(contentArea);
+
+        el.appendChild(container);
+
+        // Connect to global sidebar API
+        window.compositor4Sidebar.headerElement = header;
+        window.compositor4Sidebar.containerElement = contentArea;
+        
+        // Render if there's already an active editor
+        if (window.compositor4Sidebar.activeEditor) {
+          window.compositor4Sidebar.render();
+        } else {
+          const instructions = document.createElement('div');
+          instructions.style.cssText = 'color: #888; padding: 20px; line-height: 1.6;';
+          instructions.innerHTML = `
+            <div style="margin-bottom: 10px; font-weight: bold;">No active node</div>
+            <div style="margin-bottom: 8px;">• Click the <strong>Tools</strong> button on a Compositor4 node to display its tools and layers here.</div>
+            <div>• Hover over any Compositor4 node to automatically switch to its tools and layers.</div>
+          `;
+          contentArea.appendChild(instructions);
+        }
+
+        return () => {
+          window.compositor4Sidebar.containerElement = null;
+        };
+      },
+    });
   },
 
   async nodeCreated(node) {
@@ -405,6 +551,18 @@ const applyStyles = (element, styles) => {
   });
 };
 
+// Utility function to set icon or text content (supports PrimeIcons)
+const setIconOrText = (element, content) => {
+  if (typeof content === "string" && content.startsWith("pi pi-")) {
+    element.innerHTML = "";
+    const icon = document.createElement("i");
+    icon.className = content;
+    element.appendChild(icon);
+  } else {
+    element.textContent = content;
+  }
+};
+
 // Utility function to create a horizontal button row
 const createButtonRow = (parent) => {
   const row = document.createElement("div");
@@ -552,7 +710,16 @@ const createButton = (config) => {
   } = config;
 
   const button = document.createElement("button");
-  button.textContent = content;
+
+  // Support PrimeIcons (pi pi-*) by creating an <i> element instead of text
+  if (typeof content === "string" && content.startsWith("pi pi-")) {
+    const icon = document.createElement("i");
+    icon.className = content;
+    button.appendChild(icon);
+  } else {
+    button.textContent = content;
+  }
+
   if (title) button.title = title;
 
   // Apply preset styles based on type
@@ -586,7 +753,18 @@ const createButton = (config) => {
     let state = initialState;
     const toggleHandler = () => {
       state = !state;
-      button.textContent = state ? onLabel : offLabel;
+      const newLabel = state ? onLabel : offLabel;
+
+      // Support PrimeIcons in toggle labels
+      if (typeof newLabel === "string" && newLabel.startsWith("pi pi-")) {
+        button.innerHTML = "";
+        const icon = document.createElement("i");
+        icon.className = newLabel;
+        button.appendChild(icon);
+      } else {
+        button.textContent = newLabel;
+      }
+
       button.style.backgroundColor = state
         ? COLOR_BUTTON_ACTIVE
         : COLOR_BUTTON_DISABLED;
@@ -767,7 +945,7 @@ const createLayerUI = (config) => {
   if (isDraggable && type === "image") {
     dragHandle = createButton({
       type: "drag",
-      content: "☰",
+      content: "pi pi-bars",
     });
     dragHandle.draggable = true;
     if (onDragStart) dragHandle.ondragstart = onDragStart;
@@ -780,7 +958,9 @@ const createLayerUI = (config) => {
     if (onDrop) layerItem.ondrop = onDrop;
   } else {
     const iconPlaceholder = document.createElement("div");
-    iconPlaceholder.textContent = icon || (type === "foreground" ? "✏" : "🖼");
+    const iconContent =
+      icon || (type === "foreground" ? "pi pi-pencil" : "pi pi-image");
+    setIconOrText(iconPlaceholder, iconContent);
     applyStyles(iconPlaceholder, {
       width: "20px",
       height: "20px",
@@ -915,7 +1095,7 @@ const createLayerUI = (config) => {
 
   const visibilityButton = createButton({
     type: "visibility",
-    content: "👁",
+    content: "pi pi-eye",
     onClick: (e) => {
       e.stopPropagation();
       if (onVisibilityToggle) onVisibilityToggle();
@@ -1089,6 +1269,7 @@ const Editor = (node, fabric) => {
   let rotationSlider = null;
   let rotationLabel = null;
   let layersPanelEl = null;
+  let verticalToolbar = null;
   let snapBtn = null; // Reference to snap button for UI updates
   let gridSizeLabel = null; // Reference to grid size label
   let gridSizeSlider = null; // Reference to grid size slider
@@ -2194,7 +2375,7 @@ const Editor = (node, fabric) => {
     // Store title reference for dynamic updates
     layersToolsPopover._titleElement = layersToolsTitle;
 
-    const layersToolsCloseBtn = createIconButton("✕", (e) => {
+    const layersToolsCloseBtn = createIconButton("pi pi-times", (e) => {
       e.stopPropagation();
       console.log(
         "[Compositor4] Close button clicked for popover:",
@@ -2395,7 +2576,7 @@ const Editor = (node, fabric) => {
     });
 
     // Create vertical toolbar with all features from main toolbar
-    const verticalToolbar = document.createElement("div");
+    verticalToolbar = document.createElement("div");
     applyStyles(verticalToolbar, {
       display: "flex",
       flexDirection: "column",
@@ -2876,6 +3057,9 @@ const Editor = (node, fabric) => {
 
     layersToolsContent.appendChild(verticalToolbar);
 
+    // Store reference to vertical toolbar for portal operations
+    layersToolsPopover._verticalToolbar = verticalToolbar;
+
     // Create container for the layers panel (portal target)
     const popoverLayersContainer = document.createElement("div");
     popoverLayersContainer.className = "layers-container";
@@ -2894,111 +3078,171 @@ const Editor = (node, fabric) => {
       document.body.appendChild(layersToolsPopover);
     }
 
-    // Create button to open popover
+    // Store original parent of vertical toolbar for restoration
+    layersToolsPopover._toolbarOriginalParent = layersToolsContent;
+
+    // Create button to open popover or sidebar
     const layersToolsBtn = createToolbarButton(
       "Tools",
       () => {
         console.log(
           "[Compositor4] Button clicked for node:",
-          node.id,
-          "popover:",
-          layersToolsPopover.id
+          node.id
         );
 
-        // Close any currently open popover from another instance
-        if (
-          currentLayersToolsPopover &&
-          currentLayersToolsPopover !== layersToolsPopover
-        ) {
-          console.log(
-            "[Compositor4] Closing previous popover:",
-            currentLayersToolsPopover.id
-          );
+        // Check user preference for toolbar location
+        const toolbarLocation =
+          app.extensionManager.setting.get("Compositor4.toolbarLocation") ||
+          "overlay";
 
-          // Restore layers panel from previous popover using centralized function
-          restoreLayersPanelToWidget(currentLayersToolsPopover);
-          console.log("[Compositor4] Restored layers from previous popover");
-
-          // Hide previous popover
-          try {
-            if (currentLayersToolsPopover.matches(":popover-open")) {
-              currentLayersToolsPopover.hidePopover();
+        if (toolbarLocation === "sidebar") {
+          // Use new sidebar API
+          if (window.compositor4Sidebar) {
+            // Connect this editor to the sidebar
+            window.compositor4Sidebar.connect(node.editor, node);
+            
+            // Open the sidebar tab
+            if (app.extensionManager.sidebar) {
+              app.extensionManager.sidebar.open("compositor4Toolbar");
             }
-            currentLayersToolsPopover.style.visibility = "hidden";
-          } catch (e) {
-            console.warn("[Compositor4] Error closing previous popover:", e);
+          } else {
+            console.warn("[Compositor4] Sidebar API not available");
           }
-        }
+        } else {
+          // Use overlay popover (original behavior)
 
-        // Move the actual layers panel into this popover (portal-style)
-        if (layersPanelEl && layersPanelEl.parentNode) {
-          moveLayersPanelToPopover(layersToolsPopover, layersPanelEl);
-          console.log("[Compositor4] Moved layers panel into popover");
-        }
+          // Restore toolbar to popover if it's in the sidebar
+          if (verticalToolbar.parentNode !== layersToolsContent) {
+            console.log(
+              "[Compositor4] Restoring toolbar from sidebar to popover"
+            );
+            layersToolsContent.appendChild(verticalToolbar);
+          }
 
-        try {
-          layersToolsPopover.showPopover();
-          console.log("[Compositor4] showPopover() called");
-        } catch (e) {
-          console.error("[Compositor4] Error showing layers/tools popover:", e);
+          // Close any currently open popover from another instance
+          if (
+            currentLayersToolsPopover &&
+            currentLayersToolsPopover !== layersToolsPopover
+          ) {
+            console.log(
+              "[Compositor4] Closing previous popover:",
+              currentLayersToolsPopover.id
+            );
+
+            // Restore layers panel from previous popover using centralized function
+            restoreLayersPanelToWidget(currentLayersToolsPopover);
+            console.log("[Compositor4] Restored layers from previous popover");
+
+            // Hide previous popover
+            try {
+              if (currentLayersToolsPopover.matches(":popover-open")) {
+                currentLayersToolsPopover.hidePopover();
+              }
+              currentLayersToolsPopover.style.visibility = "hidden";
+            } catch (e) {
+              console.warn("[Compositor4] Error closing previous popover:", e);
+            }
+          }
+
+          // Move the actual layers panel into this popover (portal-style)
+          if (layersPanelEl && layersPanelEl.parentNode) {
+            moveLayersPanelToPopover(layersToolsPopover, layersPanelEl);
+            console.log("[Compositor4] Moved layers panel into popover");
+          }
+
+          try {
+            layersToolsPopover.showPopover();
+            console.log("[Compositor4] showPopover() called");
+          } catch (e) {
+            console.error(
+              "[Compositor4] Error showing layers/tools popover:",
+              e
+            );
+          }
         }
       },
       layersToolsPopoverContainer
     );
-    layersToolsBtn.title = "Open layers and tools in popover";
+    layersToolsBtn.title =
+      "Open layers and tools (location based on preference)";
 
     // ========== END: Layers/Tools Popover ==========
 
     // Add mouseenter event to switch popover toolbar to this node when hovering
     // Must be after popover is created and stored on node
     containerEl.addEventListener("mouseenter", () => {
-      // Only switch if there's a currently OPEN popover for a different node
-      if (
-        currentLayersToolsPopover &&
-        currentLayersToolsPopover._nodeRef !== node &&
-        currentLayersToolsPopover.matches(":popover-open")
-      ) {
-        const currentPopover = currentLayersToolsPopover;
+      // Check toolbar location preference
+      const toolbarLocation =
+        app.extensionManager.setting.get("Compositor4.toolbarLocation") ||
+        "overlay";
 
-        // Get this node's popover
-        const thisNodePopover = node._layersToolsPopover;
-        if (thisNodePopover && thisNodePopover.matches(":popover-open")) {
-          // This node's popover is already open, nothing to do
-          return;
-        }
-
-        // Switch the content to this node's popover (keep it open)
-        if (thisNodePopover) {
-          console.log(
-            "[Compositor4] Switching popover content from node",
-            currentPopover._nodeRef.id,
-            "to node",
-            node.id
-          );
-
-          // Restore layers panel from previous popover using centralized function
-          restoreLayersPanelToWidget(currentPopover);
-
-          // Hide previous popover
-          try {
-            if (currentPopover.matches(":popover-open")) {
-              currentPopover.hidePopover();
-            }
-            currentPopover.style.visibility = "hidden";
-          } catch (e) {
-            console.warn("[Compositor4] Error hiding previous popover:", e);
+      if (toolbarLocation === "sidebar") {
+        // When in sidebar mode, update sidebar content with this node's editor
+        if (window.compositor4Sidebar) {
+          // Only switch if we're hovering over a different node
+          if (window.compositor4Sidebar.activeEditor && window.compositor4Sidebar.activeEditor.node === node) {
+            return;
           }
 
-          // Get layers panel from this node
-          const layersPanelEl = node.editor
-            .getContainer()
-            .querySelector('[style*="width: 150px"]');
-          if (layersPanelEl) {
-            // Move to this node's popover using centralized function
-            if (moveLayersPanelToPopover(thisNodePopover, layersPanelEl)) {
-              // Show this node's popover (since we're switching from an open one)
-              thisNodePopover.showPopover();
-              currentLayersToolsPopover = thisNodePopover;
+          // Check if sidebar is actually open before switching content
+          if (!app.extensionManager.sidebar || !app.extensionManager.sidebar.isOpen("compositor4Toolbar")) {
+            return;
+          }
+
+          console.log("[Compositor4] Updating sidebar for node:", node.id);
+
+          // Connect this editor to the sidebar using the new API
+          window.compositor4Sidebar.connect(node.editor, node);
+        }
+      } else {
+        // Only switch if there's a currently OPEN popover for a different node
+        if (
+          currentLayersToolsPopover &&
+          currentLayersToolsPopover._nodeRef !== node &&
+          currentLayersToolsPopover.matches(":popover-open")
+        ) {
+          const currentPopover = currentLayersToolsPopover;
+
+          // Get this node's popover
+          const thisNodePopover = node._layersToolsPopover;
+          if (thisNodePopover && thisNodePopover.matches(":popover-open")) {
+            // This node's popover is already open, nothing to do
+            return;
+          }
+
+          // Switch the content to this node's popover (keep it open)
+          if (thisNodePopover) {
+            console.log(
+              "[Compositor4] Switching popover content from node",
+              currentPopover._nodeRef.id,
+              "to node",
+              node.id
+            );
+
+            // Restore layers panel from previous popover using centralized function
+            restoreLayersPanelToWidget(currentPopover);
+
+            // Hide previous popover
+            try {
+              if (currentPopover.matches(":popover-open")) {
+                currentPopover.hidePopover();
+              }
+              currentPopover.style.visibility = "hidden";
+            } catch (e) {
+              console.warn("[Compositor4] Error hiding previous popover:", e);
+            }
+
+            // Get layers panel from this node
+            const layersPanelEl = node.editor
+              .getContainer()
+              .querySelector('[style*="width: 150px"]');
+            if (layersPanelEl) {
+              // Move to this node's popover using centralized function
+              if (moveLayersPanelToPopover(thisNodePopover, layersPanelEl)) {
+                // Show this node's popover (since we're switching from an open one)
+                thisNodePopover.showPopover();
+                currentLayersToolsPopover = thisNodePopover;
+              }
             }
           }
         }
@@ -3092,7 +3336,7 @@ const Editor = (node, fabric) => {
     });
     popoverHeader.appendChild(popoverTitle);
 
-    const popoverCloseBtn = createIconButton("✕", () => {
+    const popoverCloseBtn = createIconButton("pi pi-times", () => {
       try {
         popoverEl.hidePopover();
       } catch (e) {
@@ -3270,12 +3514,12 @@ const Editor = (node, fabric) => {
       type: "foreground",
       label: "FG",
       isDraggable: false,
-      icon: "✏",
+      icon: "pi pi-pencil",
       onVisibilityToggle: () => {
         foregroundIsVisible = !foregroundIsVisible;
 
         if (foregroundIsVisible) {
-          visibilityButton.textContent = "👁";
+          setIconOrText(visibilityButton, "pi pi-eye");
           visibilityButton.style.backgroundColor = COLOR_BUTTON_BG;
           if (foregroundLayer) {
             foregroundLayer.set({
@@ -3286,7 +3530,7 @@ const Editor = (node, fabric) => {
             });
           }
         } else {
-          visibilityButton.textContent = "👁‍🗨";
+          setIconOrText(visibilityButton, "pi pi-eye-slash");
           visibilityButton.style.backgroundColor = COLOR_BUTTON_DISABLED;
           if (foregroundLayer) {
             foregroundLayer.set({
@@ -3343,17 +3587,17 @@ const Editor = (node, fabric) => {
         label: "BG",
         isDraggable: false,
         hasColorPicker: true,
-        icon: "🖼",
+        icon: "pi pi-image",
         colorPickerValue: backgroundColor,
         onVisibilityToggle: () => {
           if (backgroundIsVisible) {
             backgroundColorOpaque = backgroundColor;
             backgroundColor = "transparent";
-            visibilityButton.textContent = "👁‍🗨";
+            setIconOrText(visibilityButton, "pi pi-eye-slash");
             visibilityButton.style.backgroundColor = COLOR_BUTTON_DISABLED;
           } else {
             backgroundColor = backgroundColorOpaque;
-            visibilityButton.textContent = "👁";
+            setIconOrText(visibilityButton, "pi pi-eye");
             visibilityButton.style.backgroundColor = COLOR_BUTTON_BG;
           }
 
@@ -3568,7 +3812,10 @@ const Editor = (node, fabric) => {
     // Update visibility button appearance using stored reference
     const visibilityBtn = layerVisibilityButtons[index];
     if (visibilityBtn) {
-      visibilityBtn.textContent = isCurrentlyVisible ? "👁‍🗨" : "👁";
+      setIconOrText(
+        visibilityBtn,
+        isCurrentlyVisible ? "pi pi-eye-slash" : "pi pi-eye"
+      );
       visibilityBtn.style.backgroundColor = isCurrentlyVisible
         ? COLOR_BUTTON_DISABLED
         : COLOR_BUTTON_BG;
@@ -3640,7 +3887,7 @@ const Editor = (node, fabric) => {
       if (images[index]) {
         const visibilityBtn = layerVisibilityButtons[index];
         if (visibilityBtn && images[index].visible === false) {
-          visibilityBtn.textContent = "👁‍🗨";
+          setIconOrText(visibilityBtn, "pi pi-eye-slash");
           visibilityBtn.style.backgroundColor = COLOR_BUTTON_DISABLED;
         }
       }
@@ -3921,9 +4168,10 @@ const Editor = (node, fabric) => {
     // Update background visibility button state
     if (backgroundVisibilityButton) {
       backgroundIsVisible = backgroundColor !== "transparent";
-      backgroundVisibilityButton.textContent = backgroundIsVisible
-        ? "👁"
-        : "👁‍🗨";
+      setIconOrText(
+        backgroundVisibilityButton,
+        backgroundIsVisible ? "pi pi-eye" : "pi pi-eye-slash"
+      );
       backgroundVisibilityButton.style.backgroundColor = backgroundIsVisible
         ? COLOR_BUTTON_BG
         : COLOR_BUTTON_DISABLED;
@@ -3939,9 +4187,10 @@ const Editor = (node, fabric) => {
 
     // Update foreground visibility button state if it exists
     if (foregroundVisibilityButton && foregroundLayer) {
-      foregroundVisibilityButton.textContent = foregroundIsVisible
-        ? "👁"
-        : "👁‍🗨";
+      setIconOrText(
+        foregroundVisibilityButton,
+        foregroundIsVisible ? "pi pi-eye" : "pi pi-eye-slash"
+      );
       foregroundVisibilityButton.style.backgroundColor = foregroundIsVisible
         ? COLOR_BUTTON_BG
         : COLOR_BUTTON_DISABLED;
@@ -4106,7 +4355,7 @@ const Editor = (node, fabric) => {
     // Update visibility button state if image is hidden using stored reference
     const visibilityBtn = layerVisibilityButtons[index];
     if (visibilityBtn && img.visible === false) {
-      visibilityBtn.textContent = "👁‍🗨";
+      setIconOrText(visibilityBtn, "pi pi-eye-slash");
       visibilityBtn.style.backgroundColor = COLOR_BUTTON_DISABLED;
     }
 
@@ -5652,6 +5901,8 @@ const Editor = (node, fabric) => {
     saveAndUpdateSeed,
     updateSeedValue, // Expose for auto-save with configSignature
     saveBtn,
+    getVerticalToolbar: () => verticalToolbar,
+    getLayersPanel: () => layersPanelEl,
   };
 };
 

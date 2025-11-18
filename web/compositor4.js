@@ -1205,7 +1205,7 @@ const Editor = (node, fabric) => {
       height:
         canvasHeight + canvasPadding * 2 + COMPOSITION_BORDER_SIZE * 2 + "px",
       margin: "0px",
-      overflow: "visible",
+      overflow: "hidden",
     });
 
     return containerEl;

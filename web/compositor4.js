@@ -814,7 +814,18 @@ const createLayerUI = (config) => {
     colorInput.value = colorPickerValue.startsWith("#")
       ? colorPickerValue
       : "#ffffff";
-    colorInput.style.display = "none";
+    applyStyles(colorInput, {
+      position: "absolute",
+      left: "40px",
+      top: "5px",
+      width: "30px",
+      height: "30px",
+      border: "none",
+      padding: "0",
+      cursor: "pointer",
+      opacity: "0",
+      zIndex: "1",
+    });
 
     thumbnail.onclick = () => colorInput.click();
     layerItem.appendChild(colorInput);
@@ -2888,7 +2899,7 @@ const Editor = (node, fabric) => {
 
     // Create button to open popover
     const layersToolsBtn = createToolbarButton(
-      "🎨 Tools",
+      "Tools",
       () => {
         console.log(
           "[Compositor4] Button clicked for node:",
@@ -2944,10 +2955,11 @@ const Editor = (node, fabric) => {
     // Add mouseenter event to switch popover toolbar to this node when hovering
     // Must be after popover is created and stored on node
     containerEl.addEventListener("mouseenter", () => {
-      // If there's an open popover and it's not for this node, switch it
+      // Only switch if there's a currently OPEN popover for a different node
       if (
         currentLayersToolsPopover &&
-        currentLayersToolsPopover._nodeRef !== node
+        currentLayersToolsPopover._nodeRef !== node &&
+        currentLayersToolsPopover.matches(":popover-open")
       ) {
         const currentPopover = currentLayersToolsPopover;
 
@@ -2958,10 +2970,10 @@ const Editor = (node, fabric) => {
           return;
         }
 
-        // If this node has a popover, switch to it
+        // Switch the content to this node's popover (keep it open)
         if (thisNodePopover) {
           console.log(
-            "[Compositor4] Switching popover from node",
+            "[Compositor4] Switching popover content from node",
             currentPopover._nodeRef.id,
             "to node",
             node.id
@@ -2987,7 +2999,7 @@ const Editor = (node, fabric) => {
           if (layersPanelEl) {
             // Move to this node's popover using centralized function
             if (moveLayersPanelToPopover(thisNodePopover, layersPanelEl)) {
-              // Show this node's popover
+              // Show this node's popover (since we're switching from an open one)
               thisNodePopover.showPopover();
               currentLayersToolsPopover = thisNodePopover;
             }

@@ -1195,13 +1195,10 @@ const Editor = (node, fabric) => {
     applyStyles(containerEl, {
       backgroundColor: COLOR_CONTAINER_BG,
       display: "flex",
+
       flexDirection: "column",
       width:
-        canvasWidth +
-        canvasPadding * 2 +
-        COMPOSITION_BORDER_SIZE * 2 +
-        150 +
-        "px", // Added 150px for layers panel
+        canvasWidth + canvasPadding * 2 + COMPOSITION_BORDER_SIZE * 2 + "px",
       height:
         canvasHeight + canvasPadding * 2 + COMPOSITION_BORDER_SIZE * 2 + "px",
       margin: "0px",
@@ -3428,11 +3425,12 @@ const Editor = (node, fabric) => {
   const createLayersPanel = () => {
     // Create main content wrapper (canvas + layers side by side)
     const contentWrapper = document.createElement("div");
+    contentWrapper.id = "compositor-layers-content-wrapper";
     applyStyles(contentWrapper, {
       display: "flex",
       flexDirection: "row",
       gap: "10px",
-      width: "100%",
+      width: "min-content",
       overflow: "hidden",
     });
 

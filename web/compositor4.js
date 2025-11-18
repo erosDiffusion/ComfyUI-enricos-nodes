@@ -1301,7 +1301,27 @@ const Editor = (node, fabric) => {
     `;
     document.head.appendChild(style);
 
+    // Create a new slim visible toolbar for popover buttons only
+    const miniToolbar = document.createElement("div");
+    applyStyles(miniToolbar, {
+      width: "100%",
+      minHeight: "40px",
+      height: "40px",
+      backgroundColor: COLOR_TOOLBAR_BG,
+      display: "flex",
+      alignItems: "center",
+      borderRadius: "8px",
+      padding: "5px 10px",
+      boxSizing: "border-box",
+      gap: "5px",
+      boxShadow: "inset 0 0 5px rgba(0, 0, 0, 0.2)",
+    });
+    containerEl.appendChild(miniToolbar);
+
     containerEl.appendChild(toolbarEl);
+
+    // Hide the main toolbar - it's now only functional via the popover
+    toolbarEl.style.display = "none";
 
     // Create vertical group for Save and Reset buttons
     const mainButtonGroup = createVerticalButtonGroup(toolbarEl);
@@ -2122,14 +2142,14 @@ const Editor = (node, fabric) => {
     toolbarEl.appendChild(popoverContainer);
 
     // ========== NEW: Create Layers/Tools Popover ==========
+    // Create container for popover buttons in the mini toolbar
     const layersToolsPopoverContainer = document.createElement("div");
     applyStyles(layersToolsPopoverContainer, {
       display: "flex",
-      flexDirection: "column",
-      gap: "2px",
-      minWidth: "80px",
+      flexDirection: "row",
+      gap: "5px",
     });
-    toolbarEl.appendChild(layersToolsPopoverContainer);
+    miniToolbar.appendChild(layersToolsPopoverContainer);
 
     // Initially create popover with temporary ID (node.id might be -1 at creation)
     // Will be updated during init event when proper node ID is available
@@ -2585,6 +2605,124 @@ const Editor = (node, fabric) => {
     verticalToolbar.appendChild(document.createElement("div")).style.cssText =
       "height:1px;background:#666;margin:5px 0";
 
+    // Width and Height numeric inputs
+    const vSizeContainer = document.createElement("div");
+    applyStyles(vSizeContainer, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "3px",
+      alignItems: "center",
+    });
+
+    // Width input
+    const vWidthLabel = document.createElement("label");
+    vWidthLabel.textContent = "Width:";
+    applyStyles(vWidthLabel, {
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "9px",
+    });
+    vSizeContainer.appendChild(vWidthLabel);
+
+    const vWidthInput = document.createElement("input");
+    vWidthInput.type = "number";
+    vWidthInput.value = "0";
+    vWidthInput.disabled = true;
+    applyStyles(vWidthInput, {
+      width: "80px",
+      padding: "4px",
+      border: `1px solid ${COLOR_BUTTON_BORDER}`,
+      borderRadius: "4px",
+      backgroundColor: COLOR_BUTTON_BG,
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "11px",
+      textAlign: "center",
+    });
+    vWidthInput.onchange = (e) => {
+      const activeObject = fabricInstance.getActiveObject();
+      if (!activeObject || activeObject.type === "activeSelection") return;
+
+      const targetWidth = parseFloat(e.target.value);
+      if (isNaN(targetWidth) || targetWidth <= 0) {
+        vWidthInput.value = Math.round(activeObject.getScaledWidth());
+        return;
+      }
+
+      const currentWidth = activeObject.width;
+      const newScaleX = targetWidth / currentWidth;
+
+      activeObject.set({
+        scaleX: newScaleX,
+        scaleY: newScaleX,
+      });
+
+      activeObject.setCoords();
+      fabricInstance.renderAll();
+
+      vHeightInput.value = Math.round(activeObject.getScaledHeight());
+      saveAndUpdateSeed();
+    };
+    vSizeContainer.appendChild(vWidthInput);
+
+    // Height input
+    const vHeightLabel = document.createElement("label");
+    vHeightLabel.textContent = "Height:";
+    applyStyles(vHeightLabel, {
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "9px",
+    });
+    vSizeContainer.appendChild(vHeightLabel);
+
+    const vHeightInput = document.createElement("input");
+    vHeightInput.type = "number";
+    vHeightInput.value = "0";
+    vHeightInput.disabled = true;
+    applyStyles(vHeightInput, {
+      width: "80px",
+      padding: "4px",
+      border: `1px solid ${COLOR_BUTTON_BORDER}`,
+      borderRadius: "4px",
+      backgroundColor: COLOR_BUTTON_BG,
+      color: COLOR_BUTTON_TEXT,
+      fontSize: "11px",
+      textAlign: "center",
+    });
+    vHeightInput.onchange = (e) => {
+      const activeObject = fabricInstance.getActiveObject();
+      if (!activeObject || activeObject.type === "activeSelection") return;
+
+      const targetHeight = parseFloat(e.target.value);
+      if (isNaN(targetHeight) || targetHeight <= 0) {
+        vHeightInput.value = Math.round(activeObject.getScaledHeight());
+        return;
+      }
+
+      const currentHeight = activeObject.height;
+      const newScaleY = targetHeight / currentHeight;
+
+      activeObject.set({
+        scaleX: newScaleY,
+        scaleY: newScaleY,
+      });
+
+      activeObject.setCoords();
+      fabricInstance.renderAll();
+
+      vWidthInput.value = Math.round(activeObject.getScaledWidth());
+      saveAndUpdateSeed();
+    };
+    vSizeContainer.appendChild(vHeightInput);
+
+    verticalToolbar.appendChild(vSizeContainer);
+
+    // Store references for selection updates
+    layersToolsPopover._sizeInputs = {
+      widthInput: vWidthInput,
+      heightInput: vHeightInput,
+    };
+
+    verticalToolbar.appendChild(document.createElement("div")).style.cssText =
+      "height:1px;background:#666;margin:5px 0";
+
     // Tool mode buttons (Select, Draw, Erase)
     const vToolModeContainer = document.createElement("div");
     vToolModeContainer.style.cssText =
@@ -2787,7 +2925,7 @@ const Editor = (node, fabric) => {
 
     // Create button to open popover
     const layersToolsBtn = createToolbarButton(
-      "🎨 Layers",
+      "Tools",
       () => {
         console.log(
           "[Compositor4] Button clicked for node:",
@@ -3903,7 +4041,8 @@ const Editor = (node, fabric) => {
     const ch = fabricInstance.getHeight();
     const cw = fabricInstance.getWidth();
     // Added 150px for layers panel + 10px gap
-    return [cw + 21 + 160, ch + 111 + 138];
+    // Mini toolbar is 40px instead of 80px, saving 40px in height
+    return [cw + 21 + 160, ch + 111 + 98]; // Reduced from 138 to 98 (40px less)
   };
 
   const fromUrlCallback = (img, index) => {
@@ -4654,6 +4793,10 @@ const Editor = (node, fabric) => {
       if (popoverRotationSlider) popoverRotationSlider.disabled = false;
       if (node.widthInput) node.widthInput.disabled = false;
       if (node.heightInput) node.heightInput.disabled = false;
+      if (node._layersToolsPopover && node._layersToolsPopover._sizeInputs) {
+        node._layersToolsPopover._sizeInputs.widthInput.disabled = false;
+        node._layersToolsPopover._sizeInputs.heightInput.disabled = false;
+      }
     });
 
     fabricInstance.on("selection:updated", function (opt) {
@@ -4664,6 +4807,10 @@ const Editor = (node, fabric) => {
       if (popoverRotationSlider) popoverRotationSlider.disabled = false;
       if (node.widthInput) node.widthInput.disabled = false;
       if (node.heightInput) node.heightInput.disabled = false;
+      if (node._layersToolsPopover && node._layersToolsPopover._sizeInputs) {
+        node._layersToolsPopover._sizeInputs.widthInput.disabled = false;
+        node._layersToolsPopover._sizeInputs.heightInput.disabled = false;
+      }
     });
 
     fabricInstance.on("selection:cleared", function (opt) {
@@ -4689,6 +4836,12 @@ const Editor = (node, fabric) => {
       if (node.heightInput) {
         node.heightInput.disabled = true;
         node.heightInput.value = "0";
+      }
+      if (node._layersToolsPopover && node._layersToolsPopover._sizeInputs) {
+        node._layersToolsPopover._sizeInputs.widthInput.disabled = true;
+        node._layersToolsPopover._sizeInputs.widthInput.value = "0";
+        node._layersToolsPopover._sizeInputs.heightInput.disabled = true;
+        node._layersToolsPopover._sizeInputs.heightInput.value = "0";
       }
     });
 
@@ -4984,16 +5137,21 @@ const Editor = (node, fabric) => {
   };
 
   const updateSizeInputs = () => {
-    if (!node.widthInput || !node.heightInput) return;
-
     const activeObject = fabricInstance.getActiveObject();
     if (activeObject && activeObject.type !== "activeSelection") {
       // Update inputs with current scaled dimensions
       const scaledWidth = Math.round(activeObject.getScaledWidth());
       const scaledHeight = Math.round(activeObject.getScaledHeight());
 
-      node.widthInput.value = scaledWidth;
-      node.heightInput.value = scaledHeight;
+      // Update main toolbar inputs
+      if (node.widthInput) node.widthInput.value = scaledWidth;
+      if (node.heightInput) node.heightInput.value = scaledHeight;
+
+      // Update popover inputs
+      if (node._layersToolsPopover && node._layersToolsPopover._sizeInputs) {
+        node._layersToolsPopover._sizeInputs.widthInput.value = scaledWidth;
+        node._layersToolsPopover._sizeInputs.heightInput.value = scaledHeight;
+      }
     }
   };
 

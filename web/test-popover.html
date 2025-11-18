@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Popover API Test</title>
+    <style>
+      body {
+        font-family: sans-serif;
+        padding: 40px;
+        background: #1a1a1a;
+        color: white;
+      }
+
+      button {
+        padding: 10px 20px;
+        background: #c8a2ff;
+        color: black;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        font-weight: bold;
+        font-size: 14px;
+        margin: 5px;
+      }
+
+      button:hover {
+        background: #d4b3ff;
+      }
+
+      [popover] {
+        width: 80vw;
+        height: 80vh;
+        max-width: 1400px;
+        max-height: 1000px;
+        padding: 0;
+        border: 3px solid #c8a2ff;
+        border-radius: 8px;
+        background: #2a2a2a;
+        overflow: hidden;
+      }
+
+      .popover-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 15px 20px;
+        background: rgba(200, 162, 255, 0.2);
+        border-bottom: 1px solid #444;
+      }
+
+      .popover-header h2 {
+        margin: 0;
+        color: #c8a2ff;
+      }
+
+      .popover-content {
+        padding: 30px;
+        height: calc(100% - 60px);
+        overflow: auto;
+      }
+
+      .close-btn {
+        background: rgba(255, 100, 100, 0.8);
+        color: white;
+        padding: 5px 15px;
+      }
+
+      .info-box {
+        background: rgba(200, 162, 255, 0.1);
+        border: 1px solid #c8a2ff;
+        border-radius: 6px;
+        padding: 20px;
+        margin: 20px 0;
+      }
+
+      .demo-canvas {
+        background: #333;
+        border: 2px solid #666;
+        border-radius: 4px;
+        padding: 20px;
+        text-align: center;
+        margin: 20px 0;
+      }
+
+      code {
+        background: rgba(0, 0, 0, 0.5);
+        padding: 2px 6px;
+        border-radius: 3px;
+        color: #98fb98;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🎨 Popover API Test for Compositor4</h1>
+
+    <div class="info-box">
+      <h3>About the Popover API</h3>
+      <p>
+        The <code>popover</code> attribute creates a native browser overlay
+        that:
+      </p>
+      <ul>
+        <li>Appears on top of all other content (top layer)</li>
+        <li>Automatically handles backdrop clicks to close</li>
+        <li>Supports light dismiss (click outside or press Escape)</li>
+        <li>No z-index required - always on top</li>
+        <li>Perfect for fullscreen editor interfaces</li>
+      </ul>
+      <p>
+        Browser support: Chrome 114+, Edge 114+, Safari 17+, Firefox (in
+        development)
+      </p>
+    </div>
+
+    <button popovertarget="demo-popover">Open Popover (Declarative)</button>
+    <button id="open-js">Open Popover (JavaScript)</button>
+    <button id="open-with-content">Open with Dynamic Content</button>
+
+    <!-- Popover 1: Basic example -->
+    <div id="demo-popover" popover>
+      <div class="popover-header">
+        <h2>🎨 Compositor4 Popover Demo</h2>
+        <button class="close-btn" popovertarget="demo-popover">✕ Close</button>
+      </div>
+      <div class="popover-content">
+        <h3>This is a native browser popover!</h3>
+        <p>
+          This overlay is created using the HTML Popover API, which provides:
+        </p>
+        <ul>
+          <li>✅ Top-layer rendering (always on top)</li>
+          <li>✅ Built-in backdrop and light dismiss</li>
+          <li>✅ Keyboard accessibility (Escape to close)</li>
+          <li>✅ No JavaScript required for basic usage</li>
+        </ul>
+
+        <div class="demo-canvas">
+          <p style="margin: 0; color: #aaa">
+            📐 Canvas Area<br />
+            (Future: Fabric.js canvas will render here)
+          </p>
+        </div>
+
+        <div class="info-box">
+          <strong>For Compositor4:</strong>
+          <p>We can render the full Fabric.js canvas here with:</p>
+          <ul>
+            <li>Larger workspace (90vw × 90vh)</li>
+            <li>All editing tools accessible</li>
+            <li>Synchronized state with main node</li>
+            <li>Easy close/return to sidebar</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Popover 2: JavaScript controlled -->
+    <div id="js-popover" popover="manual">
+      <div class="popover-header">
+        <h2>💻 JavaScript Controlled Popover</h2>
+        <button class="close-btn" id="close-js">✕ Close</button>
+      </div>
+      <div class="popover-content">
+        <h3>Controlled via JavaScript</h3>
+        <p>
+          This popover uses <code>popover="manual"</code> for full programmatic
+          control:
+        </p>
+        <pre
+          style="
+            background: rgba(0, 0, 0, 0.5);
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+          "
+        >
+<code>// Open popover
+element.showPopover();
+
+// Close popover
+element.hidePopover();
+
+// Toggle popover
+element.togglePopover();
+
+// Check state
+element.matches(':popover-open');
+
+// Listen to events
+element.addEventListener('toggle', (event) => {
+  if (event.newState === 'open') {
+    console.log('Popover opened!');
+  }
+});</code></pre>
+
+        <div class="info-box">
+          <strong>Use Case for Compositor4:</strong>
+          <p>Manual mode lets us:</p>
+          <ul>
+            <li>Initialize canvas before showing</li>
+            <li>Prevent accidental closes</li>
+            <li>Sync state on open/close events</li>
+            <li>Control visibility programmatically</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // JavaScript control example
+      const jsPopover = document.getElementById("js-popover");
+      const openJsBtn = document.getElementById("open-js");
+      const closeJsBtn = document.getElementById("close-js");
+      const openWithContentBtn = document.getElementById("open-with-content");
+
+      openJsBtn.addEventListener("click", () => {
+        jsPopover.showPopover();
+        console.log("Popover opened via JavaScript");
+      });
+
+      closeJsBtn.addEventListener("click", () => {
+        jsPopover.hidePopover();
+        console.log("Popover closed via JavaScript");
+      });
+
+      openWithContentBtn.addEventListener("click", () => {
+        // Demonstrate dynamic content loading
+        const content = jsPopover.querySelector(".popover-content");
+        const timestamp = new Date().toLocaleTimeString();
+
+        // Add dynamic content
+        const dynamicDiv = document.createElement("div");
+        dynamicDiv.className = "demo-canvas";
+        dynamicDiv.innerHTML = `
+                <p style="color: #98fb98; margin: 0;">
+                    🕐 Opened at: ${timestamp}<br>
+                    <small>(This content was added dynamically)</small>
+                </p>
+            `;
+
+        // Clear previous dynamic content
+        const existing = content.querySelector(".demo-canvas");
+        if (existing) existing.remove();
+
+        content.appendChild(dynamicDiv);
+
+        jsPopover.showPopover();
+      });
+
+      // Listen to toggle events
+      jsPopover.addEventListener("toggle", (event) => {
+        console.log(
+          `Popover state changed: ${event.oldState} → ${event.newState}`
+        );
+
+        if (event.newState === "open") {
+          console.log("✅ Popover is now open - initialize canvas here");
+        } else {
+          console.log("❌ Popover is now closed - cleanup resources here");
+        }
+      });
+
+      // Also log for the declarative popover
+      const demoPopover = document.getElementById("demo-popover");
+      demoPopover.addEventListener("toggle", (event) => {
+        console.log(`Demo popover: ${event.oldState} → ${event.newState}`);
+      });
+    </script>
+  </body>
+</html>

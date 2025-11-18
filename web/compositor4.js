@@ -117,6 +117,26 @@ const initializeCustomCanvasWidget = (node) => {
       if (node.editor && node.editor.cleanup) {
         node.editor.cleanup();
       }
+
+      // Cleanup popover element
+      if (node.popoverElement) {
+        try {
+          node.popoverElement.hidePopover();
+        } catch (e) {
+          // Ignore if already hidden
+        }
+        if (node.popoverElement.parentNode) {
+          node.popoverElement.parentNode.removeChild(node.popoverElement);
+        }
+        node.popoverElement = null;
+      }
+
+      // Cleanup popover canvas instance
+      if (node.popoverCanvasInstance) {
+        node.popoverCanvasInstance.dispose();
+        node.popoverCanvasInstance = null;
+      }
+
       if (originalOnRemoved) {
         originalOnRemoved.call(this);
       }
@@ -1945,6 +1965,204 @@ const Editor = (node, fabric) => {
       // Trigger save
       saveAndUpdateSeed();
     };
+
+    // Add separator before popover button
+    createSeparator(toolbarEl);
+
+    // Create popover container with button
+    const popoverContainer = document.createElement("div");
+    applyStyles(popoverContainer, {
+      display: "flex",
+      flexDirection: "column",
+      gap: "2px",
+      minWidth: "80px",
+    });
+    toolbarEl.appendChild(popoverContainer);
+
+    // Store reference to original parent for moving back
+    let originalParent = null;
+
+    // Create the popover element first (initially hidden)
+    const popoverEl = document.createElement("div");
+    // Use a stable ID based on widget creation time, not node.id which may change
+    const popoverId = `compositor-popover-${Date.now()}-${Math.random()
+      .toString(36)
+      .substr(2, 9)}`;
+    popoverEl.id = popoverId;
+
+    // Create popover button with direct reference to popoverEl
+    const popoverBtn = createToolbarButton(
+      "⛶ Popover",
+      () => {
+        console.log(
+          "[Compositor4] Popover button clicked, using element reference"
+        );
+
+        if (popoverEl) {
+          console.log(
+            "[Compositor4] Popover element found via reference, id:",
+            popoverEl.id
+          );
+
+          try {
+            popoverEl.showPopover();
+            console.log("[Compositor4] showPopover() called successfully");
+          } catch (e) {
+            console.error("[Compositor4] Error calling showPopover():", e);
+          }
+        } else {
+          console.error("[Compositor4] Popover element reference is null!");
+        }
+      },
+      popoverContainer
+    );
+    popoverBtn.title = "Open compositor in popover window (native browser API)";
+
+    // Check if browser supports Popover API
+    if (typeof popoverEl.showPopover === "function") {
+      popoverEl.popover = "manual"; // Use 'manual' to control show/hide programmatically
+      console.log(
+        "[Compositor4] Popover API supported, element created with id:",
+        popoverEl.id
+      );
+    } else {
+      console.warn("[Compositor4] Popover API not supported in this browser");
+      // Set attribute directly as fallback
+      popoverEl.setAttribute("popover", "manual");
+    }
+
+    applyStyles(popoverEl, {
+      width: "95vw",
+      height: "95vh",
+      maxWidth: "none",
+      maxHeight: "none",
+      padding: "0",
+      margin: "0",
+      border: "2px solid #c8a2ff",
+      borderRadius: "8px",
+      backgroundColor: COLOR_TOOLBAR_BG,
+      overflow: "hidden",
+    });
+
+    // Create popover header
+    const popoverHeader = document.createElement("div");
+    applyStyles(popoverHeader, {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      padding: "10px 15px",
+      backgroundColor: "rgba(200, 162, 255, 0.2)",
+      borderBottom: `1px solid ${COLOR_BUTTON_BORDER}`,
+      flexShrink: "0",
+    });
+
+    const popoverTitle = document.createElement("h3");
+    popoverTitle.textContent = `Compositor4 - Node #${node.id}`;
+    applyStyles(popoverTitle, {
+      margin: "0",
+      color: "#c8a2ff",
+      fontSize: "16px",
+      fontWeight: "bold",
+    });
+    popoverHeader.appendChild(popoverTitle);
+
+    const popoverCloseBtn = createIconButton("✕", () => {
+      try {
+        popoverEl.hidePopover();
+      } catch (e) {
+        console.warn("[Compositor4] Error closing popover:", e);
+      }
+    });
+    popoverCloseBtn.title = "Close popover (or press Escape)";
+    applyStyles(popoverCloseBtn, {
+      backgroundColor: "rgba(255, 100, 100, 0.7)",
+    });
+    popoverHeader.appendChild(popoverCloseBtn);
+
+    popoverEl.appendChild(popoverHeader);
+
+    // Create popover content container (will hold the moved containerEl)
+    const popoverContent = document.createElement("div");
+    applyStyles(popoverContent, {
+      flex: "1",
+      overflow: "auto",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "10px",
+    });
+
+    popoverEl.appendChild(popoverContent);
+
+    // Append popover to document body (popovers must be top-level)
+    document.body.appendChild(popoverEl);
+    console.log(
+      "[Compositor4] Popover element appended to body with id:",
+      popoverEl.id
+    );
+    console.log(
+      "[Compositor4] Can find it via getElementById?",
+      !!document.getElementById(popoverEl.id)
+    );
+
+    // Store popover reference for cleanup
+    node.popoverElement = popoverEl;
+    node.popoverContent = popoverContent;
+
+    // When popover opens, move the entire compositor UI into it
+    popoverEl.addEventListener("toggle", (event) => {
+      if (event.newState === "open") {
+        console.log("[Compositor4] Popover opened - moving UI into popover");
+
+        // Store original parent
+        originalParent = containerEl.parentNode;
+
+        // Move containerEl into popover
+        if (containerEl && popoverContent) {
+          popoverContent.appendChild(containerEl);
+
+          // Update container styles for popover display
+          applyStyles(containerEl, {
+            width: "auto",
+            height: "auto",
+            maxWidth: "100%",
+            maxHeight: "100%",
+          });
+
+          // Trigger canvas resize/render
+          if (fabricInstance) {
+            fabricInstance.renderAll();
+          }
+        }
+      } else if (event.newState === "closed") {
+        console.log("[Compositor4] Popover closed - moving UI back to node");
+
+        // Move containerEl back to original parent
+        if (containerEl && originalParent) {
+          originalParent.appendChild(containerEl);
+
+          // Restore original container styles
+          applyStyles(containerEl, {
+            width:
+              canvasWidth +
+              canvasPadding * 2 +
+              COMPOSITION_BORDER_SIZE * 2 +
+              150 +
+              "px",
+            height:
+              canvasHeight +
+              canvasPadding * 2 +
+              COMPOSITION_BORDER_SIZE * 2 +
+              "px",
+          });
+
+          // Trigger canvas resize/render
+          if (fabricInstance) {
+            fabricInstance.renderAll();
+          }
+        }
+      }
+    });
   };
 
   const createLayerItem = (index) => {

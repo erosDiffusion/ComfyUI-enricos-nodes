@@ -73,76 +73,82 @@ app.registerExtension({
         activeEditor: null,
         containerElement: null,
         headerElement: null,
-        
+
         // Connect an editor to the sidebar (make it the active one)
         connect(editor, node) {
-          console.log('[Compositor4 Sidebar] Connecting editor for node:', node.id);
+          console.log(
+            "[Compositor4 Sidebar] Connecting editor for node:",
+            node.id
+          );
           this.activeEditor = { editor, node };
           this.render();
         },
-        
+
         // Disconnect current editor
         disconnect() {
-          console.log('[Compositor4 Sidebar] Disconnecting editor');
+          console.log("[Compositor4 Sidebar] Disconnecting editor");
           this.activeEditor = null;
-          
+
           // Update header to show no node connected
           if (this.headerElement) {
-            this.headerElement.textContent = 'Compositor4 Tools - No Node Connected';
+            this.headerElement.textContent =
+              "Compositor4 Tools - No Node Connected";
           }
-          
+
           if (this.containerElement) {
             // Clear container
             while (this.containerElement.firstChild) {
-              this.containerElement.removeChild(this.containerElement.firstChild);
+              this.containerElement.removeChild(
+                this.containerElement.firstChild
+              );
             }
             // Show instructions
-            const instructions = document.createElement('div');
-            instructions.style.cssText = 'color: #888; padding: 20px; line-height: 1.6;';
+            const instructions = document.createElement("div");
+            instructions.style.cssText =
+              "color: #888; padding: 20px; line-height: 1.6;";
             instructions.innerHTML = `
-              <div style="margin-bottom: 10px; font-weight: bold;">No active node</div>
-              <div style="margin-bottom: 8px;">• Click the <strong>Tools</strong> button on a Compositor4 node to display its tools and layers here.</div>
-              <div>• Hover over any Compositor4 node to automatically switch to its tools and layers.</div>
+              <div style="margin-bottom: 10px; font-weight: bold;">No active compositor</div>
+              <div>• <strong>Click</strong> within the green composition area of any Compositor4 node to display its tools and layers in this panel.</div>
             `;
             this.containerElement.appendChild(instructions);
           }
         },
-        
+
         // Render the current active editor's toolbar and layers
         render() {
           if (!this.containerElement || !this.activeEditor) return;
-          
+
           const { editor, node } = this.activeEditor;
-          
+
           // Update header to show connected node
           if (this.headerElement) {
             this.headerElement.textContent = `Compositor4 Tools - Node #${node.id}`;
           }
-          
+
           // Clear container by removing all children (preserves element references)
           while (this.containerElement.firstChild) {
             this.containerElement.removeChild(this.containerElement.firstChild);
           }
-          
+
           // Get the toolbar and layers elements from the editor
           const toolbarEl = editor.getVerticalToolbar();
           const layersEl = editor.getLayersPanel();
-          
+
           if (toolbarEl && layersEl) {
             // appendChild automatically removes elements from their previous parent
             this.containerElement.appendChild(toolbarEl);
-            layersEl.style.display = 'flex';
+            layersEl.style.display = "flex";
             this.containerElement.appendChild(layersEl);
           }
-        }
+        },
       };
     }
 
     // Register sidebar tab for compositor toolbar
     app.extensionManager.registerSidebarTab({
       id: "compositor4Toolbar",
-      icon: "pi pi-palette",
-      title: "Compositor4",
+      icon: "pi pi-image",
+      title: "Compositor",
       tooltip: "Compositor4 Toolbar & Layers",
       type: "custom",
       render: (el) => {
@@ -184,17 +190,17 @@ app.registerExtension({
         // Connect to global sidebar API
         window.compositor4Sidebar.headerElement = header;
         window.compositor4Sidebar.containerElement = contentArea;
-        
+
         // Render if there's already an active editor
         if (window.compositor4Sidebar.activeEditor) {
           window.compositor4Sidebar.render();
         } else {
-          const instructions = document.createElement('div');
-          instructions.style.cssText = 'color: #888; padding: 20px; line-height: 1.6;';
+          const instructions = document.createElement("div");
+          instructions.style.cssText =
+            "color: #888; padding: 20px; line-height: 1.6;";
           instructions.innerHTML = `
-            <div style="margin-bottom: 10px; font-weight: bold;">No active node</div>
-            <div style="margin-bottom: 8px;">• Click the <strong>Tools</strong> button on a Compositor4 node to display its tools and layers here.</div>
-            <div>• Hover over any Compositor4 node to automatically switch to its tools and layers.</div>
+            <div style="margin-bottom: 10px; font-weight: bold;">No active compositor</div>
+            <div>• <strong>Click</strong> within the green composition area of any Compositor4 node to display its tools and layers in this panel.</div>
           `;
           contentArea.appendChild(instructions);
         }
@@ -1419,24 +1425,6 @@ const Editor = (node, fabric) => {
       }
     `;
     document.head.appendChild(style);
-
-    // Create a new slim visible toolbar for popover buttons only
-    const miniToolbar = document.createElement("div");
-    applyStyles(miniToolbar, {
-      width: "fit-content",
-      minHeight: "40px",
-      height: "40px",
-      backgroundColor: COLOR_TOOLBAR_BG,
-      display: "flex",
-      alignItems: "center",
-      borderRadius: "8px",
-      padding: "5px",
-      boxSizing: "border-box",
-      gap: "5px",
-      boxShadow: "inset 0 0 5px rgba(0, 0, 0, 0.2)",
-    });
-    containerEl.appendChild(miniToolbar);
-
     containerEl.appendChild(toolbarEl);
 
     // Hide the main toolbar - it's now only functional via the popover
@@ -2294,15 +2282,6 @@ const Editor = (node, fabric) => {
       return true;
     };
 
-    // Create container for popover buttons in the mini toolbar
-    const layersToolsPopoverContainer = document.createElement("div");
-    applyStyles(layersToolsPopoverContainer, {
-      display: "flex",
-      flexDirection: "row",
-      gap: "5px",
-    });
-    miniToolbar.appendChild(layersToolsPopoverContainer);
-
     // Initially create popover with temporary ID (node.id might be -1 at creation)
     // Will be updated during init event when proper node ID is available
     const tempPopoverId = `compositor-layers-tools-temp-${Date.now()}`;
@@ -3081,92 +3060,34 @@ const Editor = (node, fabric) => {
     // Store original parent of vertical toolbar for restoration
     layersToolsPopover._toolbarOriginalParent = layersToolsContent;
 
-    // Create button to open popover or sidebar
-    const layersToolsBtn = createToolbarButton(
-      "Tools",
-      () => {
-        console.log(
-          "[Compositor4] Button clicked for node:",
-          node.id
-        );
+    // ========== END: Layers/Tools Popover ==========
 
-        // Check user preference for toolbar location
-        const toolbarLocation =
-          app.extensionManager.setting.get("Compositor4.toolbarLocation") ||
-          "overlay";
+    // Add click event to open sidebar and switch to this node's tools when clicking into the composition
+    containerEl.addEventListener("click", (e) => {
+      // Check toolbar location preference
+      const toolbarLocation =
+        app.extensionManager.setting.get("Compositor4.toolbarLocation") ||
+        "overlay";
 
-        if (toolbarLocation === "sidebar") {
-          // Use new sidebar API
-          if (window.compositor4Sidebar) {
-            // Connect this editor to the sidebar
-            window.compositor4Sidebar.connect(node.editor, node);
-            
-            // Open the sidebar tab
-            if (app.extensionManager.sidebar) {
-              app.extensionManager.sidebar.open("compositor4Toolbar");
-            }
+      if (toolbarLocation === "sidebar") {
+        // When in sidebar mode, connect this node and open sidebar
+        if (window.compositor4Sidebar) {
+          // Connect this editor to the sidebar using the new API
+          window.compositor4Sidebar.connect(node.editor, node);
+          
+          // Only open the sidebar if it's not already showing compositor4Toolbar
+          const sidebarTabStore = window['app']?.extensionManager?.sidebarTab;
+          const isAlreadyOpen = sidebarTabStore?.activeSidebarTabId === "compositor4Toolbar";
+          
+          if (!isAlreadyOpen && app.extensionManager.command) {
+            app.extensionManager.command.execute("Workspace.ToggleSidebarTab.compositor4Toolbar");
+            console.log("[Compositor4] Clicked composition - opened sidebar for node:", node.id);
           } else {
-            console.warn("[Compositor4] Sidebar API not available");
-          }
-        } else {
-          // Use overlay popover (original behavior)
-
-          // Restore toolbar to popover if it's in the sidebar
-          if (verticalToolbar.parentNode !== layersToolsContent) {
-            console.log(
-              "[Compositor4] Restoring toolbar from sidebar to popover"
-            );
-            layersToolsContent.appendChild(verticalToolbar);
-          }
-
-          // Close any currently open popover from another instance
-          if (
-            currentLayersToolsPopover &&
-            currentLayersToolsPopover !== layersToolsPopover
-          ) {
-            console.log(
-              "[Compositor4] Closing previous popover:",
-              currentLayersToolsPopover.id
-            );
-
-            // Restore layers panel from previous popover using centralized function
-            restoreLayersPanelToWidget(currentLayersToolsPopover);
-            console.log("[Compositor4] Restored layers from previous popover");
-
-            // Hide previous popover
-            try {
-              if (currentLayersToolsPopover.matches(":popover-open")) {
-                currentLayersToolsPopover.hidePopover();
-              }
-              currentLayersToolsPopover.style.visibility = "hidden";
-            } catch (e) {
-              console.warn("[Compositor4] Error closing previous popover:", e);
-            }
-          }
-
-          // Move the actual layers panel into this popover (portal-style)
-          if (layersPanelEl && layersPanelEl.parentNode) {
-            moveLayersPanelToPopover(layersToolsPopover, layersPanelEl);
-            console.log("[Compositor4] Moved layers panel into popover");
-          }
-
-          try {
-            layersToolsPopover.showPopover();
-            console.log("[Compositor4] showPopover() called");
-          } catch (e) {
-            console.error(
-              "[Compositor4] Error showing layers/tools popover:",
-              e
-            );
+            console.log("[Compositor4] Clicked composition - sidebar already open, switched to node:", node.id);
           }
         }
-      },
-      layersToolsPopoverContainer
-    );
-    layersToolsBtn.title =
-      "Open layers and tools (location based on preference)";
-
-    // ========== END: Layers/Tools Popover ==========
+      }
+    });
 
     // Add mouseenter event to switch popover toolbar to this node when hovering
     // Must be after popover is created and stored on node
@@ -3180,16 +3101,22 @@ const Editor = (node, fabric) => {
         // When in sidebar mode, update sidebar content with this node's editor
         if (window.compositor4Sidebar) {
           // Only switch if we're hovering over a different node
-          if (window.compositor4Sidebar.activeEditor && window.compositor4Sidebar.activeEditor.node === node) {
+          if (
+            window.compositor4Sidebar.activeEditor &&
+            window.compositor4Sidebar.activeEditor.node === node
+          ) {
             return;
           }
 
           // Check if sidebar is actually open before switching content
-          if (!app.extensionManager.sidebar || !app.extensionManager.sidebar.isOpen("compositor4Toolbar")) {
+          if (
+            !app.extensionManager.sidebar ||
+            !app.extensionManager.sidebar.isOpen("compositor4Toolbar")
+          ) {
             return;
           }
 
-          console.log("[Compositor4] Updating sidebar for node:", node.id);
+          console.log("[Compositor4] Hovering - updating sidebar for node:", node.id);
 
           // Connect this editor to the sidebar using the new API
           window.compositor4Sidebar.connect(node.editor, node);

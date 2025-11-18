@@ -3074,16 +3074,25 @@ const Editor = (node, fabric) => {
         if (window.compositor4Sidebar) {
           // Connect this editor to the sidebar using the new API
           window.compositor4Sidebar.connect(node.editor, node);
-          
+
           // Only open the sidebar if it's not already showing compositor4Toolbar
-          const sidebarTabStore = window['app']?.extensionManager?.sidebarTab;
-          const isAlreadyOpen = sidebarTabStore?.activeSidebarTabId === "compositor4Toolbar";
-          
+          const sidebarTabStore = window["app"]?.extensionManager?.sidebarTab;
+          const isAlreadyOpen =
+            sidebarTabStore?.activeSidebarTabId === "compositor4Toolbar";
+
           if (!isAlreadyOpen && app.extensionManager.command) {
-            app.extensionManager.command.execute("Workspace.ToggleSidebarTab.compositor4Toolbar");
-            console.log("[Compositor4] Clicked composition - opened sidebar for node:", node.id);
+            app.extensionManager.command.execute(
+              "Workspace.ToggleSidebarTab.compositor4Toolbar"
+            );
+            console.log(
+              "[Compositor4] Clicked composition - opened sidebar for node:",
+              node.id
+            );
           } else {
-            console.log("[Compositor4] Clicked composition - sidebar already open, switched to node:", node.id);
+            console.log(
+              "[Compositor4] Clicked composition - sidebar already open, switched to node:",
+              node.id
+            );
           }
         }
       }
@@ -3116,7 +3125,10 @@ const Editor = (node, fabric) => {
             return;
           }
 
-          console.log("[Compositor4] Hovering - updating sidebar for node:", node.id);
+          console.log(
+            "[Compositor4] Hovering - updating sidebar for node:",
+            node.id
+          );
 
           // Connect this editor to the sidebar using the new API
           window.compositor4Sidebar.connect(node.editor, node);

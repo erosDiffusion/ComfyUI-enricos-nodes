@@ -91,6 +91,10 @@ function getSeedWidget(node) {
   return getWidget(node, "seed");
 }
 
+function getUiValue(value) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
 const initializeCustomCanvasWidget = (node) => {
   if (isCorrectType(node)) {
     // Note: Widget hiding functionality is commented out as it doesn't work as expected
@@ -196,6 +200,23 @@ function executedMessageHandler(event, a, b) {
     // This is when we update the editor with canvas dimensions, images, etc.
     const e = event.detail.output;
     const editor = node.editor;
+    const imageNameWidget = getImageNameWidget(node);
+    const currentImageName = imageNameWidget?.value;
+    const eventImageName = getUiValue(e.imageName);
+
+    if (
+      currentImageName &&
+      eventImageName &&
+      currentImageName !== "default" &&
+      currentImageName !== eventImageName
+    ) {
+      console.log("[Compositor4] Ignoring init event for different imageName", {
+        nodeId,
+        currentImageName,
+        eventImageName,
+      });
+      return;
+    }
 
     // console.log("[Compositor4] Event data:", {
     //   // width: e.width,
@@ -218,12 +239,16 @@ function executedMessageHandler(event, a, b) {
       e.height !== undefined &&
       e.padding !== undefined
     ) {
-      editor.updateCanvasDimensions(e.width, e.height, e.padding);
+      editor.updateCanvasDimensions(
+        getUiValue(e.width),
+        getUiValue(e.height),
+        getUiValue(e.padding)
+      );
     }
 
     // Store saveFolder in editor if provided
     if (e.saveFolder !== undefined) {
-      editor.setSaveFolder(e.saveFolder);
+      editor.setSaveFolder(getUiValue(e.saveFolder));
     }
 
     // Load images (this will clear old images and load new ones)
@@ -234,7 +259,7 @@ function executedMessageHandler(event, a, b) {
 
     // Store applyMaskInConfig mode
     if (e.applyMaskInConfig !== undefined) {
-      editor.setApplyMaskInConfig(Boolean(e.applyMaskInConfig?.[0]));
+      editor.setApplyMaskInConfig(Boolean(getUiValue(e.applyMaskInConfig)));
     }
 
     // Load mask filenames if available
@@ -243,8 +268,8 @@ function executedMessageHandler(event, a, b) {
     }
 
     // Handle auto-save for "grab and continue" mode
-    const onConfigChangedContinue = Boolean(e.onConfigChangedContinue?.[0]);
-    const configChanged = Boolean(e.configChanged?.[0]);
+    const onConfigChangedContinue = Boolean(getUiValue(e.onConfigChangedContinue));
+    const configChanged = Boolean(getUiValue(e.configChanged));
 
     console.log("[Compositor4] 3 Auto-save check:", {
       configChanged,
@@ -263,7 +288,7 @@ function executedMessageHandler(event, a, b) {
         "[Compositor4] Config changed - updating seed with configSignature:",
         e.configSignature
       );
-      editor.updateSeedValue(e.configSignature);
+      editor.updateSeedValue(getUiValue(e.configSignature));
     }
 
     // If in "grab and continue" mode, auto-save and re-queue
@@ -1416,7 +1441,7 @@ const Editor = (node, fabric) => {
           activeObject.setCoords();
           fabricInstance.renderAll();
           saveAndUpdateSeed().then(() => {
-            api.enqueuePrompt(0, 1);
+            app.queuePrompt(0, 1);
           });
         }
       },

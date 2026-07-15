@@ -5,6 +5,7 @@ from PIL import Image, ImageOps
 import numpy as np
 import torch
 import json
+import os
 from typing_extensions import override
 from comfy_api.latest import ComfyExtension, io
 
@@ -121,6 +122,18 @@ def place_on_canvas(image_tensor, canvas_width, canvas_height, left, top, scale_
         return image_tensor, mask_tensor
 
 
+def get_compositor_image_path(save_folder, image_name):
+    base_dir = folder_paths.get_directory_by_type(save_folder)
+    if base_dir is None:
+        return None
+
+    image_path = os.path.abspath(os.path.join(base_dir, "compositor", image_name))
+    if not folder_paths.is_within_directory(base_dir, image_path):
+        return None
+
+    return image_path
+
+
 class Compositor4(io.ComfyNode):
     """
     V4 compositor node with integrated mask handling
@@ -206,6 +219,7 @@ class Compositor4(io.ComfyNode):
             "height": [height],
             "config_node_id": [config_node_id],
             "node_id": [node_id],
+            "imageName": [imageName],
             "names": names,
             "maskNames": maskNames,  # V4: Pass mask filenames to frontend
             "applyMaskInConfig": [applyMaskInConfig],  # V4: Pass mask application mode to frontend
@@ -237,15 +251,12 @@ class Compositor4(io.ComfyNode):
             blocker_result = tuple([ExecutionBlocker(None)] * 3)  # V4: 3 outputs now
             return io.NodeOutput(*blocker_result, ui=ui)
         
-        # Construct path based on saveFolder
-        folder_path = f"../{saveFolder}/compositor/{imageName}"
-        imageExists = folder_paths.exists_annotated_filepath(folder_path)
-        if not imageExists:
+        image_path = get_compositor_image_path(saveFolder, imageName)
+        if image_path is None or not os.path.isfile(image_path):
             # Return ExecutionBlocker for all outputs if blocked
-            print(f"[Compositor4] Image not found: {folder_path}")
+            print(f"[Compositor4] Image not found: saveFolder={saveFolder}, imageName={imageName}")
             blocker_result = tuple([ExecutionBlocker(None)] * 3)  # V4: 3 outputs now
             return io.NodeOutput(*blocker_result, ui=ui)
-        image_path = folder_paths.get_annotated_filepath(folder_path)
         print(f"[Compositor4] Loading image: {image_path}")
         i = Image.open(image_path)
         i = ImageOps.exif_transpose(i)
@@ -290,13 +301,15 @@ class Compositor4(io.ComfyNode):
                 
                 if original_image_tensor is not None and idx < len(fabric_transforms):
                     # Get transformation data
-                    transform = fabric_transforms[idx]
+                    transform = fabric_transforms[idx] or {}
                     angle = transform.get('angle', 0)
                     scale_x = transform.get('scaleX', 1.0)
                     scale_y = transform.get('scaleY', 1.0)
                     
                     # Get positioning data from bboxes
-                    bbox = fabric_bboxes[idx] if idx < len(fabric_bboxes) else {'left': 0, 'top': 0}
+                    bbox = fabric_bboxes[idx] if idx < len(fabric_bboxes) else None
+                    if bbox is None:
+                        bbox = {'left': 0, 'top': 0}
                     left = bbox.get('left', 0)
                     top = bbox.get('top', 0)
                     

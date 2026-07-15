@@ -9,12 +9,67 @@ import torch.nn.functional as F
 import math
 import os
 import hashlib
+import json
 import time
 from comfy.utils import common_upscale
 from typing_extensions import override
 from comfy_api.latest import ComfyExtension, io
 
 MAX_RESOLUTION = nodes.MAX_RESOLUTION
+
+
+def get_compositor_directory(save_folder):
+    if save_folder == "input":
+        base_dir = folder_paths.get_input_directory()
+    elif save_folder == "output":
+        base_dir = folder_paths.get_output_directory()
+    else:
+        base_dir = folder_paths.get_temp_directory()
+
+    compositor_dir = os.path.join(base_dir, "compositor")
+    os.makedirs(compositor_dir, exist_ok=True)
+    return compositor_dir
+
+
+def file_sha256(path):
+    digest = hashlib.sha256()
+    with open(path, "rb") as file_handle:
+        while True:
+            chunk = file_handle.read(1024 * 1024)
+            if not chunk:
+                break
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def build_config_signature(width, height, padding, normalizeHeight, onConfigChangedContinue, invertMask, applyMaskInConfig, saveFormat, saveFolder, image_names, mask_names):
+    compositor_dir = get_compositor_directory(saveFolder)
+
+    def hashed_file(filename):
+        if not filename:
+            return None
+
+        file_path = os.path.join(compositor_dir, filename)
+        if not os.path.isfile(file_path):
+            return None
+
+        return file_sha256(file_path)
+
+    signature_payload = {
+        "width": width,
+        "height": height,
+        "padding": padding,
+        "normalizeHeight": normalizeHeight,
+        "onConfigChangedContinue": onConfigChangedContinue,
+        "invertMask": invertMask,
+        "applyMaskInConfig": applyMaskInConfig,
+        "saveFormat": saveFormat,
+        "saveFolder": saveFolder,
+        "images": [hashed_file(name) for name in image_names],
+        "masks": [hashed_file(name) for name in mask_names],
+    }
+
+    return hashlib.sha256(json.dumps(signature_payload, sort_keys=True).encode("utf-8")).hexdigest()
 
 
 # these probably exist elsewhere as utils
@@ -43,18 +98,7 @@ def saveImageToCompositorFolder(img, config_node_id, index, save_format, save_fo
     Supports multiple lossless formats with different speed/size tradeoffs.
     save_folder can be: "temp", "input", or "output"
     """
-    # Get the appropriate directory based on save_folder
-    if save_folder == "input":
-        base_dir = folder_paths.get_input_directory()
-    elif save_folder == "output":
-        base_dir = folder_paths.get_output_directory()
-    else:  # default to temp
-        base_dir = folder_paths.get_temp_directory()
-    
-    compositor_dir = os.path.join(base_dir, "compositor")
-    
-    # Ensure the compositor directory exists
-    os.makedirs(compositor_dir, exist_ok=True)
+    compositor_dir = get_compositor_directory(save_folder)
     
     # Determine format and extension based on user selection
     if save_format == "PNG Level 0 (fastest)":
@@ -115,18 +159,7 @@ def saveMaskToCompositorFolder(mask_tensor, config_node_id, index, save_folder):
     
     save_folder can be: "temp", "input", or "output"
     """
-    # Get the appropriate directory based on save_folder
-    if save_folder == "input":
-        base_dir = folder_paths.get_input_directory()
-    elif save_folder == "output":
-        base_dir = folder_paths.get_output_directory()
-    else:  # default to temp
-        base_dir = folder_paths.get_temp_directory()
-    
-    compositor_dir = os.path.join(base_dir, "compositor")
-    
-    # Ensure the compositor directory exists
-    os.makedirs(compositor_dir, exist_ok=True)
+    compositor_dir = get_compositor_directory(save_folder)
     
     # Convert mask tensor to PIL Image (grayscale)
     # mask_tensor shape: [batch, height, width] or [height, width]
@@ -203,10 +236,7 @@ class CompositorConfig4(io.ComfyNode):
                 image1=None, mask1=None, image2=None, mask2=None, image3=None, mask3=None,
                 image4=None, mask4=None, image5=None, mask5=None, image6=None, mask6=None,
                 image7=None, mask7=None, image8=None, mask8=None) -> io.NodeOutput:
-        
-        import random
-        hash_input = str(random.random())
-        
+
         # Force applyMaskInConfig to True (frontend clipPath not fully functional)
         applyMaskInConfig = True
 
@@ -221,7 +251,6 @@ class CompositorConfig4(io.ComfyNode):
             "width": width, "height": height, "padding": padding,
             "normalizeHeight": normalizeHeight, "onConfigChangedContinue": onConfigChangedContinue,
             "invertMask": invertMask, "applyMaskInConfig": applyMaskInConfig, "saveFormat": saveFormat, "saveFolder": saveFolder,
-            "configSignature": hash_input,
             "image1": image1, "mask1": mask1, "image2": image2, "mask2": mask2,
             "image3": image3, "mask3": mask3, "image4": image4, "mask4": mask4,
             "image5": image5, "mask5": mask5, "image6": image6, "mask6": mask6,
@@ -233,13 +262,6 @@ class CompositorConfig4(io.ComfyNode):
         masks = [mask1, mask2, mask3, mask4, mask5, mask6, mask7, mask8, ]
         input_images = []
         mask_filenames = []  # V4: Track mask filenames
-
-        # Generate a random hash that changes on every execution
-        # This forces the Compositor4 node to re-execute every time
-        
-        
-        # Generate final hash
-        # config_signature = hashlib.md5(hash_input.encode()).hexdigest()
 
         # apply the masks to the images if any so that we get a rgba
         # then pass the rgba in the return value
@@ -289,6 +311,20 @@ class CompositorConfig4(io.ComfyNode):
 
         cls.ensureEmpty()
 
+        config_signature = build_config_signature(
+            width,
+            height,
+            padding,
+            normalizeHeight,
+            onConfigChangedContinue,
+            invertMask,
+            applyMaskInConfig,
+            saveFormat,
+            saveFolder,
+            input_images,
+            mask_filenames,
+        )
+
         res = {
             "node_id": node_id,
             "width": width,
@@ -301,7 +337,7 @@ class CompositorConfig4(io.ComfyNode):
             "invertMask": invertMask,
             "applyMaskInConfig": applyMaskInConfig,  # V4: Pass mask application mode to compositor
             "saveFolder": saveFolder,
-            "configSignature": hash_input,  # Hash that changes on every execution
+            "configSignature": config_signature,
             # V4: Include raw tensors for layer processing
             "raw_images": images,
             "raw_masks": masks,

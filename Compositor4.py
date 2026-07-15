@@ -237,8 +237,12 @@ class Compositor4(io.ComfyNode):
             blocker_result = tuple([ExecutionBlocker(None)] * 3)  # V4: 3 outputs now
             return io.NodeOutput(*blocker_result, ui=ui)
         
-        # Construct path based on saveFolder
-        folder_path = f"../{saveFolder}/compositor/{imageName}"
+        # Construct path based on saveFolder.
+        # Use ComfyUI's annotation syntax ("name [output]") instead of a "../output/"
+        # relative traversal: recent ComfyUI hardened folder_paths with an
+        # is_within_directory() guard that rejects paths escaping the input dir,
+        # which broke the old "../{saveFolder}/..." form (always "Image not found").
+        folder_path = f"compositor/{imageName} [{saveFolder}]"
         imageExists = folder_paths.exists_annotated_filepath(folder_path)
         if not imageExists:
             # Return ExecutionBlocker for all outputs if blocked

@@ -231,10 +231,7 @@ app.registerExtension({
 
                 // true: grab and continue
                 if(onConfigChanged){
-                    console.log("upload and continue")
-
                     const reEnqueue = () => {
-                        console.log("upload and continue")
                         interrupt();
                         instance.continue();
                     }
@@ -245,7 +242,6 @@ app.registerExtension({
                 }else{
                     // False, stop
                     instance.uploadIfNeeded(instance)
-                    console.log("stopped, just upload")
                 }
 
             }
@@ -287,7 +283,6 @@ app.registerExtension({
         }
 
         function graphChangedHandler() {
-            console.log("graphChangedHandler", arguments);
         }
 
         function changeWorkflowHandler() {
@@ -375,7 +370,7 @@ app.registerExtension({
     },
     /** loadedGraphNode, after nodeCreated
      *  ```
-     if(node.type == "Compositor" && console.log("loadedGraphNode", node, app, node.stuff)){
+     if(node.type == "Compositor"){
          const ns = node.stuff;
 
          ns.safeArea.setHeight(ns.h.value);
@@ -433,7 +428,6 @@ app.registerExtension({
             
             // Add this null check
             if (!tools) {
-                console.log("No tools node connected to input 1 for Compositor3 node:", currentNode.id);
                 return; // Skip this node
             }
 
@@ -454,7 +448,7 @@ app.registerExtension({
                         centerSelected(e, currentNode);
                         break;
                     default:
-                        console.log("unknown broadcast event", e);
+                        break;
                 }
 
 
@@ -630,7 +624,6 @@ class Editor {
             
         
         } catch (e) {
-            console.log("deserializeStuff", e, value);
             return undefined;
         }
         
@@ -641,7 +634,6 @@ class Editor {
      * this is currently called on capture (regardless of the flag)
      */
     static serializeStuff(node) {
-        console.log("serializeStuff");
         const instance = node.compositorInstance;
         const result = {
             // or the widget ? boh
@@ -1050,9 +1042,7 @@ class Editor {
             // deprecated, not really needed anymore
             if (setDone) api.fetchApi("/compositor/done", {method: "POST", body});
 
-        }, () => {
-            console.log("some error")
-        });
+        }, () => {});
     }
 
     /** if we have no blob stored in memory, this should be the first run */
@@ -1257,7 +1247,7 @@ class Editor {
         }.bind(this));
     }
 
-    uploadIfNeeded(compositorInstance,callback = ()=>{console.log("upload if needed")}) {
+    uploadIfNeeded(compositorInstance,callback = () => {}) {
 
         if (compositorInstance.needsUpload) {
             compositorInstance.needsUpload = false;
@@ -1267,8 +1257,6 @@ class Editor {
             //
             // }
             compositorInstance.grabUploadAndSetOutput(compositorInstance, false, callback)
-        } else {
-            console.log("no upload needed to be done");
         }
     }
 
@@ -1307,9 +1295,6 @@ class Editor {
             selectable: false,
             evented: false,
         });
-
-
-        console.log("compositionBorder", compositionBorder, this.COMPOSITION_BORDER_COLOR, this.COMPOSITION_BORDER_SIZE);
 
         compositionBorder.set("strokeWidth", this.COMPOSITION_BORDER_SIZE);
         compositionBorder.set("stroke", this.COMPOSITION_BORDER_COLOR);
@@ -1375,8 +1360,6 @@ class Editor {
         this.fcanvas.setHeight(this.h.value + 2 * this.p.value);
         
     }
-    
-        console.log("this.fcanvas",this.fcanvas);
 
         this.compositionArea = this.createCompositionArea();
         this.compositionBorder = this.createCompositionBorder();

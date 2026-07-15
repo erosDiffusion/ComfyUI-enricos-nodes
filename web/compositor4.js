@@ -161,8 +161,7 @@ const restoreCanvasState = (node) => {
     const newSize = node.editor.calculateNodeSize();
     node.setSize(newSize);
     node.setDirtyCanvas(true, true);
-  } catch (error) {
-    console.error("Compositor4: Error restoring canvas state:", error);
+  } catch {
   }
 };
 
@@ -183,18 +182,14 @@ function executedMessageHandler(event, a, b) {
   const nodeId = event.detail.node;
   const node = getNodeById(nodeId);
 
-  console.log("[Compositor4] executedMessageHandler: nodeId=", nodeId);
-
   // Check if node exists before checking type
   if (!node) {
-    console.error("[Compositor4] Node not found");
     return;
   }
 
   const nodeFound = isCorrectType(node);
 
   if (nodeFound) {
-    console.log("[Compositor4] 1 Node found");
     // This event is triggered when the Python backend executes the node
     // At this point, widget values are populated with actual config data
     // This is when we update the editor with canvas dimensions, images, etc.
@@ -210,11 +205,6 @@ function executedMessageHandler(event, a, b) {
       currentImageName !== "default" &&
       currentImageName !== eventImageName
     ) {
-      console.log("[Compositor4] Ignoring init event for different imageName", {
-        nodeId,
-        currentImageName,
-        eventImageName,
-      });
       return;
     }
 
@@ -229,7 +219,6 @@ function executedMessageHandler(event, a, b) {
 
     // Check if editor exists (it might not if node was just created)
     if (!editor) {
-      console.warn("[Compositor4] 2 Editor not initialized yet");
       return;
     }
 
@@ -271,45 +260,26 @@ function executedMessageHandler(event, a, b) {
     const onConfigChangedContinue = Boolean(getUiValue(e.onConfigChangedContinue));
     const configChanged = Boolean(getUiValue(e.configChanged));
 
-    console.log("[Compositor4] 3 Auto-save check:", {
-      configChanged,
-      onConfigChangedContinue,
-      rawConfigChanged: e.configChanged,
-      rawOnConfigChangedContinue: e.onConfigChangedContinue,
-    });
-
     // Generic wait utility function
     const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
     // If config changed, IMMEDIATELY update the seed to invalidate cache
     // This must happen synchronously before any user action
     if (configChanged) {
-      console.log(
-        "[Compositor4] Config changed - updating seed with configSignature:",
-        e.configSignature
-      );
       editor.updateSeedValue(getUiValue(e.configSignature));
     }
 
     // If in "grab and continue" mode, auto-save and re-queue
     if (configChanged && onConfigChangedContinue) {
-      console.log("[Compositor4] Auto-save mode triggered");
-
       // In "grab and continue" mode: auto-save snapshot and re-queue
       // Sequence: wait for images to load -> save -> wait -> enqueue
       wait(100)
-        .then(() => {
-          console.log("[Compositor4] Starting auto-save");
-          return editor.queuedSave(false);
-        })
+        .then(() => editor.queuedSave(false))
         .then(() => wait(100))
         .then(() => {
-          console.log("[Compositor4] Re-queueing workflow");
           app.queuePrompt(0, 1);
         })
-        .catch((error) => {
-          console.error("[Compositor4] Auto-save sequence failed:", error);
-        });
+        .catch(() => {});
     }
   }
 }
@@ -2582,8 +2552,7 @@ const Editor = (node, fabric) => {
 
         try {
           await executeSave(queue);
-        } catch (error) {
-          console.error("Compositor4: save failed", error);
+        } catch {
         } finally {
           hideSavingIndicator();
           isSaving = false;
@@ -3157,7 +3126,6 @@ const Editor = (node, fabric) => {
 
       return data;
     } catch (e) {
-      console.error("Compositor4: could not deserialize compositor data", e);
       return null;
     }
   };
@@ -4113,7 +4081,6 @@ const Editor = (node, fabric) => {
             syncMaskWithImage(index);
           }
         } catch (error) {
-          console.error(`[Compositor4] Failed to load mask ${index}:`, error);
         }
       }
 
@@ -4158,7 +4125,6 @@ const Editor = (node, fabric) => {
 
   const setApplyMaskInConfig = (value) => {
     applyMaskInConfig = value;
-    console.log(`[Compositor4] applyMaskInConfig set to: ${applyMaskInConfig}`);
 
     // Update all mask thumbnails to reflect the mode
     for (let i = 0; i < IMAGE_COUNT; i++) {
@@ -4169,22 +4135,15 @@ const Editor = (node, fabric) => {
   const toggleMaskEnabled = async (index) => {
     // Only allow toggling when in frontend clipPath mode
     if (applyMaskInConfig) {
-      console.log(
-        "[Compositor4] Mask toggling only available in frontend clipPath mode"
-      );
       return;
     }
 
     if (!maskNames[index]) {
-      console.log(`[Compositor4] No mask for layer ${index + 1}`);
       return;
     }
 
     // Toggle the mask state
     maskStates[index] = !maskStates[index];
-    console.log(
-      `[Compositor4] Toggled mask for layer ${index + 1}: ${maskStates[index]}`
-    );
 
     // Apply or remove clipPath from the image
     const img = images[index];
@@ -4220,9 +4179,6 @@ const Editor = (node, fabric) => {
         maskUrl,
         (maskImg) => {
           if (!maskImg) {
-            console.error(
-              `[Compositor4] Failed to load mask for layer ${index + 1}`
-            );
             reject(new Error("Mask load failed"));
             return;
           }
@@ -4237,7 +4193,6 @@ const Editor = (node, fabric) => {
 
           // Store mask image reference
           maskImages[index] = maskImg;
-          console.log(`[Compositor4] Loaded mask for layer ${index + 1}`);
 
           resolve(maskImg);
         },
@@ -4343,7 +4298,6 @@ const Editor = (node, fabric) => {
         return true;
       }
     } catch (e) {
-      console.error("Compositor4 Editor: could not restore state", e);
     }
     return false;
   };
@@ -4380,7 +4334,6 @@ async function interrupt() {
     });
     return response;
   } catch (error) {
-    console.error("Compositor4: Failed to interrupt workflow", error);
     throw error;
   }
 }
